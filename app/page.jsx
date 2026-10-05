@@ -324,7 +324,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
   const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
   useFrame(({camera},dt)=>{
     const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
-    const viewLerp=1-Math.exp(-14*d);
+    const viewLerp=1-Math.exp(-18*d);
     v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
     v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
     const forward={x:-Math.sin(v.yaw),z:-Math.cos(v.yaw)},right={x:Math.cos(v.yaw),z:-Math.sin(v.yaw)};
@@ -344,7 +344,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
       // Movement gently pulls the camera behind the character, like a third-person mobile game.
       const movementYaw=next.rot;
       if(performance.now()-lastManualCamera.current>850){
-        v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,3.8*d);
+        v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,5.2*d);
       }
       posRef.current=next;
       const now=performance.now();if(now-lastSend.current>65){lastSend.current=now;onMove(next)}
@@ -373,6 +373,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
 function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract}) {
   const [move,setMove]=useState({x:0,z:0});
   const moveRef=useRef(move);moveRef.current=move;
+  const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
   const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28});
   const cameraDrag=useRef(null);
@@ -385,24 +386,26 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       if(k===" "){e.preventDefault();onInteract();return}
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       e.preventDefault();
-      setMove(m=>({x:k==="a"||k==="arrowleft"? -1:k==="d"||k==="arrowright"?1:m.x,z:k==="w"||k==="arrowup"?-1:k==="s"||k==="arrowdown"?1:m.z}));
+      const next={x:k==="a"||k==="arrowleft"? -1:k==="d"||k==="arrowright"?1:moveRef.current.x,z:k==="w"||k==="arrowup"?-1:k==="s"||k==="arrowdown"?1:moveRef.current.z};setMoveImmediate(next);
     };
     const up=e=>{
       const k=e.key.toLowerCase();
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
-      setMove(m=>({x:(k==="a"||k==="arrowleft"||k==="d"||k==="arrowright")?0:m.x,z:(k==="w"||k==="arrowup"||k==="s"||k==="arrowdown")?0:m.z}));
+      const next={x:(k==="a"||k==="arrowleft"||k==="d"||k==="arrowright")?0:moveRef.current.x,z:(k==="w"||k==="arrowup"||k==="s"||k==="arrowdown")?0:moveRef.current.z};setMoveImmediate(next);
     };
     window.addEventListener("keydown",down);window.addEventListener("keyup",up);
     return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)};
   },[onInteract]);
 
-  const joystick=e=>{
-    const r=e.currentTarget.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,z=e.clientY-r.top-r.height/2;
-    setMove({x:clamp(x/55,-1,1),z:clamp(z/55,-1,1)});
-    e.currentTarget.style.setProperty("--jx",clamp(x,-38,38)+"px");
-    e.currentTarget.style.setProperty("--jz",clamp(z,-38,38)+"px");
+  const joystickAt=(el,x,y)=>{
+    const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
+    const len=Math.hypot(dx,dz),max=42,k=len>max?max/len:1;
+    const px=dx*k,pz=dz*k;
+    setMoveImmediate({x:clamp(px/42,-1,1),z:clamp(pz/42,-1,1)});
+    el.style.setProperty("--jx",px+"px");el.style.setProperty("--jz",pz+"px");
   };
-  const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
+  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
+  const stop=e=>{e.preventDefault();setMoveImmediate({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
   const beginCamera=e=>{
     if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
     cameraDrag.current={x:e.clientX,y:e.clientY};
@@ -415,8 +418,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     s.x=e.clientX;s.y=e.clientY;
     // PUBG-style direct swipe: horizontal orbit + vertical look, with smoothing in PlayerController.
     lastManualCamera.current=performance.now();
-    viewRef.current.targetYaw-=dx*.0048;
-    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.0055,-.42,.92);
+    viewRef.current.targetYaw-=dx*.011;
+    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.009,-.48,1.05);
   };
   const endCamera=()=>{cameraDrag.current=null};
 
@@ -469,8 +472,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
-    <div className="cameraGesture" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
-    <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);joystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))joystick(e)}} onPointerUp={stop} onPointerCancel={stop}><div className="stick"/></div>
+    <div className="cameraGesture" onPointerDown={e=>{e.preventDefault();beginCamera(e)}} onPointerMove={e=>{e.preventDefault();moveCamera(e)}} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
+    <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={onInteract}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
   </div>
