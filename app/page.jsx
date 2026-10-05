@@ -70,7 +70,7 @@ function PoolTable(){return <group position={[-2.8,.35,1.7]}><RoundedBox castSha
 function Kitchen(){return <group position={[3.45,0,1.7]}><RoundedBox castShadow args={[1.9,.9,1.15]} radius={.08} smoothness={5} position={[0,.55,0]}><meshStandardMaterial color="#403a41" roughness={.65}/></RoundedBox><RoundedBox castShadow args={[2.02,.12,1.25]} radius={.04} smoothness={4} position={[0,1.03,0]}><meshStandardMaterial color="#9a9188" roughness={.4}/></RoundedBox><mesh position={[-.38,1.11,0]}><cylinderGeometry args={[.22,.22,.025,32]}/><meshStandardMaterial color="#151419"/></mesh><mesh position={[.38,1.11,0]}><cylinderGeometry args={[.22,.22,.025,32]}/><meshStandardMaterial color="#151419"/></mesh><mesh position={[.72,1.18,-.2]}><cylinderGeometry args={[.14,.1,.24,24]}/><meshStandardMaterial color="#d6d0c5"/></mesh></group>}
 function Arcade(){return <group position={[-4.25,.8,-1.55]}><RoundedBox castShadow args={[.85,1.65,.6]} radius={.08} smoothness={5}><meshStandardMaterial color="#20202a"/></RoundedBox><mesh position={[0,.55,.32]} rotation={[-.15,0,0]}><boxGeometry args={[.62,.46,.035]}/><meshStandardMaterial color="#14111d" emissive="#6448cc" emissiveIntensity={1.5}/></mesh><mesh position={[0,.05,.33]}><cylinderGeometry args={[.12,.12,.04,20]}/><meshStandardMaterial color="#d8c44f"/></mesh><mesh position={[.23,.05,.33]}><cylinderGeometry args={[.07,.07,.04,20]}/><meshStandardMaterial color="#d85d66"/></mesh></group>}
 
-function Room({local,players,onMove,onAttack,realtime}){
+function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic}){
   const [move,setMove]=useState({x:0,z:0});
   const moveRef=useRef(move); moveRef.current=move;
   const posRef=useRef({...local});
