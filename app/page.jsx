@@ -1,5 +1,6 @@
 "use client";
 import { Canvas, useFrame } from "@react-three/fiber";
+import React from "react";
 import { PerspectiveCamera, Text, RoundedBox, Environment, ContactShadows, useGLTF, useAnimations } from "@react-three/drei";
 import { SkeletonUtils } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -44,8 +45,6 @@ function RealHuman({player,me}){
  useFrame((_,dt)=>{if(!root.current)return;const target=player.rot||0;root.current.position.x=player.x||0;root.current.position.z=player.z||0;root.current.rotation.y+=Math.atan2(Math.sin(target-root.current.rotation.y),Math.cos(target-root.current.rotation.y))*Math.min(1,9*dt)});
  return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}><primitive ref={clone} object={model}/><Text position={[0,2.05,0]} fontSize={.13} color={me?"#d9d0ff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#15131a">{player.name}{me?" • you":""}</Text>{player.attacking&&<Text position={[0,2.28,0]} fontSize={.16} color="#ffd36b" anchorX="center">POW!</Text>}</group>;
 }
-useGLTF.preload(HUMAN_URL);
-useGLTF.preload(ROOM_URL);
 
 function Sofa({x,z,rot=0}){return <group position={[x,0,z]} rotation={[0,rot,0]}><RoundedBox castShadow args={[2.35,.5,.88]} radius={.13} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#66535f" roughness={.9}/></RoundedBox><RoundedBox castShadow args={[2.35,1.05,.28]} radius={.1} smoothness={5} position={[0,1,-.34]}><meshStandardMaterial color="#735d69" roughness={.92}/></RoundedBox><RoundedBox castShadow args={[.3,.98,.84]} radius={.09} smoothness={5} position={[-1.02,.88,0]}><meshStandardMaterial color="#735d69"/></RoundedBox><RoundedBox castShadow args={[.3,.98,.84]} radius={.09} smoothness={5} position={[1.02,.88,0]}><meshStandardMaterial color="#735d69"/></RoundedBox></group>}
 
@@ -53,6 +52,29 @@ function FloorLamp({x,z}){return <group position={[x,0,z]}><mesh castShadow posi
 function WallArt({x,z,rot=0}){return <group position={[x,2.25,z]} rotation={[0,rot,0]}><mesh><boxGeometry args={[1.15,.8,.06]}/><meshStandardMaterial color="#17151a" roughness={.5}/></mesh><mesh position={[0,0,.035]}><planeGeometry args={[.95,.6]}/><meshStandardMaterial color="#8c775f" roughness={.8}/></mesh><mesh position={[0,.05,.045]} rotation={[0,0,.35]}><boxGeometry args={[.55,.06,.02]}/><meshStandardMaterial color="#c4a77a"/></mesh></group>}
 function Plant({x,z,s=1}){return <group position={[x,0,z]} scale={s}><mesh castShadow position={[0,.25,0]}><cylinderGeometry args={[.24,.3,.5,22]}/><meshStandardMaterial color="#6b4734"/></mesh>{[[-.15,.72,0],[.15,.78,0],[-.24,.62,.08],[.24,.66,-.06],[0,.9,.03]].map((q,i)=><mesh key={i} castShadow position={q} scale={[1,.7,1]}><sphereGeometry args={[.2,14,10]}/><meshStandardMaterial color={i%2?0x347b57:0x4a9a68} roughness={1}/></mesh>)}</group>}
 
+class AssetBoundary extends React.Component{
+ constructor(props){super(props);this.state={failed:false}}
+ static getDerivedStateFromError(){return{failed:true}}
+ componentDidCatch(error){console.error("3D asset failed to load",error)}
+ render(){return this.state.failed?this.props.fallback:this.props.children}
+}
+function FallbackRoom(){
+ return <group>
+  <mesh receiveShadow rotation={[-Math.PI/2,0,0]}><planeGeometry args={[12,10]}/><meshStandardMaterial color="#5a5049" roughness={.82}/></mesh>
+  <mesh position={[0,2.2,-5]}><boxGeometry args={[12,4.4,.18]}/><meshStandardMaterial color="#d8d0c7" roughness={.9}/></mesh>
+  <mesh position={[-6,2.2,0]}><boxGeometry args={[.18,4.4,10]}/><meshStandardMaterial color="#c8c0b8" roughness={.9}/></mesh>
+  <mesh position={[6,2.2,0]}><boxGeometry args={[.18,4.4,10]}/><meshStandardMaterial color="#c8c0b8" roughness={.9}/></mesh>
+  <Sofa x={-3.6} z={-2.5} rot={.04}/><Sofa x={3.6} z={-2.5} rot={-.04}/>
+  <mesh castShadow position={[0,.42,.2]}><cylinderGeometry args={[1.05,1.05,.18,48]}/><meshStandardMaterial color="#8d7768" roughness={.8}/></mesh>
+  <mesh castShadow position={[0,.05,.2]}><cylinderGeometry args={[.18,.28,.75,20]}/><meshStandardMaterial color="#3a3029" roughness={.75}/></mesh>
+  <FloorLamp x={-4.9} z={-3.5}/><FloorLamp x={4.9} z={-3.5}/>
+  <Plant x={-5.4} z={3.7} s={.9}/><Plant x={5.4} z={3.7} s={.9}/>
+ </group>
+}
+function FallbackHuman({player,me}){
+ const ref=useRef();useFrame((_,dt)=>{if(!ref.current)return;const t=player.rot||0;ref.current.rotation.y+=Math.atan2(Math.sin(t-ref.current.rotation.y),Math.cos(t-ref.current.rotation.y))*Math.min(1,8*dt);ref.current.position.set(player.x||0,.0,player.z||0)});
+ return <group ref={ref}><mesh castShadow position={[0,.75,0]}><capsuleGeometry args={[.24,.55,8,16]}/><meshStandardMaterial color="#5966b8" roughness={.75}/></mesh><mesh castShadow position={[0,1.35,0]}><sphereGeometry args={[.28,24,18]}/><meshStandardMaterial color="#c98f6b" roughness={.8}/></mesh><Text position={[0,1.8,0]} fontSize={.13} color={me?"#d9d0ff":"#fff"} anchorX="center">{player.name}{me?" • you":""}</Text></group>
+}
 function RealRoom(){const {scene}=useGLTF(ROOM_URL);const clone=useMemo(()=>scene.clone(true),[scene]);useEffect(()=>{clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[clone]);return <primitive object={clone} position={[0,0,0]} scale={[1.12,1.12,1.12]}/>}
 function PlayerController({posRef,moveRef,onMove,viewRef}){const lastSend=useRef(0),velocity=useRef({x:0,z:0});useFrame(({camera},dt)=>{const d=Math.min(dt,.05),m=moveRef.current;const tx=m.x*2.8,tz=m.z*2.8;velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(m.x||m.z?10:16)*d);velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(m.x||m.z?10:16)*d);if(!m.x&&!m.z){velocity.current.x*=Math.max(0,1-10*d);velocity.current.z*=Math.max(0,1-10*d)}const speed=Math.hypot(velocity.current.x,velocity.current.z);if(speed>.03){const step=tryMove(posRef.current.x,posRef.current.z,velocity.current.x*d,velocity.current.z*d);posRef.current={...posRef.current,...step,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:speed>.18};const now=performance.now();if(now-lastSend.current>50){lastSend.current=now;onMove(posRef.current)}}else if(posRef.current.moving){posRef.current={...posRef.current,moving:false};onMove(posRef.current)}const t=posRef.current,v=viewRef.current,dist=v.distance;const camX=t.x+Math.sin(v.yaw)*dist,camZ=t.z+Math.cos(v.yaw)*dist,camY=1.8+Math.cos(v.pitch)*1.05+Math.sin(v.pitch)*1.8;camera.position.x+=(camX-camera.position.x)*Math.min(1,7*d);camera.position.y+=(camY-camera.position.y)*Math.min(1,7*d);camera.position.z+=(camZ-camera.position.z)*Math.min(1,7*d);camera.lookAt(t.x,t.y+.9,t.z)});return null}
 
