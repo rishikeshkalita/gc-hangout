@@ -330,6 +330,9 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
   const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
   useFrame(({camera},dt)=>{
     const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
+    const viewLerp=1-Math.exp(-12*d);
+    v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
+    v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
     const forward={x:-Math.sin(v.yaw),z:-Math.cos(v.yaw)},right={x:Math.cos(v.yaw),z:-Math.sin(v.yaw)};
     const ix=m.x*right.x+m.z*forward.x,iz=m.x*right.z+m.z*forward.z,len=Math.hypot(ix,iz)||1;
     const moving=Math.abs(m.x)+Math.abs(m.z)>.05,targetSpeed=3.9;
@@ -351,7 +354,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
     const t=posRef.current,dist=v.distance;
     const rawX=t.x+Math.sin(v.yaw)*dist,rawZ=t.z+Math.cos(v.yaw)*dist;
     const camX=clamp(rawX,-HALL_HALF_X+1.1,HALL_HALF_X-1.1),camZ=clamp(rawZ,-HALL_HALF_Z+1.1,HALL_HALF_Z-1.1);
-    const camY=1.9+Math.sin(v.pitch)*dist*.5;
+    const camY=2.05+Math.sin(v.pitch)*dist*.72;
     const follow=Math.min(1,6.5*d);
     camera.position.x+=(camX-camera.position.x)*follow;
     camera.position.y+=(camY-camera.position.y)*follow;
@@ -365,7 +368,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const [move,setMove]=useState({x:0,z:0});
   const moveRef=useRef(move);moveRef.current=move;
   const posRef=useRef({...local});
-  const viewRef=useRef({yaw:0,pitch:.18,distance:6.8});
+  const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28});
   const cameraDrag=useRef(null);
 
   useEffect(()=>{
@@ -403,8 +406,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     if(!s)return;
     const dx=e.clientX-s.x,dy=e.clientY-s.y;
     s.x=e.clientX;s.y=e.clientY;
-    viewRef.current.yaw-=dx*.006;
-    viewRef.current.pitch=clamp(viewRef.current.pitch-dy*.0045,-.28,.7);
+    viewRef.current.targetYaw-=dx*.0042;
+    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.006,-.55,1.12);
   };
   const endCamera=()=>{cameraDrag.current=null};
 
@@ -412,7 +415,21 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     <Canvas
       shadows dpr={[1,1.25]} performance={{min:.55}}
       camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
-      onWheel={e=>{viewRef.current.distance=clamp(viewRef.current.distance+(e.deltaY>0?.4:-.4),4.4,8.2)}}
+      onWheel={e=>{viewRef.current.distance=clamp(viewRef.current.distance+(e.deltaY>0?.4:-.4),4.2,8.6)}}
+      onPointerDown={e=>{
+        if(e.pointerType!=="mouse")return;
+        cameraDrag.current={x:e.clientX,y:e.clientY};
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      }}
+      onPointerMove={e=>{
+        const s=cameraDrag.current;
+        if(!s||e.pointerType!=="mouse")return;
+        const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;
+        viewRef.current.targetYaw-=dx*.0042;
+        viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.006,-.55,1.12);
+      }}
+      onPointerUp={()=>{cameraDrag.current=null}}
+      onPointerCancel={()=>{cameraDrag.current=null}}
     >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
       <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
