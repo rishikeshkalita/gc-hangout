@@ -1,7 +1,8 @@
 "use client";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { PerspectiveCamera, Text, RoundedBox, Environment, ContactShadows } from "@react-three/drei";
-import { useEffect, useRef, useState } from "react";
+import { PerspectiveCamera, Text, RoundedBox, Environment, ContactShadows, useGLTF, useAnimations } from "@react-three/drei";
+import { SkeletonUtils } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
 const PRESETS = [
@@ -28,35 +29,23 @@ function Hair({style,color}){
   return <mesh castShadow position={[0,1.38,0]} scale={[1,.72,1]}><sphereGeometry args={[.31,20,16]}/><meshStandardMaterial color={color} roughness={.9}/></mesh>;
 }
 
-function Human({player,me}){
- const ref=useRef(),la=useRef(),ra=useRef(),ll=useRef(),rl=useRef();
+const HUMAN_URL="https://cdn.3dassets.dev/assets/32901/v1/model.glb";
+const ROOM_URL="https://cdn.3dassets.dev/assets/38818/v1/model.glb";
+
+function RealHuman({player,me}){
+ const {scene,animations}=useGLTF(HUMAN_URL);
+ const clone=useRef(null);
+ const root=useRef();
+ const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
+ const {actions}=useAnimations(animations,root);
  const p=PRESETS.find(x=>x.id===player.avatarId)||PRESETS[0];
- useFrame(({clock})=>{
-  if(!ref.current)return;
-  const target=player.rot||0;
-  ref.current.rotation.y+=Math.atan2(Math.sin(target-ref.current.rotation.y),Math.cos(target-ref.current.rotation.y))*.2;
-  ref.current.position.x=player.x||0;ref.current.position.z=player.z||0;
-  const walk=player.moving?Math.sin(clock.elapsedTime*10):0;
-  ref.current.position.y=(player.y||0)+Math.abs(walk)*.025;
-  if(la.current){la.current.rotation.z=-.08+walk*.16;ra.current.rotation.z=.08-walk*.16;ll.current.rotation.x=-walk*.15;rl.current.rotation.x=walk*.15}
- });
- return <group ref={ref} position={[player.x||0,player.y||0,player.z||0]}>
-  <mesh castShadow position={[0,.11,0]}><cylinderGeometry args={[.29,.34,.08,28]}/><meshStandardMaterial color={me?"#7358ff":"#25232c"} roughness={.7}/></mesh>
-  <mesh castShadow position={[0,.67,0]} scale={[.82,1.08,.66]}><capsuleGeometry args={[.22,.5,8,16]}/><meshStandardMaterial color={p.shirt} roughness={.82}/></mesh>
-  <group ref={la} position={[-.28,.72,0]}><mesh castShadow position={[0,-.2,0]}><capsuleGeometry args={[.065,.34,8,12]}/><meshStandardMaterial color={p.shirt}/></mesh><mesh castShadow position={[0,-.43,0]}><sphereGeometry args={[.07,12,10]}/><meshStandardMaterial color={p.skin}/></mesh></group>
-  <group ref={ra} position={[.28,.72,0]}><mesh castShadow position={[0,-.2,0]}><capsuleGeometry args={[.065,.34,8,12]}/><meshStandardMaterial color={p.shirt}/></mesh><mesh castShadow position={[0,-.43,0]}><sphereGeometry args={[.07,12,10]}/><meshStandardMaterial color={p.skin}/></mesh></group>
-  <group ref={ll} position={[-.12,.28,0]}><mesh castShadow position={[0,-.16,0]}><capsuleGeometry args={[.075,.3,8,12]}/><meshStandardMaterial color={p.pants}/></mesh><mesh castShadow position={[0,-.34,.08]} scale={[1.1,.48,1.45]}><sphereGeometry args={[.1,14,10]}/><meshStandardMaterial color="#17171b"/></mesh></group>
-  <group ref={rl} position={[.12,.28,0]}><mesh castShadow position={[0,-.16,0]}><capsuleGeometry args={[.075,.3,8,12]}/><meshStandardMaterial color={p.pants}/></mesh><mesh castShadow position={[0,-.34,.08]} scale={[1.1,.48,1.45]}><sphereGeometry args={[.1,14,10]}/><meshStandardMaterial color="#17171b"/></mesh></group>
-  <mesh castShadow position={[0,1.22,0]}><sphereGeometry args={[.225,32,24]}/><meshStandardMaterial color={p.skin} roughness={.88}/></mesh>
-  <mesh castShadow position={[0,1.08,.21]} scale={[.42,.18,.55]}><sphereGeometry args={[.15,16,12]}/><meshStandardMaterial color={p.skin}/></mesh>
-  <mesh castShadow position={[-.235,1.22,0]}><sphereGeometry args={[.045,14,10]}/><meshStandardMaterial color={p.skin}/></mesh><mesh castShadow position={[.235,1.22,0]}><sphereGeometry args={[.045,14,10]}/><meshStandardMaterial color={p.skin}/></mesh>
-  <mesh castShadow position={[0,1.03,.22]} rotation={[Math.PI/2,0,0]}><sphereGeometry args={[.045,12,10]}/><meshStandardMaterial color={p.skin}/></mesh><Hair style={p.style} color={p.hair}/>
-  <mesh position={[-.075,1.24,.208]}><sphereGeometry args={[.028,10,10]}/><meshStandardMaterial color="white"/></mesh><mesh position={[.075,1.24,.208]}><sphereGeometry args={[.028,10,10]}/><meshStandardMaterial color="white"/></mesh>
-  <mesh position={[-.075,1.24,.23]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#151515"/></mesh><mesh position={[.075,1.24,.23]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#151515"/></mesh>
-  <Text position={[0,1.86,0]} fontSize={.14} color={me?"#d7ccff":"#f4eef8"} anchorX="center">{player.name}{me?" • you":""}</Text>
-  {player.attacking&&<Text position={[0,2.08,0]} fontSize={.13} color="#ffd36b" anchorX="center">POW!</Text>}
- </group>
+ useEffect(()=>{if(!actions)return;const names=Object.keys(actions);const idle=names.find(n=>/idle/i.test(n))||names[0];const walk=names.find(n=>/walk/i.test(n))||idle;Object.values(actions).forEach(a=>a?.stop());const a=actions[player.moving?walk:idle];a?.reset().fadeIn(.25).play();return()=>a?.fadeOut(.2)},[actions,player.moving]);
+ useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
+ useFrame((_,dt)=>{if(!root.current)return;const target=player.rot||0;root.current.position.x=player.x||0;root.current.position.z=player.z||0;root.current.rotation.y+=Math.atan2(Math.sin(target-root.current.rotation.y),Math.cos(target-root.current.rotation.y))*Math.min(1,9*dt)});
+ return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}><primitive ref={clone} object={model}/><Text position={[0,2.05,0]} fontSize={.13} color={me?"#d9d0ff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#15131a">{player.name}{me?" • you":""}</Text>{player.attacking&&<Text position={[0,2.28,0]} fontSize={.16} color="#ffd36b" anchorX="center">POW!</Text>}</group>;
 }
+useGLTF.preload(HUMAN_URL);
+useGLTF.preload(ROOM_URL);
 
 function Sofa({x,z,rot=0}){return <group position={[x,0,z]} rotation={[0,rot,0]}><RoundedBox castShadow args={[2.35,.5,.88]} radius={.13} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#66535f" roughness={.9}/></RoundedBox><RoundedBox castShadow args={[2.35,1.05,.28]} radius={.1} smoothness={5} position={[0,1,-.34]}><meshStandardMaterial color="#735d69" roughness={.92}/></RoundedBox><RoundedBox castShadow args={[.3,.98,.84]} radius={.09} smoothness={5} position={[-1.02,.88,0]}><meshStandardMaterial color="#735d69"/></RoundedBox><RoundedBox castShadow args={[.3,.98,.84]} radius={.09} smoothness={5} position={[1.02,.88,0]}><meshStandardMaterial color="#735d69"/></RoundedBox></group>}
 
@@ -64,7 +53,8 @@ function FloorLamp({x,z}){return <group position={[x,0,z]}><mesh castShadow posi
 function WallArt({x,z,rot=0}){return <group position={[x,2.25,z]} rotation={[0,rot,0]}><mesh><boxGeometry args={[1.15,.8,.06]}/><meshStandardMaterial color="#17151a" roughness={.5}/></mesh><mesh position={[0,0,.035]}><planeGeometry args={[.95,.6]}/><meshStandardMaterial color="#8c775f" roughness={.8}/></mesh><mesh position={[0,.05,.045]} rotation={[0,0,.35]}><boxGeometry args={[.55,.06,.02]}/><meshStandardMaterial color="#c4a77a"/></mesh></group>}
 function Plant({x,z,s=1}){return <group position={[x,0,z]} scale={s}><mesh castShadow position={[0,.25,0]}><cylinderGeometry args={[.24,.3,.5,22]}/><meshStandardMaterial color="#6b4734"/></mesh>{[[-.15,.72,0],[.15,.78,0],[-.24,.62,.08],[.24,.66,-.06],[0,.9,.03]].map((q,i)=><mesh key={i} castShadow position={q} scale={[1,.7,1]}><sphereGeometry args={[.2,14,10]}/><meshStandardMaterial color={i%2?0x347b57:0x4a9a68} roughness={1}/></mesh>)}</group>}
 
-function PlayerController({posRef,moveRef,onMove,viewRef}){const lastSend=useRef(0),velocity=useRef({x:0,z:0});useFrame(({camera},dt)=>{const d=Math.min(dt,.05),m=moveRef.current;const tx=m.x*2.8,tz=m.z*2.8;velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(m.x||m.z?10:16)*d);velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(m.x||m.z?10:16)*d);if(!m.x&&!m.z){velocity.current.x*=Math.max(0,1-10*d);velocity.current.z*=Math.max(0,1-10*d)}const speed=Math.hypot(velocity.current.x,velocity.current.z);if(speed>.03){const step=tryMove(posRef.current.x,posRef.current.z,velocity.current.x*d,velocity.current.z*d);posRef.current={...posRef.current,...step,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:speed>.18};const now=performance.now();if(now-lastSend.current>50){lastSend.current=now;onMove(posRef.current)}}else if(posRef.current.moving){posRef.current={...posRef.current,moving:false};onMove(posRef.current)}const t=posRef.current,v=viewRef.current,dist=v.distance;const camX=t.x+Math.sin(v.yaw)*dist,camZ=t.z+Math.cos(v.yaw)*dist,camY=2.15+Math.cos(v.pitch)*1.25+Math.sin(v.pitch)*2.2;camera.position.x+=(camX-camera.position.x)*Math.min(1,7*d);camera.position.y+=(camY-camera.position.y)*Math.min(1,7*d);camera.position.z+=(camZ-camera.position.z)*Math.min(1,7*d);camera.lookAt(t.x,t.y+.9,t.z)});return null}
+function RealRoom(){const {scene}=useGLTF(ROOM_URL);const clone=useMemo(()=>scene.clone(true),[scene]);useEffect(()=>{clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[clone]);return <primitive object={clone} position={[0,0,0]} scale={[1.12,1.12,1.12]}/>}
+function PlayerController({posRef,moveRef,onMove,viewRef}){const lastSend=useRef(0),velocity=useRef({x:0,z:0});useFrame(({camera},dt)=>{const d=Math.min(dt,.05),m=moveRef.current;const tx=m.x*2.8,tz=m.z*2.8;velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(m.x||m.z?10:16)*d);velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(m.x||m.z?10:16)*d);if(!m.x&&!m.z){velocity.current.x*=Math.max(0,1-10*d);velocity.current.z*=Math.max(0,1-10*d)}const speed=Math.hypot(velocity.current.x,velocity.current.z);if(speed>.03){const step=tryMove(posRef.current.x,posRef.current.z,velocity.current.x*d,velocity.current.z*d);posRef.current={...posRef.current,...step,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:speed>.18};const now=performance.now();if(now-lastSend.current>50){lastSend.current=now;onMove(posRef.current)}}else if(posRef.current.moving){posRef.current={...posRef.current,moving:false};onMove(posRef.current)}const t=posRef.current,v=viewRef.current,dist=v.distance;const camX=t.x+Math.sin(v.yaw)*dist,camZ=t.z+Math.cos(v.yaw)*dist,camY=1.8+Math.cos(v.pitch)*1.05+Math.sin(v.pitch)*1.8;camera.position.x+=(camX-camera.position.x)*Math.min(1,7*d);camera.position.y+=(camY-camera.position.y)*Math.min(1,7*d);camera.position.z+=(camZ-camera.position.z)*Math.min(1,7*d);camera.lookAt(t.x,t.y+.9,t.z)});return null}
 
 function Speaker({x,z,playing}){const ref=useRef();useFrame(({clock})=>{if(ref.current)ref.current.scale.setScalar(1+(playing?.04+.03*Math.sin(clock.elapsedTime*10):0))});return <group ref={ref} position={[x,.65,z]}><RoundedBox castShadow args={[.58,1.2,.4]} radius={.06} smoothness={4}><meshStandardMaterial color="#121117" roughness={.78}/></RoundedBox><mesh position={[0,.12,.21]}><circleGeometry args={[.16,24]}/><meshStandardMaterial color="#292631" emissive={playing?"#8064ff":"#15141a"} emissiveIntensity={playing?2:.2}/></mesh><mesh position={[0,-.25,.21]}><circleGeometry args={[.11,24]}/><meshStandardMaterial color="#292631"/></mesh></group>}
 function MusicTV({playing}){const ref=useRef();useFrame(({clock})=>{if(ref.current)ref.current.material.emissiveIntensity=playing?1.15+.25*Math.sin(clock.elapsedTime*4):.35});return <mesh ref={ref} position={[0,1.48,-4.56]}><boxGeometry args={[4.18,1.58,.035]}/><meshStandardMaterial color={playing?"#17112d":"#0c0e14"} emissive={playing?"#4b3599":"#11131b"} emissiveIntensity={playing?1:.35}/></mesh>}
@@ -103,13 +93,13 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
       <PerspectiveCamera makeDefault position={[0,3.35,7.8]} fov={58}/>
       <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove}/>
       <color attach="background" args={["#0b0910"]}/><fog attach="fog" args={["#0b0910",11,22]}/>
-      <ambientLight intensity={1.05}/><directionalLight position={[3,8,4]} intensity={2.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
-      <pointLight position={[0,4,-4]} intensity={4.5} distance={12} color="#806cff"/><pointLight position={[-4,3,1]} intensity={2.5} distance={8} color="#ffd0a6"/><pointLight position={[4,3,1]} intensity={2.5} distance={8} color="#9bdcff"/>
+      <ambientLight intensity={1.15}/><directionalLight position={[3,8,4]} intensity={2.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
+      <pointLight position={[0,4,-4]} intensity={2.8} distance={12} color="#b3a2ff"/><pointLight position={[-4,3,1]} intensity={1.8} distance={8} color="#ffd8bd"/><pointLight position={[4,3,1]} intensity={1.8} distance={8} color="#b8e2ff"/>
       <Environment preset="apartment"/>
       <mesh receiveShadow rotation={[-Math.PI/2,0,0]}><planeGeometry args={[13,11]}/><meshStandardMaterial color="#211e29" roughness={.95}/></mesh>
       <mesh position={[0,.02,-.2]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[3.2,64]}/><meshStandardMaterial color="#35303d" roughness={1}/></mesh>
-      <Sofa x={-3.45} z={-2.65} rot={.05}/><Sofa x={3.45} z={-2.65} rot={-.05}/><Sofa x={-5.25} z={1.55} rot={Math.PI/2}/><Sofa x={5.25} z={1.55} rot={-Math.PI/2}/>
-      <Plant x={-5.65} z={-3.9} s={1.05}/><Plant x={5.65} z={-3.9} s={1.05}/><Plant x={-5.7} z={3.9} s={.85}/><Plant x={5.7} z={3.9} s={.85}/><FloorLamp x={-4.8} z={-3.45}/><FloorLamp x={4.8} z={-3.45}/><WallArt x={-2.0} z={-4.92}/><WallArt x={2.0} z={-4.92}/><PoolTable/><Kitchen/><Arcade/>
+      
+      
       <mesh castShadow position={[0,.45,.35]}><cylinderGeometry args={[1.05,1.05,.18,48]}/><meshStandardMaterial color="#6c5b50" roughness={.7}/></mesh>
       <mesh castShadow position={[0,.05,.35]}><cylinderGeometry args={[.18,.28,.75,20]}/><meshStandardMaterial color="#302923"/></mesh>
       <mesh position={[0,2.5,-4.9]}><boxGeometry args={[8.5,3.4,.12]}/><meshStandardMaterial emissive="#242052" emissiveIntensity={1.3} color="#39326f"/></mesh>
@@ -117,7 +107,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
       <Text position={[0,2.86,-4.82]} fontSize={.15} color="#d8d2e7" anchorX="center">OPEN LOUNGE</Text>
       <mesh position={[0,1.45,-4.7]}><boxGeometry args={[4.7,1.9,.18]}/><meshStandardMaterial color="#09090d"/></mesh>
       <MusicTV playing={musicPlaying}/><Text position={[0,2.16,-4.48]} fontSize={.15} color={musicPlaying?"#e9ddff":"#81798d"} anchorX="center">{musicPlaying?"♪ NOW PLAYING • GC MIX":"TV • idle"}</Text><Speaker x={-2.85} z={-4.25} playing={musicPlaying}/><Speaker x={2.85} z={-4.25} playing={musicPlaying}/>
-      <ContactShadows position={[0,0,0]} opacity={.32} scale={13} blur={2.2} far={5}/>{Object.values(players).map(p=><Human key={p.id} player={p} me={p.id===local.id}/>)}
+      <ContactShadows position={[0,0,0]} opacity={.24} scale={14} blur={2.5} far={6}/>{Object.values(players).map(p=><Human key={p.id} player={p} me={p.id===local.id}/>)}
     </Canvas>
     <div className="topbar"><div><b>🌙 GC HANGOUT</b><span> • Open room</span></div><div className="online">● {Object.keys(players).length} online{!realtime?" • local mode":""}</div></div>
     <div className="hint">Drag to look • pinch/scroll to zoom • joystick to walk</div><div className="status">{musicPlaying?"🎵 GC MIX is playing on the TV + speakers":"TV is idle • tap Music to start the room"}</div>
@@ -131,7 +121,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
 export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya"),[id]=useState(makeId),[players,setPlayers]=useState({}),[realtime,setRealtime]=useState(true),[musicPlaying,setMusicPlaying]=useState(false);
   const channelRef=useRef(null),localRef=useRef(null);
-  const join=()=>{const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:3.8,rot:0,health:3,attacking:false,moving:false};localRef.current=p;setJoined(true)};
+  const join=()=>{const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:1.4,rot:0,health:3,attacking:false,moving:false};localRef.current=p;setJoined(true)};
   useEffect(()=>{
     if(!joined)return;
     const supabase=getSupabase();
@@ -148,7 +138,7 @@ export default function Home(){
       if(payload.targetId===id&&localRef.current){
         const nextHealth=Math.max(0,(localRef.current.health||3)-1),next={...localRef.current,health:nextHealth};
         localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));send(next);
-        if(nextHealth===0)setTimeout(()=>{const respawn={...localRef.current,x:0,z:3.8,health:3,attacking:false};localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn)},900);
+        if(nextHealth===0)setTimeout(()=>{const respawn={...localRef.current,x:0,z:1.4,health:3,attacking:false};localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn)},900);
       }
     });
     channel.subscribe(async status=>{
