@@ -18,9 +18,8 @@ const PRESETS = [
 ];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
-const BOXES=[{x:-3.45,z:-2.65,rx:1.5,rz:.62},{x:3.45,z:-2.65,rx:1.5,rz:.62},{x:-5.25,z:1.55,rx:.65,rz:1.25},{x:5.25,z:1.55,rx:.65,rz:1.25},{x:-2.8,z:1.7,rx:1.55,rz:.78},{x:3.45,z:1.7,rx:1.0,rz:.65},{x:-4.25,z:-1.55,rx:.5,rz:.55},{x:0,z:.35,rx:.92,rz:.92}];
-const CIRCLES=[{x:0,z:-.1,r:.9}];
-const blocked=(x,z,r=.28)=>{if(x<-6.0+r||x>6.0-r||z<-4.8+r||z>5.0-r)return true;for(const b of BOXES){const qx=clamp(x,b.x-b.rx,b.x+b.rx),qz=clamp(z,b.z-b.rz,b.z+b.rz);if(Math.hypot(x-qx,z-qz)<r)return true}for(const q of CIRCLES)if(Math.hypot(x-q.x,z-q.z)<q.r+r)return true;return false};
+const ROOM_HALF_X=5.45, ROOM_HALF_Z=2.15;
+const blocked=(x,z,r=.22)=>x<-ROOM_HALF_X+r||x>ROOM_HALF_X-r||z<-ROOM_HALF_Z+r||z>ROOM_HALF_Z-r;
 const tryMove=(x,z,dx,dz)=>{const nx=x+dx,nz=z+dz;if(!blocked(nx,nz))return{x:nx,z:nz};if(!blocked(nx,z))return{x:nx,z};if(!blocked(x,nz))return{x,z:nz};return{x,z}};
 
 function Hair({style,color}){
@@ -88,7 +87,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
   const [move,setMove]=useState({x:0,z:0});
   const moveRef=useRef(move); moveRef.current=move;
   const posRef=useRef({...local});
-  const viewRef=useRef({yaw:0,pitch:.28,distance:5.8});
+  const viewRef=useRef({yaw:0,pitch:.22,distance:4.7});
   useEffect(()=>{
     const down=e=>{
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
@@ -112,28 +111,19 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
   };
   const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
   return <div className="room">
-    <Canvas shadows dpr={[1,1.5]}>
-      <PerspectiveCamera makeDefault position={[0,3.35,7.8]} fov={58}/>
+    <Canvas shadows dpr={[1,1.25]} onPointerDown={e=>{if(e.pointerType==="mouse"||e.pointerType==="touch"){e.target.setPointerCapture?.(e.pointerId);e.target.__gcDrag={x:e.clientX,y:e.clientY}}}} onPointerMove={e=>{const s=e.target.__gcDrag;if(!s)return;const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;viewRef.current.yaw-=dx*.006;viewRef.current.pitch=Math.max(-.12,Math.min(.58,viewRef.current.pitch-dy*.004))}} onPointerUp={e=>{delete e.target.__gcDrag}} onWheel={e=>{viewRef.current.distance=Math.max(3.2,Math.min(7,e.currentTarget.__gcDist=(viewRef.current.distance+(e.deltaY>0?.35:-.35))) )}}>
+      <PerspectiveCamera makeDefault position={[0,2.4,5.4]} fov={52}/>
       <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
-      <color attach="background" args={["#0b0910"]}/><fog attach="fog" args={["#0b0910",11,22]}/>
-      <ambientLight intensity={1.15}/><directionalLight position={[3,8,4]} intensity={2.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
-      <pointLight position={[0,4,-4]} intensity={2.8} distance={12} color="#b3a2ff"/><pointLight position={[-4,3,1]} intensity={1.8} distance={8} color="#ffd8bd"/><pointLight position={[4,3,1]} intensity={1.8} distance={8} color="#b8e2ff"/>
-      <Environment preset="apartment"/>
-      <mesh receiveShadow rotation={[-Math.PI/2,0,0]}><planeGeometry args={[13,11]}/><meshStandardMaterial color="#211e29" roughness={.95}/></mesh>
-      <mesh position={[0,.02,-.2]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[3.2,64]}/><meshStandardMaterial color="#35303d" roughness={1}/></mesh>
-      
-      
-      <mesh castShadow position={[0,.45,.35]}><cylinderGeometry args={[1.05,1.05,.18,48]}/><meshStandardMaterial color="#6c5b50" roughness={.7}/></mesh>
-      <mesh castShadow position={[0,.05,.35]}><cylinderGeometry args={[.18,.28,.75,20]}/><meshStandardMaterial color="#302923"/></mesh>
-      <mesh position={[0,2.5,-4.9]}><boxGeometry args={[8.5,3.4,.12]}/><meshStandardMaterial emissive="#242052" emissiveIntensity={1.3} color="#39326f"/></mesh>
-      <Text position={[0,3.18,-4.82]} fontSize={.48} color="white" anchorX="center">GC HANGOUT</Text>
-      <Text position={[0,2.86,-4.82]} fontSize={.15} color="#d8d2e7" anchorX="center">OPEN LOUNGE</Text>
-      <mesh position={[0,1.45,-4.7]}><boxGeometry args={[4.7,1.9,.18]}/><meshStandardMaterial color="#09090d"/></mesh>
-      <MusicTV playing={musicPlaying}/><Text position={[0,2.16,-4.48]} fontSize={.15} color={musicPlaying?"#e9ddff":"#81798d"} anchorX="center">{musicPlaying?"♪ NOW PLAYING • GC MIX":"TV • idle"}</Text><Speaker x={-2.85} z={-4.25} playing={musicPlaying}/><Speaker x={2.85} z={-4.25} playing={musicPlaying}/>
-      <Suspense fallback={<FallbackRoom/>}><AssetBoundary fallback={<FallbackRoom/>}><RealRoom/></AssetBoundary></Suspense><ContactShadows position={[0,0,0]} opacity={.24} scale={14} blur={2.5} far={6}/>{Object.values(players).map(p=><Suspense key={p.id} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><AssetBoundary fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary></Suspense>)}
+      <color attach="background" args={["#18151b"]}/>
+      <ambientLight intensity={.58}/>
+      <directionalLight position={[3,7,4]} intensity={1.05} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
+      <pointLight position={[0,3,-2]} intensity={.55} distance={8} color="#e6d7ff"/>
+      <Suspense fallback={<FallbackRoom/>}><AssetBoundary fallback={<FallbackRoom/>}><RealRoom/></AssetBoundary></Suspense>
+      <ContactShadows position={[0,0,0]} opacity={.16} scale={12} blur={2.5} far={5}/>
+      {Object.values(players).map(p=><Suspense key={p.id} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><AssetBoundary fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary></Suspense>)}
     </Canvas>
-    <div className="topbar"><div><b>🌙 GC HANGOUT</b><span> • Open room</span></div><div className="online">● {Object.keys(players).length} online{!realtime?" • local mode":""}</div></div>
-    <div className="hint">Drag to look • pinch/scroll to zoom • joystick to walk</div><div className="status">{musicPlaying?"🎵 GC MIX is playing on the TV + speakers":"TV is idle • tap Music to start the room"}</div>
+    <div className="topbar"><div><b>🌙 GC HANGOUT</b></div><div className="online">● {Object.keys(players).length} online</div></div>
+    
     <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);joystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))joystick(e)}} onPointerUp={stop} onPointerCancel={stop}><div className="stick"/></div>
     <button className="fight" onClick={onAttack}>🥊 Fight</button>
     <div className="chat"><b>💬 GC CHAT</b><div className="msg"><strong>Room</strong> {Object.keys(players).length} people here</div><div className="input">Type a message…</div></div>
