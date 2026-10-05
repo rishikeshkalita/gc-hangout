@@ -341,10 +341,13 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
       const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d,velocity.current.z*d);
       if(step.hop)hopRef.current=performance.now()+420;
       const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:true,hopUntil:hopRef.current};
-      // Movement gently pulls the camera behind the character, like a third-person mobile game.
+      // Only forward/back movement gently recenters the camera. Do not feed the
+      // camera-relative movement vector back into yaw every frame, or the player spins.
       const movementYaw=next.rot;
-      if(performance.now()-v.lastManualCamera>850){
-        v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,5.2*d);
+      const forwardInput=-m.z;
+      if(Math.abs(forwardInput)>.58 && performance.now()-v.lastManualCamera>850){
+        const desiredYaw=movementYaw-Math.PI;
+        v.targetYaw+=Math.atan2(Math.sin(desiredYaw-v.targetYaw),Math.cos(desiredYaw-v.targetYaw))*Math.min(1,1.35*d);
       }
       posRef.current=next;
       const now=performance.now();if(now-lastSend.current>65){lastSend.current=now;onMove(next)}
