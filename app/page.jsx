@@ -320,15 +320,10 @@ function FallbackHuman({player,me}) {
   </group>
 }
 
-function PlayerController({posRef,moveRef,onMove,viewRef,cameraMoveRef}) {
+function PlayerController({posRef,moveRef,onMove,viewRef}) {
   const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
   useFrame(({camera},dt)=>{
     const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
-    const cm=cameraMoveRef.current;
-    if(Math.abs(cm.x)+Math.abs(cm.z)>.02){
-      v.targetYaw-=cm.x*2.45*d;
-      v.targetPitch=clamp(v.targetPitch-cm.z*1.65*d,-.62,1.18);
-    }
     const viewLerp=1-Math.exp(-14*d);
     v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
     v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
@@ -346,6 +341,9 @@ function PlayerController({posRef,moveRef,onMove,viewRef,cameraMoveRef}) {
       const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d,velocity.current.z*d);
       if(step.hop)hopRef.current=performance.now()+420;
       const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:true,hopUntil:hopRef.current};
+      // Movement gently pulls the camera behind the character, like a third-person mobile game.
+      const movementYaw=next.rot;
+      v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,3.8*d);
       posRef.current=next;
       const now=performance.now();if(now-lastSend.current>65){lastSend.current=now;onMove(next)}
     }else if(posRef.current.moving){
@@ -353,10 +351,15 @@ function PlayerController({posRef,moveRef,onMove,viewRef,cameraMoveRef}) {
     }
 
     const t=posRef.current,dist=v.distance;
-    const rawX=t.x+Math.sin(v.yaw)*dist,rawZ=t.z+Math.cos(v.yaw)*dist;
-    const camX=clamp(rawX,-HALL_HALF_X+1.1,HALL_HALF_X-1.1),camZ=clamp(rawZ,-HALL_HALF_Z+1.1,HALL_HALF_Z-1.1);
-    const camY=2.05+Math.sin(v.pitch)*dist*.72;
-    const follow=Math.min(1,6.5*d);
+    const horizontal=Math.cos(v.pitch)*dist;
+    const rawX=t.x+Math.sin(v.yaw)*horizontal;
+    const rawZ=t.z+Math.cos(v.yaw)*horizontal;
+    const rawY=1.05+Math.sin(v.pitch)*dist;
+    // Keep the camera strictly inside the designed hall so unfinished/outside areas never enter view.
+    const camX=clamp(rawX,-HALL_HALF_X+1.65,HALL_HALF_X-1.65);
+    const camZ=clamp(rawZ,-HALL_HALF_Z+1.65,HALL_HALF_Z-1.65);
+    const camY=clamp(rawY,.75,6.8);
+    const follow=Math.min(1,8.5*d);
     camera.position.x+=(camX-camera.position.x)*follow;
     camera.position.y+=(camY-camera.position.y)*follow;
     camera.position.z+=(camZ-camera.position.z)*follow;
@@ -367,9 +370,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef,cameraMoveRef}) {
 
 function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract}) {
   const [move,setMove]=useState({x:0,z:0});
-  const [cameraMove,setCameraMove]=useState({x:0,z:0});
   const moveRef=useRef(move);moveRef.current=move;
-  const cameraMoveRef=useRef(cameraMove);cameraMoveRef.current=cameraMove;
   const posRef=useRef({...local});
   const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28});
   const cameraDrag=useRef(null);
@@ -399,21 +400,21 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     e.currentTarget.style.setProperty("--jz",clamp(z,-38,38)+"px");
   };
   const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
-  const cameraJoystick=e=>{
-    const r=e.currentTarget.getBoundingClientRect();
-    const x=e.clientX-r.left-r.width/2,z=e.clientY-r.top-r.height/2;
-    const len=Math.hypot(x,z),dead=10;
-    const k=len<dead?0:Math.min(1,(len-dead)/(r.width*.5-dead));
-    const nx=len?x/len*k:0,nz=len?z/len*k:0;
-    setCameraMove({x:nx,z:nz});
-    e.currentTarget.style.setProperty("--cx",clamp(x,-40,40)+"px");
-    e.currentTarget.style.setProperty("--cz",clamp(z,-40,40)+"px");
+  const beginCamera=e=>{
+    if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
+    cameraDrag.current={x:e.clientX,y:e.clientY};
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
-  const stopCameraJoystick=e=>{
-    setCameraMove({x:0,z:0});
-    e.currentTarget.style.setProperty("--cx","0px");
-    e.currentTarget.style.setProperty("--cz","0px");
+  const moveCamera=e=>{
+    const s=cameraDrag.current;
+    if(!s)return;
+    const dx=e.clientX-s.x,dy=e.clientY-s.y;
+    s.x=e.clientX;s.y=e.clientY;
+    // PUBG-style direct swipe: horizontal orbit + vertical look, with smoothing in PlayerController.
+    viewRef.current.targetYaw-=dx*.0048;
+    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.0055,-.42,.92);
   };
+  const endCamera=()=>{cameraDrag.current=null};
 
   return <div className="room">
     <Canvas
@@ -436,7 +437,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       onPointerCancel={()=>{cameraDrag.current=null}}
     >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
-      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} cameraMoveRef={cameraMoveRef}/>
+      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
       <ambientLight intensity={.78}/>
@@ -464,7 +465,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
-    <div className="cameraJoystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);cameraJoystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))cameraJoystick(e)}} onPointerUp={stopCameraJoystick} onPointerCancel={stopCameraJoystick} aria-label="Camera joystick"><div className="cameraStick"/></div>
+    <div className="cameraGesture" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
     <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);joystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))joystick(e)}} onPointerUp={stop} onPointerCancel={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={onInteract}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
