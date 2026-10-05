@@ -30,6 +30,7 @@ const OBSTACLES=[
   {x:-10,z:-7.55,rx:3.7,rz:.9,vault:false,name:"living"},
   {x:-10,z:-4.95,rx:3.7,rz:.55,vault:false,name:"livingFront"},
   {x:0,z:-8.95,rx:5.2,rz:.72,vault:false,name:"tv"},
+  {x:-5.8,z:-7.55,rx:1.65,rz:.9,vault:true,name:"tvSofa"},
   {x:9.5,z:-6.7,rx:2.6,rz:1.15,vault:true,name:"rest"},
   {x:10.3,z:5.9,rx:3.0,rz:2.0,vault:true,name:"dining"},
   {x:13.15,z:1.0,rx:1.0,rz:3.0,vault:false,name:"kitchen"},
@@ -122,7 +123,7 @@ function DiningTable() {
       <mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>
     )}
     {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=>
-      <Chair key={i} position={[10+p[0],0,5.8+p[2]]} rotation={p[2]<0?0:Math.PI}/>
+      <Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>
     )}
     <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
   </group>
@@ -218,7 +219,7 @@ function OpenFloorMark() {
   </group>
 }
 
-function Hall() {
+function Hall({musicPlaying}) {
   return <group>
     <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
     <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
@@ -237,8 +238,8 @@ function Hall() {
     <FloorLamp x={-13.8} z={-7.7}/>
     <Plant x={-13.9} z={-3.0} s={1.1}/>
 
-    <TV playing={false}/>
-    <Speakers playing={false}/>
+    <TV playing={musicPlaying}/>
+    <Speakers playing={musicPlaying}/>
     <Sofa position={[-5.8,0,-7.55]} rotation={0} width={3.0}/>
 
     <Rug x={10} z={5.8} w={7.2} d={5.8}/>
@@ -419,7 +420,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <directionalLight position={[2,10,5]} intensity={1.35} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
       <directionalLight position={[-8,5,-6]} intensity={.55} color="#9aa9ff"/>
       <Environment preset="warehouse" environmentIntensity={.35}/>
-      <Hall/>
+      <Hall musicPlaying={musicPlaying}/>
       <TV playing={musicPlaying}/>
       <Speakers playing={musicPlaying}/>
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
@@ -449,6 +450,8 @@ export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
   const [id]=useState(makeId),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [action,setAction]=useState(null);
+  const musicRef=useRef(false);
+  musicRef.current=musicPlaying;
   const channelRef=useRef(null),localRef=useRef(null);
 
   const join=()=>{
@@ -466,7 +469,7 @@ export default function Home(){
     channel.on("broadcast",{event:"player_state"},({payload})=>payload?.id&&setPlayers(prev=>({...prev,[payload.id]:payload})));
     channel.on("broadcast",{event:"request_state"},()=>localRef.current&&send(localRef.current));
     channel.on("broadcast",{event:"room_state"},({payload})=>{if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying)});
-    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying}}));
+    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
     channel.on("broadcast",{event:"attack"},({payload})=>{
       if(!payload?.id)return;
       setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);
@@ -493,7 +496,7 @@ export default function Home(){
       }
     });
     return()=>{channel.unsubscribe();channelRef.current=null};
-  },[joined,id,avatarId,musicPlaying]);
+  },[joined,id,avatarId]);
 
   const onMove=p=>{
     localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
