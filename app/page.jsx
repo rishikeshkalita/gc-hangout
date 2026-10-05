@@ -366,6 +366,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const moveRef=useRef(move);moveRef.current=move;
   const posRef=useRef({...local});
   const viewRef=useRef({yaw:0,pitch:.18,distance:6.8});
+  const cameraDrag=useRef(null);
 
   useEffect(()=>{
     const down=e=>{
@@ -392,24 +393,25 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     e.currentTarget.style.setProperty("--jz",clamp(z,-38,38)+"px");
   };
   const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
+  const beginCamera=e=>{
+    if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
+    cameraDrag.current={x:e.clientX,y:e.clientY};
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const moveCamera=e=>{
+    const s=cameraDrag.current;
+    if(!s)return;
+    const dx=e.clientX-s.x,dy=e.clientY-s.y;
+    s.x=e.clientX;s.y=e.clientY;
+    viewRef.current.yaw-=dx*.006;
+    viewRef.current.pitch=clamp(viewRef.current.pitch-dy*.0045,-.28,.7);
+  };
+  const endCamera=()=>{cameraDrag.current=null};
 
   return <div className="room">
     <Canvas
       shadows dpr={[1,1.25]} performance={{min:.55}}
       camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
-      onPointerDown={e=>{
-        if(e.pointerType==="mouse"||e.pointerType==="touch"){
-          e.target.setPointerCapture?.(e.pointerId);
-          e.target.__gcDrag={x:e.clientX,y:e.clientY};
-        }
-      }}
-      onPointerMove={e=>{
-        const s=e.target.__gcDrag;if(!s)return;
-        const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;
-        viewRef.current.yaw-=dx*.0052;
-        viewRef.current.pitch=clamp(viewRef.current.pitch-dy*.0035,-.18,.62);
-      }}
-      onPointerUp={e=>{delete e.target.__gcDrag}}
       onWheel={e=>{viewRef.current.distance=clamp(viewRef.current.distance+(e.deltaY>0?.4:-.4),4.4,8.2)}}
     >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
@@ -430,6 +432,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
         </Suspense>
       )}
     </Canvas>
+
+    <div className="cameraPad" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
 
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
