@@ -25,6 +25,21 @@ const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
+const FURNITURE={
+ sofa:"https://cdn.3dassets.dev/assets/38778/v1/model.glb",
+ armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
+ diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
+ coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
+ diningTable:"https://cdn.3dassets.dev/assets/38791/v1/model.glb",
+ bed:"https://cdn.3dassets.dev/assets/38770/v1/model.glb",
+ lamp:"https://cdn.3dassets.dev/assets/38797/v1/model.glb"
+};
+function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
+ const gltf=useGLTF(url);
+ const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return s},[gltf.scene]);
+ return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
+}
+
 
 const OBSTACLES=[
   {x:-10,z:-7.55,rx:3.7,rz:.9,vault:false,name:"living"},
@@ -66,79 +81,15 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0,width=3.4}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[width,.48,1.0]} radius={.16} smoothness={6} position={[0,.48,0]}>
-      <meshStandardMaterial color="#3e4859" roughness={.82}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[width,1.05,.28]} radius={.12} smoothness={5} position={[0,1.02,-.36]}>
-      <meshStandardMaterial color="#465366" roughness={.85}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[-width/2+.18,.88,0]}>
-      <meshStandardMaterial color="#465366" roughness={.85}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[width/2-.18,.88,0]}>
-      <meshStandardMaterial color="#465366" roughness={.85}/>
-    </RoundedBox>
-  </group>
-}
+function Sofa({position=[0,0,0],rotation=0,width=3.4}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={width/2.5}/>}
 
-function Chair({position=[0,0,0],rotation=0}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}>
-      <meshStandardMaterial color="#4b5666" roughness={.84}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}>
-      <meshStandardMaterial color="#566274" roughness={.84}/>
-    </RoundedBox>
-    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=>
-      <mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>
-    )}
-  </group>
-}
+function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
 
-function CoffeeTable({x,z}) {
-  return <group position={[x,0,z]}>
-    <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}>
-      <meshStandardMaterial color="#8a664e" roughness={.58}/>
-    </RoundedBox>
-    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=>
-      <mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>
-    )}
-  </group>
-}
+function CoffeeTable({x,z}){return <RealFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
 
-function DiningTable() {
-  return <group position={[10.0,0,5.8]}>
-    <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}>
-      <meshStandardMaterial color="#705443" roughness={.6}/>
-    </RoundedBox>
-    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=>
-      <mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>
-    )}
-    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=>
-      <Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>
-    )}
-    <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
-  </group>
-}
+function DiningTable(){return <group position={[10,0,5.8]}><RealFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><RealFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
 
-function Bed({x,z,rotation=0}) {
-  return <group position={[x,0,z]} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[2.6,.35,4.2]} radius={.1} smoothness={5} position={[0,.42,0]}>
-      <meshStandardMaterial color="#313847" roughness={.8}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[2.45,.28,2.6]} radius={.1} smoothness={5} position={[0,.72,.45]}>
-      <meshStandardMaterial color="#d6d1c8" roughness={.95}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[2.3,.42,.55]} radius={.12} smoothness={5} position={[0,.86,-1.55]}>
-      <meshStandardMaterial color="#ebe7df" roughness={.9}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[2.8,1.5,.16]} radius={.05} smoothness={4} position={[0,1.0,-2.0]}>
-      <meshStandardMaterial color="#3a4250" roughness={.7}/>
-    </RoundedBox>
-  </group>
-}
+function Bed({x,z,rotation=0}){return <RealFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
 
 function Kitchen() {
   return <group position={[13.0,0,1.0]}>
@@ -158,13 +109,7 @@ function Kitchen() {
   </group>
 }
 
-function FloorLamp({x,z}) {
-  return <group position={[x,0,z]}>
-    <mesh castShadow position={[0,1.65,0]}><cylinderGeometry args={[.035,.035,3.3,12]}/><meshStandardMaterial color="#252932" metalness={.65} roughness={.32}/></mesh>
-    <mesh castShadow position={[0,3.25,0]}><coneGeometry args={[.42,.5,24]}/><meshStandardMaterial color="#e5d7bd" emissive="#fff1cf" emissiveIntensity={.22}/></mesh>
-    <pointLight position={[0,3.0,0]} intensity={1.2} distance={5.5} color="#ffe7be"/>
-  </group>
-}
+function FloorLamp({x,z}){return <RealFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1.75}/>}
 
 function Plant({x,z,s=1}) {
   return <group position={[x,0,z]} scale={s}>
