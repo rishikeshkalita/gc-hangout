@@ -160,7 +160,8 @@ export default function Home(){
     return()=>{channel.unsubscribe();channelRef.current=null};
   },[joined,id,avatarId]);
   const onMove=p=>{localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));if(channelRef.current)channelRef.current.send({type:"broadcast",event:"player_state",payload:p})};
-  const toggleMusic=()=>{const next=!musicPlaying;setMusicPlaying(next);if(channelRef.current)channelRef.current.send({type:"broadcast",event:"room_state",payload:{musicPlaying:next}})};\n const onAttack=()=>{
+  const toggleMusic=()=>{const next=!musicPlaying;setMusicPlaying(next);if(channelRef.current)channelRef.current.send({type:"broadcast",event:"room_state",payload:{musicPlaying:next}})};
+ const onAttack=()=>{
     if(!localRef.current)return;
     const me=localRef.current,others=Object.values(players).filter(p=>p.id!==id);
     let target=null,best=99;
