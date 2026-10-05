@@ -484,7 +484,7 @@ export default function Home(){
       }
     });
     channel.on("broadcast",{event:"player_action"},({payload})=>{
-      if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev,[payload.id],action:payload.action}:prev)
+      if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev[payload.id],action:payload.action}:prev)
     });
     channel.subscribe(async status=>{
       if(status==="SUBSCRIBED"&&localRef.current){
