@@ -88,6 +88,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
   const [move,setMove]=useState({x:0,z:0});
   const moveRef=useRef(move); moveRef.current=move;
   const posRef=useRef({...local});
+  const viewRef=useRef({yaw:0,pitch:.28,distance:5.8});
   useEffect(()=>{
     const down=e=>{
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
@@ -113,7 +114,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
   return <div className="room">
     <Canvas shadows dpr={[1,1.5]}>
       <PerspectiveCamera makeDefault position={[0,3.35,7.8]} fov={58}/>
-      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove}/>
+      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
       <color attach="background" args={["#0b0910"]}/><fog attach="fog" args={["#0b0910",11,22]}/>
       <ambientLight intensity={1.15}/><directionalLight position={[3,8,4]} intensity={2.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
       <pointLight position={[0,4,-4]} intensity={2.8} distance={12} color="#b3a2ff"/><pointLight position={[-4,3,1]} intensity={1.8} distance={8} color="#ffd8bd"/><pointLight position={[4,3,1]} intensity={1.8} distance={8} color="#b8e2ff"/>
