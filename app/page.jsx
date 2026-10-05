@@ -333,8 +333,8 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
     const ix=m.x*right.x+inputForward*forward.x,iz=m.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
     const moving=Math.abs(m.x)+Math.abs(m.z)>.05,targetSpeed=3.9;
     const tx=ix/len*targetSpeed,tz=iz/len*targetSpeed;
-    velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(moving?10:14)*d);
-    velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(moving?10:14)*d);
+    velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(moving?14:18)*d);
+    velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(moving?14:18)*d);
     if(!moving){velocity.current.x*=Math.max(0,1-10*d);velocity.current.z*=Math.max(0,1-10*d)}
     const speed=Math.hypot(velocity.current.x,velocity.current.z);
     if(speed>.025){
@@ -343,7 +343,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
       const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:true,hopUntil:hopRef.current};
       // Movement gently pulls the camera behind the character, like a third-person mobile game.
       const movementYaw=next.rot;
-      if(performance.now()-lastManualCamera.current>850){
+      if(performance.now()-v.lastManualCamera>850){
         v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,5.2*d);
       }
       posRef.current=next;
@@ -375,9 +375,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
-  const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28});
+  const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28,lastManualCamera:0});
   const cameraDrag=useRef(null);
-  const lastManualCamera=useRef(0);
 
   useEffect(()=>{
     const down=e=>{
@@ -417,9 +416,10 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const dx=e.clientX-s.x,dy=e.clientY-s.y;
     s.x=e.clientX;s.y=e.clientY;
     // PUBG-style direct swipe: horizontal orbit + vertical look, with smoothing in PlayerController.
-    lastManualCamera.current=performance.now();
+    viewRef.current.lastManualCamera=performance.now();
     viewRef.current.targetYaw-=dx*.011;
-    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.009,-.48,1.05);
+    // Natural mobile-game convention: drag up -> look up, drag down -> look down.
+    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.009,-.48,1.05);
   };
   const endCamera=()=>{cameraDrag.current=null};
 
@@ -437,8 +437,9 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
         const s=cameraDrag.current;
         if(!s||e.pointerType!=="mouse")return;
         const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;
-        viewRef.current.targetYaw-=dx*.0042;
-        viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.006,-.55,1.12);
+        viewRef.current.lastManualCamera=performance.now();
+        viewRef.current.targetYaw-=dx*.0065;
+        viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.007,-.48,1.05);
       }}
       onPointerUp={()=>{cameraDrag.current=null}}
       onPointerCancel={()=>{cameraDrag.current=null}}
