@@ -129,7 +129,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
       <Text position={[0,2.86,-4.82]} fontSize={.15} color="#d8d2e7" anchorX="center">OPEN LOUNGE</Text>
       <mesh position={[0,1.45,-4.7]}><boxGeometry args={[4.7,1.9,.18]}/><meshStandardMaterial color="#09090d"/></mesh>
       <MusicTV playing={musicPlaying}/><Text position={[0,2.16,-4.48]} fontSize={.15} color={musicPlaying?"#e9ddff":"#81798d"} anchorX="center">{musicPlaying?"♪ NOW PLAYING • GC MIX":"TV • idle"}</Text><Speaker x={-2.85} z={-4.25} playing={musicPlaying}/><Speaker x={2.85} z={-4.25} playing={musicPlaying}/>
-      <ContactShadows position={[0,0,0]} opacity={.24} scale={14} blur={2.5} far={6}/>{Object.values(players).map(p=><Human key={p.id} player={p} me={p.id===local.id}/>)}
+      <Suspense fallback={<FallbackRoom/>}><AssetBoundary fallback={<FallbackRoom/>}><RealRoom/></AssetBoundary></Suspense><ContactShadows position={[0,0,0]} opacity={.24} scale={14} blur={2.5} far={6}/>{Object.values(players).map(p=><Suspense key={p.id} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><AssetBoundary fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary></Suspense>)}
     </Canvas>
     <div className="topbar"><div><b>🌙 GC HANGOUT</b><span> • Open room</span></div><div className="online">● {Object.keys(players).length} online{!realtime?" • local mode":""}</div></div>
     <div className="hint">Drag to look • pinch/scroll to zoom • joystick to walk</div><div className="status">{musicPlaying?"🎵 GC MIX is playing on the TV + speakers":"TV is idle • tap Music to start the room"}</div>
