@@ -334,7 +334,9 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
     v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
     v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
     const forward={x:-Math.sin(v.yaw),z:-Math.cos(v.yaw)},right={x:Math.cos(v.yaw),z:-Math.sin(v.yaw)};
-    const ix=m.x*right.x+m.z*forward.x,iz=m.x*right.z+m.z*forward.z,len=Math.hypot(ix,iz)||1;
+    // Screen-space joystick/keyboard convention: up/W = forward, down/S = backward.
+    const inputForward=-m.z;
+    const ix=m.x*right.x+inputForward*forward.x,iz=m.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
     const moving=Math.abs(m.x)+Math.abs(m.z)>.05,targetSpeed=3.9;
     const tx=ix/len*targetSpeed,tz=iz/len*targetSpeed;
     velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(moving?10:14)*d);
