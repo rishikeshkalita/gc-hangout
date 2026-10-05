@@ -2,7 +2,7 @@
 import {Canvas,useFrame} from "@react-three/fiber";
 import {PerspectiveCamera,Text,RoundedBox,Environment} from "@react-three/drei";
 import {useEffect,useMemo,useRef,useState} from "react";
-import {supabase} from "../lib/supabase";
+import {getSupabase} from "../lib/supabase";
 
 const PRESETS=[
  {id:"maya",label:"Maya",skin:0xd79a6f,hair:0x251b1b,shirt:0xc9577b,pants:0x252d4a,style:"long"},
@@ -66,7 +66,7 @@ function Room({local,players,onMove,onAttack}){
  const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
  return <div className="room">
   <Canvas shadows dpr={[1,1.5]}><PerspectiveCamera makeDefault position={[0,3.35,7.8]} fov={58}/><color attach="background" args={["#0b0910"]}/><fog attach="fog" args={["#0b0910",11,22]}/><ambientLight intensity={1.45}/><directionalLight position={[3,8,4]} intensity={2.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048}/><pointLight position={[0,4,-4]} intensity={8} distance={12} color="#7058ff"/><pointLight position={[-4,2,0]} intensity={4} distance={7} color="#ffab7d"/><pointLight position={[4,2,0]} intensity={4} distance={7} color="#6bd4ff"/><Environment preset="apartment"/><mesh receiveShadow rotation={[-Math.PI/2,0,0]}><planeGeometry args={[13,11]}/><meshStandardMaterial color="#211e29" roughness={.95}/></mesh><mesh position={[0,.02,-.2]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[3.2,64]}/><meshStandardMaterial color="#35303d" roughness={1}/></mesh><Sofa x={-2.5} z={-2.1} rot={.15}/><Sofa x={2.5} z={-2.1} rot={-.15}/><Sofa x={-4.65} z={1.3} rot={Math.PI/2}/><Sofa x={4.65} z={1.3} rot={-Math.PI/2}/><Plant x={-5.2} z={-3.9} s={1.15}/><Plant x={5.2} z={-3.9} s={1.15}/><Plant x={-5.35} z={3.5} s={.9}/><Plant x={5.35} z={3.5} s={.9}/><mesh castShadow position={[0,.45,.1]}><cylinderGeometry args={[1.35,1.35,.18,48]}/><meshStandardMaterial color="#6c5b50" roughness={.7}/></mesh><mesh castShadow position={[0,.05,.1]}><cylinderGeometry args={[.18,.28,.75,20]}/><meshStandardMaterial color="#302923"/></mesh><mesh position={[0,2.5,-4.9]}><boxGeometry args={[8.5,3.4,.12]}/><meshStandardMaterial emissive="#242052" emissiveIntensity={1.3} color="#39326f"/></mesh><Text position={[0,3.18,-4.82]} fontSize={.48} color="white" anchorX="center">GC HANGOUT</Text><Text position={[0,2.86,-4.82]} fontSize={.15} color="#d8d2e7" anchorX="center">OPEN LOUNGE</Text><mesh position={[0,1.45,-4.7]}><boxGeometry args={[4.7,1.9,.18]}/><meshStandardMaterial color="#09090d"/></mesh><mesh position={[0,1.48,-4.58]}><boxGeometry args={[4.2,1.58,.03]}/><meshStandardMaterial emissive="#121522" color="#101017"/></mesh>{Object.values(players).map(p=><Human key={p.id} player={p} me={p.id===local.id}/>)}</Canvas>
-  <div className="topbar"><div><b>🌙 GC HANGOUT</b><span> • Open room</span></div><div className="online">● {Object.keys(players).length} online</div></div>
+  <div className="topbar"><div><b>🌙 GC HANGOUT</b><span> • Open room</span></div><div className="online">● {Object.keys(players).length} online{!realtime?" • local mode":""}</div></div>
   <div className="hint">WASD / joystick • walk anywhere • FIGHT nearby</div>
   <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);joystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))joystick(e)}} onPointerUp={stop} onPointerCancel={stop}><div className="stick"/></div>
   <button className="fight" onClick={onAttack}>🥊 Fight</button>
@@ -76,10 +76,10 @@ function Room({local,players,onMove,onAttack}){
 }
 
 export default function Home(){
- const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya"),[id]=useState(makeId),[players,setPlayers]=useState({});
- const channelRef=useRef(null),localRef=useRef(null);
+ const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya"),[id]=useState(makeId),[players,setPlayers]=useState({}),[realtime,setRealtime]=useState(true);
+ const channelRef=useRef(null),localRef=useRef(null),supabaseRef=useRef(null);
  const join=()=>{const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:2.5,rot:0,health:3,attacking:false,moving:false};localRef.current=p;setJoined(true)};
- useEffect(()=>{if(!joined)return;const channel=supabase.channel("gc-hangout-main",{config:{broadcast:{self:false},presence:{key:id}}});channelRef.current=channel;
+ useEffect(()=>{if(!joined)return;const supabase=getSupabase();supabaseRef.current=supabase;if(!supabase){setRealtime(false);setPlayers(prev=>({...prev,[id]:localRef.current}));return;}const channel=supabase.channel("gc-hangout-main",{config:{broadcast:{self:false},presence:{key:id}}});channelRef.current=channel;
  const send=p=>channel.send({type:"broadcast",event:"player_state",payload:p});
  channel.on("broadcast",{event:"player_state"},({payload})=>setPlayers(prev=>({...prev,[payload.id]:payload})));
  channel.on("broadcast",{event:"request_state"},()=>{if(localRef.current)send(localRef.current)});
@@ -87,7 +87,7 @@ export default function Home(){
  channel.subscribe(async status=>{if(status==="SUBSCRIBED"){if(localRef.current){setPlayers(prev=>({...prev,[id]:localRef.current}));await channel.track({id,name:localRef.current.name,avatarId});send(localRef.current);setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),300)}}});
  return()=>{channel.unsubscribe();channelRef.current=null}},[joined,id]);
  const onMove=p=>{localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));if(channelRef.current)channelRef.current.send({type:"broadcast",event:"player_state",payload:p})};
- const onAttack=()=>{if(!localRef.current||!channelRef.current)return;const me=localRef.current,others=Object.values(players).filter(p=>p.id!==id);let target=null,best=99;for(const p of others){const d=Math.hypot(p.x-me.x,p.z-me.z);if(d<best){best=d;target=p}}const p={...me,attacking:true};localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));channelRef.current.send({type:"broadcast",event:"attack",payload:{id,targetId:target&&best<1.6?target.id:null}});setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350)};
+ const onAttack=()=>{if(!localRef.current)return;const me=localRef.current,others=Object.values(players).filter(p=>p.id!==id);let target=null,best=99;for(const p of others){const d=Math.hypot(p.x-me.x,p.z-me.z);if(d<best){best=d;target=p}}const p={...me,attacking:true};localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));if(channelRef.current)channelRef.current.send({type:"broadcast",event:"attack",payload:{id,targetId:target&&best<1.6?target.id:null}});setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350)};
  if(joined)return <Room local={localRef.current} players={players} onMove={onMove} onAttack={onAttack}/>;
  return <main className="join"><div className="card"><div className="logo">🌙</div><h1>GC Hangout</h1><p>Choose a human and enter the shared room.</p><label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18))} placeholder="e.g. Rishi"/></label><div className="label">Choose your human</div><div className="avatars">{PRESETS.map((p,i)=><button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id)} key={p.id}><span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small></button>)}</div><button className="enter" onClick={join} disabled={!name.trim()}>Enter the room →</button><div className="note">Realtime multiplayer • free movement • fight</div></div></main>
 }
