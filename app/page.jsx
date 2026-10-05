@@ -18,8 +18,19 @@ const PRESETS = [
 ];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
-const ROOM_HALF_X=5.45, ROOM_HALF_Z=2.15;
-const blocked=(x,z,r=.22)=>x<-ROOM_HALF_X+r||x>ROOM_HALF_X-r||z<-ROOM_HALF_Z+r||z>ROOM_HALF_Z-r;
+const HALL_SCALE=1.55;
+const HALL_HALF_X=8.0,HALL_HALF_Z=5.2;
+const HALL_BOXES=[
+ {x:4.0,z:-1.25,rx:2.05,rz:.82},
+ {x:4.2,z:1.45,rx:1.8,rz:1.05},
+ {x:-4.0,z:1.0,rx:2.0,rz:1.15},
+ {x:0,z:-.45,rx:1.05,rz:.72}
+];
+const blocked=(x,z,r=.25)=>{
+ if(x<-HALL_HALF_X+r||x>HALL_HALF_X-r||z<-HALL_HALF_Z+r||z>HALL_HALF_Z-r)return true;
+ for(const b of HALL_BOXES){const qx=clamp(x,b.x-b.rx,b.x+b.rx),qz=clamp(z,b.z-b.rz,b.z+b.rz);if(Math.hypot(x-qx,z-qz)<r)return true}
+ return false;
+};
 const tryMove=(x,z,dx,dz)=>{const nx=x+dx,nz=z+dz;if(!blocked(nx,nz))return{x:nx,z:nz};if(!blocked(nx,z))return{x:nx,z};if(!blocked(x,nz))return{x,z:nz};return{x,z}};
 
 function Hair({style,color}){
@@ -34,17 +45,26 @@ const ROOM_URL="https://cdn.3dassets.dev/assets/38818/v1/model.glb";
 
 function RealHuman({player,me}){
  const {scene,animations}=useGLTF(HUMAN_URL);
- const clone=useRef(null);
  const root=useRef();
  const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
  const {actions}=useAnimations(animations,root);
- const p=PRESETS.find(x=>x.id===player.avatarId)||PRESETS[0];
- useEffect(()=>{if(!actions)return;const names=Object.keys(actions);const idle=names.find(n=>/idle/i.test(n))||names[0];const walk=names.find(n=>/walk/i.test(n))||idle;Object.values(actions).forEach(a=>a?.stop());const a=actions[player.moving?walk:idle];a?.reset().fadeIn(.25).play();return()=>a?.fadeOut(.2)},[actions,player.moving]);
+ useEffect(()=>{if(!actions)return;const names=Object.keys(actions);const idle=names.find(n=>/idle/i.test(n))||names[0];const walk=names.find(n=>/walk/i.test(n))||idle;Object.values(actions).forEach(a=>a?.stop());const a=actions[player.moving?walk:idle];a?.reset().fadeIn(.2).play();return()=>a?.fadeOut(.15)},[actions,player.moving]);
  useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
- useFrame((_,dt)=>{if(!root.current)return;const target=player.rot||0;root.current.position.x=player.x||0;root.current.position.z=player.z||0;root.current.rotation.y+=Math.atan2(Math.sin(target-root.current.rotation.y),Math.cos(target-root.current.rotation.y))*Math.min(1,9*dt)});
- return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}><primitive ref={clone} object={model}/><Text position={[0,2.05,0]} fontSize={.13} color={me?"#d9d0ff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#15131a">{player.name}{me?" • you":""}</Text>{player.attacking&&<Text position={[0,2.28,0]} fontSize={.16} color="#ffd36b" anchorX="center">POW!</Text>}</group>;
+ useFrame((_,dt)=>{
+   if(!root.current)return;
+   const target=player.rot||0;
+   const hop=player.hopUntil&&player.hopUntil>Date.now()?Math.sin(((player.hopUntil-Date.now())/420)*Math.PI)*.38:0;
+   root.current.position.x+=(player.x-root.current.position.x)*Math.min(1,12*dt);
+   root.current.position.z+=(player.z-root.current.position.z)*Math.min(1,12*dt);
+   root.current.position.y=hop;
+   root.current.rotation.y+=Math.atan2(Math.sin(target-root.current.rotation.y),Math.cos(target-root.current.rotation.y))*Math.min(1,12*dt);
+ });
+ return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
+   <primitive object={model}/>
+   <Text position={[0,2.05,0]} fontSize={.13} color={me?"#d9d0ff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#15131a">{player.name}{me?" • you":""}</Text>
+   {player.attacking&&<Text position={[0,2.28,0]} fontSize={.16} color="#ffd36b" anchorX="center">POW!</Text>}
+ </group>;
 }
-
 function Sofa({x,z,rot=0}){return <group position={[x,0,z]} rotation={[0,rot,0]}><RoundedBox castShadow args={[2.35,.5,.88]} radius={.13} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#66535f" roughness={.9}/></RoundedBox><RoundedBox castShadow args={[2.35,1.05,.28]} radius={.1} smoothness={5} position={[0,1,-.34]}><meshStandardMaterial color="#735d69" roughness={.92}/></RoundedBox><RoundedBox castShadow args={[.3,.98,.84]} radius={.09} smoothness={5} position={[-1.02,.88,0]}><meshStandardMaterial color="#735d69"/></RoundedBox><RoundedBox castShadow args={[.3,.98,.84]} radius={.09} smoothness={5} position={[1.02,.88,0]}><meshStandardMaterial color="#735d69"/></RoundedBox></group>}
 
 function FloorLamp({x,z}){return <group position={[x,0,z]}><mesh castShadow position={[0,1.05,0]}><cylinderGeometry args={[.025,.025,2.1,12]}/><meshStandardMaterial color="#26232a" metalness={.6} roughness={.35}/></mesh><mesh castShadow position={[0,2.08,0]}><coneGeometry args={[.28,.25,24]}/><meshStandardMaterial color="#e7d9bd" emissive="#fff0cf" emissiveIntensity={.35}/></mesh><pointLight position={[0,1.9,0]} intensity={1.1} distance={3.5} color="#ffe6bd"/></group>}
@@ -74,9 +94,38 @@ function FallbackHuman({player,me}){
  const ref=useRef();useFrame((_,dt)=>{if(!ref.current)return;const t=player.rot||0;ref.current.rotation.y+=Math.atan2(Math.sin(t-ref.current.rotation.y),Math.cos(t-ref.current.rotation.y))*Math.min(1,8*dt);ref.current.position.set(player.x||0,.0,player.z||0)});
  return <group ref={ref}><mesh castShadow position={[0,.75,0]}><capsuleGeometry args={[.24,.55,8,16]}/><meshStandardMaterial color="#5966b8" roughness={.75}/></mesh><mesh castShadow position={[0,1.35,0]}><sphereGeometry args={[.28,24,18]}/><meshStandardMaterial color="#c98f6b" roughness={.8}/></mesh><Text position={[0,1.8,0]} fontSize={.13} color={me?"#d9d0ff":"#fff"} anchorX="center">{player.name}{me?" • you":""}</Text></group>
 }
-function RealRoom(){const {scene}=useGLTF(ROOM_URL);const clone=useMemo(()=>scene.clone(true),[scene]);useEffect(()=>{clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[clone]);return <primitive object={clone} position={[0,0,0]} scale={[1.12,1.12,1.12]}/>}
-function PlayerController({posRef,moveRef,onMove,viewRef}){const lastSend=useRef(0),velocity=useRef({x:0,z:0});useFrame(({camera},dt)=>{const d=Math.min(dt,.05),m=moveRef.current;const tx=m.x*2.8,tz=m.z*2.8;velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(m.x||m.z?10:16)*d);velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(m.x||m.z?10:16)*d);if(!m.x&&!m.z){velocity.current.x*=Math.max(0,1-10*d);velocity.current.z*=Math.max(0,1-10*d)}const speed=Math.hypot(velocity.current.x,velocity.current.z);if(speed>.03){const step=tryMove(posRef.current.x,posRef.current.z,velocity.current.x*d,velocity.current.z*d);posRef.current={...posRef.current,...step,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:speed>.18};const now=performance.now();if(now-lastSend.current>50){lastSend.current=now;onMove(posRef.current)}}else if(posRef.current.moving){posRef.current={...posRef.current,moving:false};onMove(posRef.current)}const t=posRef.current,v=viewRef.current,dist=v.distance;const camX=t.x+Math.sin(v.yaw)*dist,camZ=t.z+Math.cos(v.yaw)*dist,camY=1.8+Math.cos(v.pitch)*1.05+Math.sin(v.pitch)*1.8;camera.position.x+=(camX-camera.position.x)*Math.min(1,7*d);camera.position.y+=(camY-camera.position.y)*Math.min(1,7*d);camera.position.z+=(camZ-camera.position.z)*Math.min(1,7*d);camera.lookAt(t.x,t.y+.9,t.z)});return null}
-
+function RealRoom(){const {scene}=useGLTF(ROOM_URL);const clone=useMemo(()=>scene.clone(true),[scene]);useEffect(()=>{clone.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[clone]);return <primitive object={clone} position={[0,0,0]} scale={[HALL_SCALE,1,HALL_SCALE]}/>}
+function PlayerController({posRef,moveRef,onMove,viewRef}){
+ const lastSend=useRef(0),velocity=useRef({x:0,z:0}),hopRef=useRef(0);
+ useFrame(({camera},dt)=>{
+   const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
+   const forward={x:-Math.sin(v.yaw),z:-Math.cos(v.yaw)},right={x:Math.cos(v.yaw),z:-Math.sin(v.yaw)};
+   const inputX=m.x*right.x+m.z*forward.x,inputZ=m.x*right.z+m.z*forward.z;
+   const len=Math.hypot(inputX,inputZ)||1;
+   const ix=inputX/len,iz=inputZ/len;
+   const targetSpeed=(m.x||m.z)?3.25:0;
+   const tx=ix*targetSpeed,tz=iz*targetSpeed;
+   velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(m.x||m.z?8:11)*d);
+   velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(m.x||m.z?8:11)*d);
+   if(!m.x&&!m.z){velocity.current.x*=Math.max(0,1-8*d);velocity.current.z*=Math.max(0,1-8*d)}
+   const speed=Math.hypot(velocity.current.x,velocity.current.z);
+   if(speed>.025){
+     const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d,velocity.current.z*d);
+     const blockedMove=Math.abs(step.x-before.x)<.0001&&Math.abs(step.z-before.z)<.0001;
+     if(blockedMove&&hopRef.current<performance.now())hopRef.current=performance.now()+420;
+     posRef.current={...before,...step,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:true,hopUntil:hopRef.current};
+     const now=performance.now();if(now-lastSend.current>70){lastSend.current=now;onMove(posRef.current)}
+   }else if(posRef.current.moving){posRef.current={...posRef.current,moving:false,hopUntil:0};onMove(posRef.current)}
+   const t=posRef.current,dist=v.distance;
+   const camX=t.x+Math.sin(v.yaw)*dist,camZ=t.z+Math.cos(v.yaw)*dist;
+   const camY=1.65+Math.sin(v.pitch)*dist*.45;
+   camera.position.x+=(camX-camera.position.x)*Math.min(1,5.5*d);
+   camera.position.y+=(camY-camera.position.y)*Math.min(1,5.5*d);
+   camera.position.z+=(camZ-camera.position.z)*Math.min(1,5.5*d);
+   camera.lookAt(t.x,t.y+.88,t.z);
+ });
+ return null;
+}
 function Speaker({x,z,playing}){const ref=useRef();useFrame(({clock})=>{if(ref.current)ref.current.scale.setScalar(1+(playing?.04+.03*Math.sin(clock.elapsedTime*10):0))});return <group ref={ref} position={[x,.65,z]}><RoundedBox castShadow args={[.58,1.2,.4]} radius={.06} smoothness={4}><meshStandardMaterial color="#121117" roughness={.78}/></RoundedBox><mesh position={[0,.12,.21]}><circleGeometry args={[.16,24]}/><meshStandardMaterial color="#292631" emissive={playing?"#8064ff":"#15141a"} emissiveIntensity={playing?2:.2}/></mesh><mesh position={[0,-.25,.21]}><circleGeometry args={[.11,24]}/><meshStandardMaterial color="#292631"/></mesh></group>}
 function MusicTV({playing}){const ref=useRef();useFrame(({clock})=>{if(ref.current)ref.current.material.emissiveIntensity=playing?1.15+.25*Math.sin(clock.elapsedTime*4):.35});return <mesh ref={ref} position={[0,1.48,-4.56]}><boxGeometry args={[4.18,1.58,.035]}/><meshStandardMaterial color={playing?"#17112d":"#0c0e14"} emissive={playing?"#4b3599":"#11131b"} emissiveIntensity={playing?1:.35}/></mesh>}
 function PoolTable(){return <group position={[-2.8,.35,1.7]}><RoundedBox castShadow args={[3,.3,1.45]} radius={.08} smoothness={4}><meshStandardMaterial color="#2b201c"/></RoundedBox><RoundedBox castShadow args={[2.65,.08,1.1]} radius={.04} smoothness={3} position={[0,.2,0]}><meshStandardMaterial color="#174f3b"/></RoundedBox>{[[-1.25,.25,-.5],[1.25,.25,-.5],[-1.25,.25,.5],[1.25,.25,.5]].map((q,i)=><mesh key={i} position={q}><cylinderGeometry args={[.07,.07,.1,16]}/><meshStandardMaterial color="#08080a"/></mesh>)}{[[0,.28,0],[.42,.28,.12],[-.35,.28,-.18],[.28,.28,-.3]].map((q,i)=><mesh key={i} position={q}><sphereGeometry args={[.07,16,12]}/><meshStandardMaterial color={["#fff","#e6a33d","#d74e59","#4d83d8"][i]}/></mesh>)}</group>}
@@ -87,7 +136,7 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
   const [move,setMove]=useState({x:0,z:0});
   const moveRef=useRef(move); moveRef.current=move;
   const posRef=useRef({...local});
-  const viewRef=useRef({yaw:0,pitch:.22,distance:4.7});
+  const viewRef=useRef({yaw:0,pitch:.18,distance:6.4});
   useEffect(()=>{
     const down=e=>{
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
@@ -111,12 +160,12 @@ function Room({local,players,onMove,onAttack,realtime,musicPlaying,onToggleMusic
   };
   const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
   return <div className="room">
-    <Canvas shadows dpr={[1,1.25]} onPointerDown={e=>{if(e.pointerType==="mouse"||e.pointerType==="touch"){e.target.setPointerCapture?.(e.pointerId);e.target.__gcDrag={x:e.clientX,y:e.clientY}}}} onPointerMove={e=>{const s=e.target.__gcDrag;if(!s)return;const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;viewRef.current.yaw-=dx*.006;viewRef.current.pitch=Math.max(-.12,Math.min(.58,viewRef.current.pitch-dy*.004))}} onPointerUp={e=>{delete e.target.__gcDrag}} onWheel={e=>{viewRef.current.distance=Math.max(3.2,Math.min(7,e.currentTarget.__gcDist=(viewRef.current.distance+(e.deltaY>0?.35:-.35))) )}}>
-      <PerspectiveCamera makeDefault position={[0,2.4,5.4]} fov={52}/>
+    <Canvas shadows dpr={[1,1.25]} performance={{min:.6}} onPointerDown={e=>{if(e.pointerType==="mouse"||e.pointerType==="touch"){e.target.setPointerCapture?.(e.pointerId);e.target.__gcDrag={x:e.clientX,y:e.clientY}}}} onPointerMove={e=>{const s=e.target.__gcDrag;if(!s)return;const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;viewRef.current.yaw-=dx*.006;viewRef.current.pitch=Math.max(-.12,Math.min(.58,viewRef.current.pitch-dy*.004))}} onPointerUp={e=>{delete e.target.__gcDrag}} onWheel={e=>{viewRef.current.distance=Math.max(3.2,Math.min(7,e.currentTarget.__gcDist=(viewRef.current.distance+(e.deltaY>0?.35:-.35))) )}}>
+      <PerspectiveCamera makeDefault position={[0,2.2,6.2]} fov={56}/>
       <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
       <color attach="background" args={["#18151b"]}/>
-      <ambientLight intensity={.58}/>
-      <directionalLight position={[3,7,4]} intensity={1.05} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
+      <ambientLight intensity={.72}/>
+      <directionalLight position={[4,9,5]} intensity={1.2} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
       <pointLight position={[0,3,-2]} intensity={.55} distance={8} color="#e6d7ff"/>
       <Suspense fallback={<FallbackRoom/>}><AssetBoundary fallback={<FallbackRoom/>}><RealRoom/></AssetBoundary></Suspense>
       <ContactShadows position={[0,0,0]} opacity={.16} scale={12} blur={2.5} far={5}/>
