@@ -343,7 +343,9 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
       const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:true,hopUntil:hopRef.current};
       // Movement gently pulls the camera behind the character, like a third-person mobile game.
       const movementYaw=next.rot;
-      v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,3.8*d);
+      if(performance.now()-lastManualCamera.current>850){
+        v.targetYaw+=Math.atan2(Math.sin(movementYaw-v.targetYaw),Math.cos(movementYaw-v.targetYaw))*Math.min(1,3.8*d);
+      }
       posRef.current=next;
       const now=performance.now();if(now-lastSend.current>65){lastSend.current=now;onMove(next)}
     }else if(posRef.current.moving){
@@ -374,6 +376,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const posRef=useRef({...local});
   const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28});
   const cameraDrag=useRef(null);
+  const lastManualCamera=useRef(0);
 
   useEffect(()=>{
     const down=e=>{
@@ -411,6 +414,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const dx=e.clientX-s.x,dy=e.clientY-s.y;
     s.x=e.clientX;s.y=e.clientY;
     // PUBG-style direct swipe: horizontal orbit + vertical look, with smoothing in PlayerController.
+    lastManualCamera.current=performance.now();
     viewRef.current.targetYaw-=dx*.0048;
     viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.0055,-.42,.92);
   };
