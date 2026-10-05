@@ -48,16 +48,10 @@ const blocked=(x,z,r=PLAYER_RADIUS)=>{
 const tryMove=(x,z,dx,dz)=>{
   const nx=x+dx,nz=z+dz;
   if(!blocked(nx,nz))return{x:nx,z:nz,hop:false};
-  if(!blocked(nx,z))return{x:nx,z,hop:false};
-  if(!blocked(x,nz))return{x,z:nz,hop:false};
-  const b=OBSTACLES.find(o=>{
-    const qx=clamp(nx,o.x-o.rx,o.x+o.rx),qz=clamp(nz,o.z-o.rz,o.z+o.rz);
-    return Math.hypot(nx-qx,nz-qz)<PLAYER_RADIUS&&o.vault;
-  });
-  if(b){
-    const len=Math.hypot(dx,dz)||1,leap=.95;
-    const vx=nx+dx/len*leap,vz=nz+dz/len*leap;
-    if(!blocked(vx,vz))return{x:vx,z:vz,hop:true};
+  if(Math.abs(dx)>.0001&&!blocked(x+dx,z))return{x:x+dx,z,hop:false};
+  if(Math.abs(dz)>.0001&&!blocked(x,z+dz))return{x,z:z+dz,hop:false};
+  for(const side of [[-.12,0],[.12,0],[0,-.12],[0,.12]]){
+    if(!blocked(x+side[0],z+side[1]))return{x:x+side[0],z:z+side[1],hop:false};
   }
   return{x,z,hop:false};
 };
@@ -326,11 +320,16 @@ function FallbackHuman({player,me}) {
   </group>
 }
 
-function PlayerController({posRef,moveRef,onMove,viewRef}) {
+function PlayerController({posRef,moveRef,onMove,viewRef,cameraMoveRef}) {
   const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
   useFrame(({camera},dt)=>{
     const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
-    const viewLerp=1-Math.exp(-12*d);
+    const cm=cameraMoveRef.current;
+    if(Math.abs(cm.x)+Math.abs(cm.z)>.02){
+      v.targetYaw-=cm.x*2.45*d;
+      v.targetPitch=clamp(v.targetPitch-cm.z*1.65*d,-.62,1.18);
+    }
+    const viewLerp=1-Math.exp(-14*d);
     v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
     v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
     const forward={x:-Math.sin(v.yaw),z:-Math.cos(v.yaw)},right={x:Math.cos(v.yaw),z:-Math.sin(v.yaw)};
@@ -368,7 +367,9 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
 
 function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract}) {
   const [move,setMove]=useState({x:0,z:0});
+  const [cameraMove,setCameraMove]=useState({x:0,z:0});
   const moveRef=useRef(move);moveRef.current=move;
+  const cameraMoveRef=useRef(cameraMove);cameraMoveRef.current=cameraMove;
   const posRef=useRef({...local});
   const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28});
   const cameraDrag=useRef(null);
@@ -398,20 +399,21 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     e.currentTarget.style.setProperty("--jz",clamp(z,-38,38)+"px");
   };
   const stop=e=>{setMove({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
-  const beginCamera=e=>{
-    if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
-    cameraDrag.current={x:e.clientX,y:e.clientY};
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+  const cameraJoystick=e=>{
+    const r=e.currentTarget.getBoundingClientRect();
+    const x=e.clientX-r.left-r.width/2,z=e.clientY-r.top-r.height/2;
+    const len=Math.hypot(x,z),dead=10;
+    const k=len<dead?0:Math.min(1,(len-dead)/(r.width*.5-dead));
+    const nx=len?x/len*k:0,nz=len?z/len*k:0;
+    setCameraMove({x:nx,z:nz});
+    e.currentTarget.style.setProperty("--cx",clamp(x,-40,40)+"px");
+    e.currentTarget.style.setProperty("--cz",clamp(z,-40,40)+"px");
   };
-  const moveCamera=e=>{
-    const s=cameraDrag.current;
-    if(!s)return;
-    const dx=e.clientX-s.x,dy=e.clientY-s.y;
-    s.x=e.clientX;s.y=e.clientY;
-    viewRef.current.targetYaw-=dx*.0042;
-    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch-dy*.006,-.55,1.12);
+  const stopCameraJoystick=e=>{
+    setCameraMove({x:0,z:0});
+    e.currentTarget.style.setProperty("--cx","0px");
+    e.currentTarget.style.setProperty("--cz","0px");
   };
-  const endCamera=()=>{cameraDrag.current=null};
 
   return <div className="room">
     <Canvas
@@ -434,7 +436,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       onPointerCancel={()=>{cameraDrag.current=null}}
     >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
-      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
+      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} cameraMoveRef={cameraMoveRef}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
       <ambientLight intensity={.78}/>
@@ -452,7 +454,6 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       )}
     </Canvas>
 
-    <div className="cameraPad" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
 
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
@@ -463,6 +464,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
+    <div className="cameraJoystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);cameraJoystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))cameraJoystick(e)}} onPointerUp={stopCameraJoystick} onPointerCancel={stopCameraJoystick} aria-label="Camera joystick"><div className="cameraStick"/></div>
     <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);joystick(e)}} onPointerMove={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))joystick(e)}} onPointerUp={stop} onPointerCancel={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={onInteract}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
