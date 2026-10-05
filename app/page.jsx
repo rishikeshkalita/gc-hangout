@@ -42,12 +42,14 @@ function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
 
 
 const OBSTACLES=[
-  {x:-10,z:-7.55,rx:3.7,rz:.9,vault:false,name:"living"},
-  {x:-10,z:-4.95,rx:3.7,rz:.55,vault:false,name:"livingFront"},
+  {x:-10,z:-7.05,rx:1.34,rz:.52,vault:false,name:"livingSofaA"},
+  {x:-10,z:-4.05,rx:1.34,rz:.52,vault:false,name:"livingSofaB"},
+  {x:-10,z:-5.55,rx:.72,rz:.42,vault:true,name:"livingTable"},
+  {x:-13.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairL"},
+  {x:-7.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairR"},
   {x:0,z:-8.95,rx:5.2,rz:.72,vault:false,name:"tv"},
-  {x:-5.8,z:-7.55,rx:1.65,rz:.9,vault:true,name:"tvSofa"},
   {x:9.5,z:-6.7,rx:2.6,rz:1.15,vault:true,name:"rest"},
-  {x:10.3,z:5.9,rx:3.0,rz:2.0,vault:true,name:"dining"},
+  {x:10.3,z:5.9,rx:1.25,rz:1.0,vault:true,name:"dining"},
   {x:13.15,z:1.0,rx:1.0,rz:3.0,vault:false,name:"kitchen"},
   {x:-12.8,z:4.9,rx:1.3,rz:1.5,vault:true,name:"social"},
   {x:0,z:7.9,rx:4.5,rz:.65,vault:false,name:"backDecor"}
@@ -109,7 +111,7 @@ function Kitchen() {
   </group>
 }
 
-function FloorLamp({x,z}){return <RealFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1.75}/>}
+function FloorLamp({x,z}){return <RealFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
 
 function Plant({x,z,s=1}) {
   return <group position={[x,0,z]} scale={s}>
@@ -171,15 +173,16 @@ function Hall({musicPlaying}) {
     {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
 
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
-    <Sofa position={[-10,0,-7.55]} rotation={0} width={6.8}/>
-    <Sofa position={[-10,0,-4.55]} rotation={Math.PI} width={6.8}/>
-    <CoffeeTable x={-10} z={-6.0}/>
+    <Sofa position={[-10,0,-7.05]} rotation={Math.PI}/>
+    <Sofa position={[-10,0,-4.05]} rotation={0}/>
+    <CoffeeTable x={-10} z={-5.55}/>
+    <Chair position={[-13.0,0,-5.55]} rotation={Math.PI/2}/>
+    <Chair position={[-7.0,0,-5.55]} rotation={-Math.PI/2}/>
     <FloorLamp x={-13.8} z={-7.7}/>
     <Plant x={-13.9} z={-3.0} s={1.1}/>
 
     <TV playing={musicPlaying}/>
     <Speakers playing={musicPlaying}/>
-    <Sofa position={[-5.8,0,-7.55]} rotation={0} width={3.0}/>
 
     <Rug x={10} z={5.8} w={7.2} d={5.8}/>
     <DiningTable/>
