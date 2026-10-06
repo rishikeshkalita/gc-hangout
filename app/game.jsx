@@ -789,6 +789,11 @@ export default function Home(){
         }
         return next;
       });
+      if(voiceRef.current?.enabled){
+        for(const key of voiceRef.current.peers.keys()){
+          if(key!==id&&!online.has(key))voiceRef.current.removePeer(key);
+        }
+      }
       for(const [key,entries] of Object.entries(state)){
         if(key!==id&&entries?.[0]?.voiceEnabled&&voiceRef.current&&voiceRef.current.enabled&&id<key)voiceRef.current.offerTo(key).catch(()=>{});
       }
