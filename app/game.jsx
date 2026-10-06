@@ -820,8 +820,23 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     <div className="controls" onPointerDown={e=>e.stopPropagation()}>
       <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
       <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
-        if(musicPlaying&&musicPlayBlockedRef.current&&audioRef.current){
-          try{await audioRef.current.play();musicPlayBlockedRef.current=false;onMusicAutoplayBlocked?.(null);return}catch(error){onMusicAutoplayBlocked?.(error);return}
+        const audio=audioRef.current;
+        if(audio&&musicTrack?.audio&&!musicPlaying){
+          try{
+            if(audio.src!==musicTrack.audio){audio.src=musicTrack.audio;audio.load();}
+            await audio.play();
+            musicPlayBlockedRef.current=false;
+            onMusicAutoplayBlocked?.(null);
+            onToggleMusic?.();
+            return;
+          }catch(error){
+            musicPlayBlockedRef.current=true;
+            onMusicAutoplayBlocked?.(error);
+            return;
+          }
+        }
+        if(musicPlaying&&musicPlayBlockedRef.current&&audio){
+          try{await audio.play();musicPlayBlockedRef.current=false;onMusicAutoplayBlocked?.(null);return}catch(error){onMusicAutoplayBlocked?.(error);return}
         }
         onToggleMusic?.();
       }} disabled={!musicTracks.length}>🎵 Music</button>
