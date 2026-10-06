@@ -36,10 +36,10 @@ const FURNITURE={
 };
 
 const SEATS=[
- {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-6.48],standPosition:[-10.45,0,-6.02],rotation:0},
- {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-6.48],standPosition:[-9.55,0,-6.02],rotation:0},
- {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-4.42],standPosition:[-10.45,0,-4.88],rotation:Math.PI},
- {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-4.42],standPosition:[-9.55,0,-4.88],rotation:Math.PI},
+ {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-6.48],standPosition:[-10.45,0,-6.02],approachPosition:[-10.45,0,-6.02],rotation:0},
+ {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-6.48],standPosition:[-9.55,0,-6.02],approachPosition:[-9.55,0,-6.02],rotation:0},
+ {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-4.42],standPosition:[-10.45,0,-4.88],approachPosition:[-10.45,0,-4.88],rotation:Math.PI},
+ {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-4.42],standPosition:[-9.55,0,-4.88],approachPosition:[-9.55,0,-4.88],rotation:Math.PI},
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.82:1.82)],rotation:side<0?0:Math.PI
@@ -523,8 +523,9 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
         if(item.type==="bed"&&!item.position)continue;
         if(item.id in locks)continue;
         if(item.id in snackStates&&snackStates[item.id]?.consumed)continue;
-        const d=Math.hypot(p.x-item.position[0],p.z-item.position[2]);
-        if(d<dist&&lineClear(p.x,p.z,item.position[0],item.position[2])){dist=d;best=item}
+        const target=item.approachPosition||item.position;
+        const d=Math.hypot(p.x-target[0],p.z-target[2]);
+        if(d<dist&&lineClear(p.x,p.z,target[0],target[2])){dist=d;best=item}
       }
       setCandidate(best);
     },100);
