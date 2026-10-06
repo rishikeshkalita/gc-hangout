@@ -390,15 +390,23 @@ function Furniture() {
         <Sofa position={[0, 0, 2.7]} />
         <CoffeeTable position={[0, 0, 1.35]} />
       </group>
-      <group position={[0, 0, -8.55]}>
-        <RoundedBox args={[10.2, 3.7, 0.35]} position={[0, 2.0, 0]} radius={0.16} smoothness={5}>
-          <meshStandardMaterial color="#151923" roughness={0.35} />
+      <group position={[0, 0, -9.15]}>
+        <RoundedBox args={[9.0, 3.35, 0.38]} position={[0, 2.2, 0]} radius={0.18} smoothness={5} castShadow>
+          <meshStandardMaterial color="#10141c" roughness={0.32} metalness={0.15} />
         </RoundedBox>
-        <mesh position={[0, 2.0, 0.2]}>
-          <planeGeometry args={[9.7, 3.2]} />
-          <meshStandardMaterial color="#0d111a" emissive="#211b42" emissiveIntensity={0.35} />
+        <mesh position={[0, 2.2, 0.22]}>
+          <planeGeometry args={[8.45, 2.72]} />
+          <meshStandardMaterial color="#17182a" emissive="#433a78" emissiveIntensity={0.55} roughness={0.55} />
         </mesh>
-        <Text position={[-4.2, 3.15, 0.25]} fontSize={0.3} color="#9e92e8" anchorX="left">GC TV / MUSIC</Text>
+        <Text position={[-3.75, 2.85, 0.25]} fontSize={0.28} color="#e2dcff" anchorX="left">GC HANGOUT</Text>
+        <Text position={[-3.75, 2.45, 0.25]} fontSize={0.18} color="#aaa2d8" anchorX="left">TV / MUSIC</Text>
+        <RoundedBox args={[5.4, 0.22, 0.9]} position={[0, 0.58, 0]} radius={0.08} smoothness={4} castShadow>
+          <meshStandardMaterial color="#2a303c" roughness={0.78} />
+        </RoundedBox>
+        <mesh position={[0, 0.9, 0.02]}>
+          <cylinderGeometry args={[0.11, 0.11, 0.22, 16]} />
+          <meshStandardMaterial color="#1a1e27" />
+        </mesh>
       </group>
       <group position={[9.7, 0, 5.8]}>
         <RoundedBox args={[4.8, 0.25, 2.4]} position={[0, 0.95, 0]} radius={0.12} smoothness={5} castShadow>
@@ -424,14 +432,15 @@ function Furniture() {
 function Room({ player, onMove, onNearby, interaction, joystickVector }) {
   return (
     <>
-      <ambientLight intensity={1.15} />
-      <directionalLight position={[5, 9, 4]} intensity={2.0} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <ambientLight intensity={1.35} />
+      <hemisphereLight args={["#f5ead9", "#1d2531", 1.0]} />
+      <directionalLight position={[5, 10, 4]} intensity={0.95} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <color attach="background" args={["#0e1118"]} />
       <fog attach="fog" args={["#0e1118", 24, 46]} />
 
       <mesh receiveShadow position={[0, -0.12, 0]}>
         <boxGeometry args={[30, 0.24, 20]} />
-        <meshStandardMaterial color="#272d36" roughness={0.96} />
+        <meshStandardMaterial color="#343b46" roughness={0.92} />
       </mesh>
 
       <mesh position={[0, 2.5, -10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#1d222b" /></mesh>
@@ -440,9 +449,13 @@ function Room({ player, onMove, onNearby, interaction, joystickVector }) {
       <mesh position={[15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#1d222b" /></mesh>
 
       <Furniture />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
-        <ringGeometry args={[4.8, 4.9, 64]} />
-        <meshBasicMaterial color="#5b6170" transparent opacity={0.45} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow>
+        <circleGeometry args={[4.7, 64]} />
+        <meshStandardMaterial color="#303845" roughness={0.98} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
+        <ringGeometry args={[4.7, 4.82, 64]} />
+        <meshBasicMaterial color="#7a8190" transparent opacity={0.28} />
       </mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">
         OPEN SOCIAL FLOOR
@@ -497,7 +510,7 @@ export default function Game() {
 
   return (
     <main className="game-shell">
-      <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 3, 7], fov: 58, near: 0.1, far: 60 }}>
+      <Canvas shadows="soft" dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} renderer={{ antialias: true, powerPreference: "high-performance" }}>
         <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickVector={joystick} />
       </Canvas>
       <div className="hud">
