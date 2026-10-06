@@ -99,13 +99,43 @@ const INTERACTABLES=[ ...SEATS, ...BEDS,
  {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
  {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
 ];
-function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
- const gltf=useGLTF(url);
- const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});runtimeDiag("asset-loaded",{kind:"furniture",url});return s},[gltf.scene,url]);
- return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
+function Sofa({position=[0,0,0],rotation=0,width=3.4}) {
+  return <group position={position} rotation={[0,rotation,0]}>
+    <RoundedBox castShadow args={[width,.48,1.0]} radius={.16} smoothness={6} position={[0,.48,0]}><meshStandardMaterial color="#3e4859" roughness={.82}/></RoundedBox>
+    <RoundedBox castShadow args={[width,1.05,.28]} radius={.12} smoothness={5} position={[0,1.02,-.36]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
+    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[-width/2+.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
+    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[width/2-.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
+  </group>;
 }
-
-
+function Chair({position=[0,0,0],rotation=0}) {
+  return <group position={position} rotation={[0,rotation,0]}>
+    <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
+    <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
+    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
+  </group>;
+}
+function CoffeeTable({x,z}) {
+  return <group position={[x,0,z]}>
+    <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
+    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
+  </group>;
+}
+function DiningTable() {
+  return <group position={[10,0,5.8]}>
+    <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
+    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
+    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>)}
+    <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
+  </group>;
+}
+function Bed({x,z,rotation=0}) {
+  return <group position={[x,0,z]} rotation={[0,rotation,0]}>
+    <RoundedBox castShadow args={[2.6,.35,4.2]} radius={.1} smoothness={5} position={[0,.42,0]}><meshStandardMaterial color="#313847" roughness={.8}/></RoundedBox>
+    <RoundedBox castShadow args={[2.45,.28,2.6]} radius={.1} smoothness={5} position={[0,.72,.45]}><meshStandardMaterial color="#d6d1c8" roughness={.95}/></RoundedBox>
+    <RoundedBox castShadow args={[2.3,.42,.55]} radius={.12} smoothness={5} position={[0,.86,-1.55]}><meshStandardMaterial color="#ebe7df" roughness={.9}/></RoundedBox>
+    <RoundedBox castShadow args={[2.8,1.5,.16]} radius={.05} smoothness={4} position={[0,1.0,-2.0]}><meshStandardMaterial color="#3a4250" roughness={.7}/></RoundedBox>
+  </group>;
+}
 const OBSTACLES=[
   {x:-10,z:-7.28,rx:1.14,rz:.62,vault:false,name:"livingSofaNorth"},
   {x:-10,z:-3.62,rx:1.14,rz:.62,vault:false,name:"livingSofaSouth"},
@@ -203,11 +233,12 @@ function Kitchen() {
 
 function FloorLamp({x,z}){return <RealFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
 
-function Plant({x,z,s=1,variant="palm",rotation=0}) {
-  const url=PLANT_ASSETS[variant]||PLANT_ASSETS.palm;
-  return <SafeFurniture url={url} position={[x,0,z]} rotation={rotation} scale={s}/>;
+function Plant({x,z,s=1,rotation=0}) {
+  return <group position={[x,0,z]} rotation={[0,rotation,0]} scale={s}>
+    <mesh castShadow position={[0,.3,0]}><cylinderGeometry args={[.28,.34,.6,20]}/><meshStandardMaterial color="#5b3d2e" roughness={1}/></mesh>
+    {[[-.18,.85,0],[.18,.9,.02],[-.28,.7,.08],[.28,.76,-.06],[0,1.04,.03]].map((p,i)=><mesh key={i} castShadow position={p} scale={[1,.8,1]}><sphereGeometry args={[.23,16,12]}/><meshStandardMaterial color={i%2?"#2f7f59":"#3f9869"} roughness={1}/></mesh>)}
+  </group>;
 }
-
 function Rug({x,z,w,d}) {
   return <mesh receiveShadow position={[x,.025,z]} rotation={[-Math.PI/2,0,0]}>
     <planeGeometry args={[w,d]}/><meshStandardMaterial color="#252b38" roughness={1}/>
@@ -291,7 +322,7 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
-    {showDecor&&(<Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>)}
+    <Plant x={-13.9} z={-3.0} s={1.0} rotation={0.25}/>)}
 
     <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
@@ -306,13 +337,13 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Bed x={12.2} z={-6.2} rotation={Math.PI/2}/>
     <Text position={[10.5,1.75,-8.45]} rotation={[0,0,0]} fontSize={.28} color="#b6afc6">REST / RESET</Text>
 
-    {showDecor&&(<Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>)}
-    {showDecor&&(<Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>)}
-    {showDecor&&(<Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>)}
-    {showDecor&&(<Plant x={6.4} z={8.55} s={0.95} variant="palm" rotation={-0.2}/>)}
-    {showDecor&&(<Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>)}
-    {showDecor&&(<Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>)}
-    {showDecor&&(<Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>)}
+    <Plant x={-13.7} z={8.3} s={1.0} rotation={-0.2}/>)}
+    <Plant x={13.7} z={8.3} s={0.9} rotation={0.35}/>)}
+    <Plant x={-3.0} z={9.0} s={0.9} rotation={-0.35}/>)}
+    <Plant x={6.4} z={8.55} s={0.95} rotation={-0.2}/>)}
+    <Plant x={-6.4} z={8.55} s={0.95} rotation={0.15}/>)}
+    <Plant x={5.8} z={-8.15} s={0.9} rotation={0.35}/>)}
+    <Plant x={-14.0} z={0.2} s={0.85} rotation={-0.25}/>)}
     <DigitalSignage/>
     <OpenFloorMark/>
     {showDecor&&<Snacks players={players} snackStates={snackStates}/>}
