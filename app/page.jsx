@@ -1,5 +1,7 @@
 "use client";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
+import { Ecctrl } from "ecctrl";
 import React from "react";
 import {
   PerspectiveCamera,
@@ -460,6 +462,58 @@ function FallbackHuman({player,me}) {
   </group>
 }
 
+function WorldColliders(){
+  return <>
+    <RigidBody type="fixed" colliders={false} userData={{ecctrl:{excludeCharacterRay:true}}}>
+      <CuboidCollider args={[15,.1,10]} position={[0,-.1,0]}/>
+    </RigidBody>
+    {OBSTACLES.map((b,i)=><RigidBody key={b.name||i} type="fixed" colliders={false} userData={{ecctrl:{excludeCharacterRay:true}}}>
+      <CuboidCollider args={[b.rx,.7,b.rz]} position={[b.x,.7,b.z]}/>
+    </RigidBody>)}
+  </>;
+}
+function EcctrlLocalController({posRef,moveRef,onMove,viewRef,interactionRef,onInteractionArrive}){
+  const ctrl=useRef(null),lastSend=useRef(0);
+  useFrame(({camera},dt)=>{
+    const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current,c=ctrl.current;
+    if(!c)return;
+    const p=posRef.current;
+    const locked=p.action==="sit"||p.action==="sleep"||p.action==="moving"||!!interactionRef.current;
+    if(interactionRef.current){
+      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0}});
+      const target=interactionRef.current,movePosition=target.movePosition||target.approachPosition||target.position;
+      const dx=movePosition[0]-p.x,dz=movePosition[2]-p.z,dist=Math.hypot(dx,dz);
+      if(dist>.055){
+        const speed=4.6,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
+        c.body.setTranslation({x:nx,y:1,z:nz},true);
+        const next={...p,x:nx,z:nz,rot:target.rotation,moving:true,speed:step/Math.max(d,.001),action:"moving",poseRotation:target.rotation};
+        posRef.current=next;
+        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
+      }else{
+        const finalPosition=target.position;
+        c.body.setTranslation({x:finalPosition[0],y:1,z:finalPosition[2]},true);
+        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id,seatY:target.seatY??null,poseType:target.poseType??target.type??null};
+        posRef.current=next;interactionRef.current=null;onMove(next);onInteractionArrive?.(target);
+      }
+    }else if(!locked){
+      c.setMovement({joystick:{x:m.x,y:-m.z},run:false,jump:false});
+      const q=c.currQuat,pos=c.currPos;
+      const yaw=Math.atan2(2*(q.w*q.y+q.x*q.z),1-2*(q.y*q.y+q.z*q.z));
+      const speed=c.moveSpeed||0;
+      const next={...p,x:pos.x,z:pos.z,rot:yaw,moving:speed>.06,speed,poseRotation:yaw};
+      posRef.current=next;
+      const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
+    }else{
+      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0},jump:false});
+      if(p.action==="sit"||p.action==="sleep")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
+    }
+    const t=posRef.current,dist=v.distance,horizontal=Math.cos(v.pitch)*dist;
+    const rawX=t.x+Math.sin(v.yaw)*horizontal,rawZ=t.z+Math.cos(v.yaw)*horizontal,rawY=1.05+Math.sin(v.pitch)*dist;
+    const camX=clamp(rawX,-HALL_HALF_X+1.65,HALL_HALF_X-1.65),camZ=clamp(rawZ,-HALL_HALF_Z+1.65,HALL_HALF_Z-1.65),camY=clamp(rawY,.75,6.8),follow=Math.min(1,8.5*d);
+    camera.position.x+=(camX-camera.position.x)*follow;camera.position.y+=(camY-camera.position.y)*follow;camera.position.z+=(camZ-camera.position.z)*follow;camera.lookAt(t.x,t.y+.9,t.z);
+  });
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxVelLimit={4.2} />;
+}
 function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onInteractionArrive}) {
   const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
   useFrame(({camera},dt)=>{
@@ -675,7 +729,9 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       onPointerUp={()=>{cameraDrag.current=null}}
       onPointerCancel={()=>{cameraDrag.current=null}}    >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
-      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
+      <Physics gravity={[0,-9.81,0]}>
+        <WorldColliders/>
+        <EcctrlLocalController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
       <ambientLight intensity={.78}/>
@@ -686,11 +742,12 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <TV playing={musicPlaying}/>
       <Speakers playing={musicPlaying}/>
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
-      {Object.values(players).map(p=>
-        <Suspense key={p.id} fallback={null}>
-          <AssetBoundary fallback={null}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary>
-        </Suspense>
-      )}
+        {Object.values(players).map(p=>
+          <Suspense key={p.id} fallback={null}>
+            <AssetBoundary fallback={null}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary>
+          </Suspense>
+        )}
+      </Physics>
     </Canvas>
 
 
