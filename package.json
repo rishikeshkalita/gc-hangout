@@ -15,9 +15,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.184.0",
-    "@supabase/supabase-js": "^2.117.2",
-    "ecctrl": "^2.0.2",
-    "@react-three/rapier": "^2.2.0"
+    "@supabase/supabase-js": "^2.117.2"
   },
   "engines": {
     "node": "24.x"
