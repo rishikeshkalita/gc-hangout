@@ -23,3 +23,13 @@ button,input{font:inherit}
 
 .interactionPrompt{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);z-index:9;border:1px solid #ffffff28;background:#111722e8;color:#fff;padding:10px 15px;border-radius:14px;box-shadow:0 14px 40px #0009;backdrop-filter:blur(14px);font-weight:800;font-size:13px;cursor:pointer}.interactionPrompt span{display:inline-block;margin-right:7px;color:#b7a8ff}
 @media(max-width:700px){.interactionPrompt{bottom:205px;padding:9px 13px;border-radius:13px;font-size:12px;max-width:70vw;white-space:nowrap}}
+
+.chatHead{display:flex;justify-content:space-between;align-items:center;gap:8px}.chatHead span{font-size:10px;color:#6f7786}.chatList{max-height:180px;overflow:auto;scrollbar-width:thin}.chat .msg{display:flex;gap:6px;line-height:1.35}.chat .msg strong{flex:0 0 auto}.chat .msg span{min-width:0;overflow-wrap:anywhere}.chatForm{margin-top:8px}.chatForm input{width:100%;border:1px solid #242b37;background:#121720;color:#fff;border-radius:10px;padding:9px 10px;outline:none;font-size:12px}.chatForm input:focus{border-color:#6d62c8}.voiceError{position:absolute;right:18px;bottom:76px;z-index:60;max-width:min(360px,80vw);padding:9px 12px;border:1px solid #6d3d47;background:#29151b;color:#ffd8df;border-radius:11px;font-size:11px;box-shadow:0 12px 30px #0008}
+@media(max-width:700px){
+  .chat{width:44px;height:44px}
+  .chat:focus-within,.chat:hover{width:min(320px,calc(100vw - 20px));height:auto;max-height:48vh;right:10px;bottom:92px;padding:12px;border-radius:16px;display:block;overflow:visible}
+  .chat:focus-within .chatHead,.chat:hover .chatHead{display:flex}.chat:focus-within .chatHead b,.chat:hover .chatHead b{font-size:11px}.chat:focus-within .chatList,.chat:hover .chatList{display:block}.chat:focus-within .chatForm,.chat:hover .chatForm{display:block}
+  .chat:focus-within>b,.chat:hover>b{display:none}.chat:focus-within .msg,.chat:hover .msg{display:flex}.chat:focus-within .input,.chat:hover .input{display:none}
+  .chatForm input{height:38px}
+  .voiceError{right:10px;bottom:210px}
+}
