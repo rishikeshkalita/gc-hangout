@@ -1075,6 +1075,7 @@ export default function Home(){
           reconnecting=false;
           if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
           setConnectionError("");
+          setChatError("");
           setPlayers(prev=>({...prev,[id]:localRef.current}));
           await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
           send(localRef.current);
