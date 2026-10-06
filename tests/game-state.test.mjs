@@ -51,8 +51,8 @@ test("simultaneous seat claims resolve to one holder", () => {
   const second = claimSeat(first.locks, "seat-1", "p2");
   assert.equal(first.ok, true);
   assert.equal(second.ok, false);
-  assert.equal(releaseSeat(first.locks, "seat-1", "p2").["seat-1"], "p1");
-  assert.equal(releaseSeat(first.locks, "seat-1", "p1").["seat-1"], undefined);
+  assert.equal(releaseSeat(first.locks, "seat-1", "p2")["seat-1"], "p1");
+  assert.equal(releaseSeat(first.locks, "seat-1", "p1")["seat-1"], undefined);
 });
 
 test("emotes always have an exit transition", () => {
