@@ -604,7 +604,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
     const d=Math.min(dt,.05),m=moveRef.current,c=ctrl.current;
     if(!c)return;
     const p=posRef.current;
-    const locked=p.action==="sit"||p.action==="sleep"||p.action==="moving"||!!interactionRef.current;
+    const locked=p.action==="sit"||p.action==="sleep"||p.action==="watch"||p.action==="moving"||!!interactionRef.current;
     if(interactionRef.current){
       c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0}});
       const target=interactionRef.current,movePosition=target.movePosition||target.approachPosition||target.position;
@@ -632,7 +632,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
     }else{
       c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0},jump:false});
-      if(p.action==="sit"||p.action==="sleep")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
+      if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camListenerTarget="document" />;
@@ -727,7 +727,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       const k=e.key.toLowerCase();
       if(k===" "){e.preventDefault();requestInteraction(candidate);return}
       if(k==="shift"){runRef.current=true;return}
-      if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep")){        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
+      if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep"||posRef.current.action==="watch")){        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
       }
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       e.preventDefault();
@@ -1348,22 +1348,11 @@ export default function Home(){
     }
 
     if(candidate.type==="tv"){
-      const claimed=await claimInteraction(candidate,"watch");
-      if(!claimed)return false;
-      const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:0,moving:false,speed:0};
+      // TV is a shared social activity: multiple players can watch simultaneously.
+      const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:candidate.rotation??0,moving:false,speed:0};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      setLocks(prev=>({...prev,[candidate.id]:id}));
-      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-      setTimeout(()=>{        if(localRef.current?.interactionId===candidate.id){
-          const clear={...localRef.current,action:null,interactionId:null};
-          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-          releaseInteraction(candidate.id);
-          setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
-          channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
-        }
-      },5000);
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
+      setAction("watch");
       return true;
     }
 
