@@ -339,7 +339,8 @@ function RealHuman({player,me,liveRef}) {
   const {scene,animations}=useGLTF(HUMAN_URL);  const root=useRef();
   const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
   const {actions}=useAnimations(animations,root);
-  const clipRef=useRef(null);\n  const emoteClipRef=useRef(null);
+  const clipRef=useRef(null);
+  const emoteClipRef=useRef(null);
   const wasSeated=useRef(false);
   const poseBlend=useRef(0);
   const seated=player.action==="sit";
@@ -616,7 +617,9 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const runRef=useRef(false);
-  const [candidate,setCandidate]=useState(null);\n  const [chatOpen,setChatOpen]=useState(false);\n  const [emoteOpen,setEmoteOpen]=useState(false);
+  const [candidate,setCandidate]=useState(null);
+  const [chatOpen,setChatOpen]=useState(false);
+  const [emoteOpen,setEmoteOpen]=useState(false);
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
