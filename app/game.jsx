@@ -489,7 +489,7 @@ function LocalHuman({player,me,liveRef}) {
     {player.hit&&<Text position={[0,2.32,0]} fontSize={.16} color="#ff8797" anchorX="center">OUCH!</Text>}
   </group>;
 }
-function Football({players,localId,ballState,onBallState}) {
+function FootballUnsafe({players,localId,ballState,onBallState}) {
   const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
   const gltf=useGLTF(FOOTBALL_URL);
   const scene=useMemo(()=>{
@@ -541,6 +541,10 @@ function Football({players,localId,ballState,onBallState}) {
     <BallCollider args={[.205]} />
     <primitive object={scene} scale={1.85}/>
   </RigidBody>;
+}
+
+function Football({players,localId,ballState,onBallState}) {
+  return <AssetBoundary url={FOOTBALL_URL} label="football" fallback={null}><FootballUnsafe players={players} localId={localId} ballState={ballState} onBallState={onBallState}/></AssetBoundary>;
 }
 
 function WorldColliders(){
