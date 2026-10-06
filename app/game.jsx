@@ -889,7 +889,8 @@ export default function Home(){
     let reconnectTimer=null;
     let reconnecting=false;
     const subscribe=()=>{
-      channel.subscribe(async(status,err)=>{\n        try{
+      channel.subscribe(async(status,err)=>{
+        try{
         if(status==="SUBSCRIBED"&&localRef.current){
           reconnecting=false;
           if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
@@ -915,7 +916,14 @@ export default function Home(){
             subscribe();
           },1500);
         }
-        } catch(e) {\n          if(!disposed){\n            console.error("Realtime callback failed",e);\n            setConnectionError(e?.message||"Realtime connection failed. Reconnecting…");\n          }\n        }\n      });\n    };
+        } catch(e) {
+          if(!disposed){
+            console.error("Realtime callback failed",e);
+            setConnectionError(e?.message||"Realtime connection failed. Reconnecting…");
+          }
+        }
+      });
+    };
     subscribe();
     cleanup=()=>{
       const active=localRef.current?.interactionId;
