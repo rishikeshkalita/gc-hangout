@@ -934,7 +934,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
           }catch(error){onMusicAutoplayBlocked?.(error);}
         }
         onSelectMusic?.(e.target.value);
-      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>
+      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
       <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
