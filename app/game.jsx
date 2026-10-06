@@ -510,7 +510,7 @@ export default function Game() {
 
   return (
     <main className="game-shell">
-      <Canvas shadows="soft" dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} renderer={{ antialias: true, powerPreference: "high-performance" }}>
+      <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
         <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickVector={joystick} />
       </Canvas>
       <div className="hud">
