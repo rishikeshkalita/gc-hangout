@@ -36,18 +36,18 @@ const FURNITURE={
 };
 
 const SEATS=[
- {id:"sofa-a-left",label:"Sit on sofa",type:"seat",position:[-10.58,0,-6.18],rotation:Math.PI},
- {id:"sofa-a-right",label:"Sit on sofa",type:"seat",position:[-9.42,0,-6.18],rotation:Math.PI},
- {id:"sofa-b-left",label:"Sit on sofa",type:"seat",position:[-10.58,0,-4.92],rotation:0},
- {id:"sofa-b-right",label:"Sit on sofa",type:"seat",position:[-9.42,0,-4.92],rotation:0},
+ {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.58,0,-6.18],rotation:Math.PI},
+ {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.42,0,-6.18],rotation:Math.PI},
+ {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.58,0,-4.92],rotation:0},
+ {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.42,0,-4.92],rotation:0},
  ...[[-.72,-1],[0,-1],[.72,-1],[-.72,1],[0,1],[.72,1]].map(([x,side],i)=>({
-   id:"dining-seat-"+i,label:"Sit at table",type:"seat",
+   id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.2:1.2)],rotation:side<0?0:Math.PI
  }))
 ];
 const BEDS=[
- {id:"bed-a",label:"Sleep",type:"bed",position:[8.7,0,-6.2],rotation:Math.PI/2},
- {id:"bed-b",label:"Sleep",type:"bed",position:[12.2,0,-6.2],rotation:Math.PI/2}
+ {id:"bed-a",label:"Sleep",type:"bed",finalAction:"sleep",position:[8.7,0,-6.2],rotation:Math.PI/2},
+ {id:"bed-b",label:"Sleep",type:"bed",finalAction:"sleep",position:[12.2,0,-6.2],rotation:Math.PI/2}
 ];
 const SNACKS=[
  {id:"chips",name:"Chips",kind:"chips",position:[-8.75,.76,-5.55],action:"eat",label:"Eat chips"},
@@ -369,6 +369,10 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
       const inputForward=-m2.z;
       const ix=m2.x*right.x+inputForward*forward.x,iz=m2.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
       const movingInput=Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
+      if(posRef.current.action==="sit"||posRef.current.action==="sleep"){
+        velocity.current.x=0;velocity.current.z=0;
+        posRef.current={...posRef.current,moving:false,speed:0};
+      }
       const tx=ix/len*targetSpeed,tz=iz/len*targetSpeed;
       velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(movingInput?14:18)*d2);
       velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(movingInput?14:18)*d2);
@@ -407,55 +411,6 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
   });
   return null;
 }
-    const viewLerp=1-Math.exp(-18*d);
-    v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
-    v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
-    const forward={x:-Math.sin(v.yaw),z:-Math.cos(v.yaw)},right={x:Math.cos(v.yaw),z:-Math.sin(v.yaw)};
-    // Screen-space joystick/keyboard convention: up/W = forward, down/S = backward.
-    const inputForward=-m.z;
-    const ix=m.x*right.x+inputForward*forward.x,iz=m.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
-    const moving=Math.abs(m.x)+Math.abs(m.z)>.05,targetSpeed=3.9;
-    const tx=ix/len*targetSpeed,tz=iz/len*targetSpeed;
-    velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(moving?14:18)*d);
-    velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(moving?14:18)*d);
-    if(!moving){velocity.current.x*=Math.max(0,1-10*d);velocity.current.z*=Math.max(0,1-10*d)}
-    const speed=Math.hypot(velocity.current.x,velocity.current.z);
-    if(speed>.025){
-      const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d,velocity.current.z*d);
-      if(step.hop)hopRef.current=performance.now()+420;
-      const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:true,hopUntil:hopRef.current};
-      // Only forward/back movement gently recenters the camera. Do not feed the
-      // camera-relative movement vector back into yaw every frame, or the player spins.
-      const movementYaw=next.rot;
-      const forwardInput=-m.z;
-      if(Math.abs(forwardInput)>.58 && performance.now()-v.lastManualCamera>850){
-        const desiredYaw=movementYaw-Math.PI;
-        v.targetYaw+=Math.atan2(Math.sin(desiredYaw-v.targetYaw),Math.cos(desiredYaw-v.targetYaw))*Math.min(1,1.35*d);
-      }
-      posRef.current=next;
-      const now=performance.now();if(now-lastSend.current>65){lastSend.current=now;onMove(next)}
-    }else if(posRef.current.moving){
-      const next={...posRef.current,moving:false,hopUntil:0};posRef.current=next;onMove(next);
-    }
-
-    const t=posRef.current,dist=v.distance;
-    const horizontal=Math.cos(v.pitch)*dist;
-    const rawX=t.x+Math.sin(v.yaw)*horizontal;
-    const rawZ=t.z+Math.cos(v.yaw)*horizontal;
-    const rawY=1.05+Math.sin(v.pitch)*dist;
-    // Keep the camera strictly inside the designed hall so unfinished/outside areas never enter view.
-    const camX=clamp(rawX,-HALL_HALF_X+1.65,HALL_HALF_X-1.65);
-    const camZ=clamp(rawZ,-HALL_HALF_Z+1.65,HALL_HALF_Z-1.65);
-    const camY=clamp(rawY,.75,6.8);
-    const follow=Math.min(1,8.5*d);
-    camera.position.x+=(camX-camera.position.x)*follow;
-    camera.position.y+=(camY-camera.position.y)*follow;
-    camera.position.z+=(camZ-camera.position.z)*follow;
-    camera.lookAt(t.x,t.y+.9,t.z);
-  });
-  return null;
-}
-
 function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,locks,snackStates}) {
   const [move,setMove]=useState({x:0,z:0});
   const [candidate,setCandidate]=useState(null);
@@ -465,6 +420,13 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const interactionRef=useRef(null);
   const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28,lastManualCamera:0});
   const cameraDrag=useRef(null);
+
+  const requestInteraction=(item)=>{
+    if((item?.type==="seat"||item?.type==="bed")&&!interactionRef.current){
+      interactionRef.current=item;
+    }
+    onInteract(item);
+  };
 
   useEffect(()=>{
     const timer=setInterval(()=>{
@@ -488,7 +450,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const down=e=>{
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
       const k=e.key.toLowerCase();
-      if(k===" "){e.preventDefault();onInteract();return}
+      if(k===" "){e.preventDefault();requestInteraction(candidate);return}
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       e.preventDefault();
       const next={x:k==="a"||k==="arrowleft"? -1:k==="d"||k==="arrowright"?1:moveRef.current.x,z:k==="w"||k==="arrowup"?-1:k==="s"||k==="arrowdown"?1:moveRef.current.z};setMoveImmediate(next);
@@ -573,9 +535,9 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
     <div className="chat"><b>💬 GC CHAT</b><div className="msg"><strong>Room</strong> {Object.keys(players).length} people here</div><div className="input">Type a message…</div></div>
-    {candidate&&<button className="interactionPrompt" onClick={()=>onInteract(candidate)}><span>↗</span>{candidate.label}</button>}
+    {candidate&&<button className="interactionPrompt" onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
     <div className="controls">
-      <button onClick={()=>candidate&&onInteract(candidate)}>✦ Interact</button>
+      <button onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
       <button className={musicPlaying?"active":""} onClick={onToggleMusic}>🎵 Music</button>
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
@@ -593,6 +555,8 @@ export default function Home(){
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const musicRef=useRef(false);
   musicRef.current=musicPlaying;
+  const locksRef=useRef({}),snackStatesRef=useRef({});
+  locksRef.current=locks;snackStatesRef.current=snackStates;
   const channelRef=useRef(null),localRef=useRef(null);
 
   const join=()=>{
@@ -635,6 +599,13 @@ export default function Home(){
     channel.on("broadcast",{event:"snack_state"},({payload})=>{
       if(payload?.id)setSnackStates(prev=>({...prev,[payload.id]:payload}));
     });
+    channel.on("broadcast",{event:"request_interaction_state"},()=>{
+      channel.send({type:"broadcast",event:"interaction_state",payload:{locks:locksRef.current,snackStates:snackStatesRef.current}});
+    });
+    channel.on("broadcast",{event:"interaction_state"},({payload})=>{
+      if(payload?.locks)setLocks(payload.locks);
+      if(payload?.snackStates)setSnackStates(payload.snackStates);
+    });
     channel.subscribe(async status=>{
       if(status==="SUBSCRIBED"&&localRef.current){
         setPlayers(prev=>({...prev,[id]:localRef.current}));
@@ -642,6 +613,7 @@ export default function Home(){
         send(localRef.current);
         setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
         setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
+        setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
       }
     });
     return()=>{channel.unsubscribe();channelRef.current=null};
@@ -741,7 +713,7 @@ export default function Home(){
 
   const interactionArrived=(candidate)=>{
     if(!localRef.current)return;
-    const finalAction=candidate.type==="bed"?"sleep":"sit";
+    const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
     const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation};
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload});
