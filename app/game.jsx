@@ -25,6 +25,8 @@ const PRESETS = [
 
 const HUMAN_URL="https://cdn.3dassets.dev/assets/32901/v1/model.glb";
 useGLTF.preload(HUMAN_URL);
+const FOOTBALL_URL="https://cdn.3dassets.dev/assets/19091/v1/model.glb";
+useGLTF.preload(FOOTBALL_URL);
 const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -476,6 +478,66 @@ function FallbackHuman({player,me}) {
   </group>
 }
 
+function Football({players,localId,ballState,onBallState}) {
+  const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
+  const gltf=useGLTF(FOOTBALL_URL);
+  const scene=useMemo(()=>{
+    const s=SkeletonUtils.clone(gltf.scene);
+    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    return s;
+  },[gltf.scene]);
+  const owner=localId&&Object.keys(players).filter(Boolean).sort()[0]===localId;
+  useFrame((_,dt)=>{
+    const b=body.current;
+    if(!b)return;
+    if(!owner){
+      const s=ballState||{x:2,y:.28,z:0,vx:0,vy:0,vz:0};
+      b.setTranslation({x:s.x,y:s.y,z:s.z},true);
+      b.setLinvel({x:s.vx||0,y:s.vy||0,z:s.vz||0},true);
+      b.setAngvel({x:0,y:0,z:0},true);
+      return;
+    }
+    const p=b.translation();
+    const now=performance.now();
+    for(const player of Object.values(players)){
+      if(!player?.id)continue;
+      const dx=p.x-player.x,dz=p.z-player.z;
+      const d=Math.hypot(dx,dz);
+      if(d<.72&&Math.abs(p.y-.45)<.75){
+        const last=lastHit.current[player.id]||0;
+        if(now-last>180){
+          const speed=Math.max(1.4,Math.min(4.8,Number(player.speed)||1.8));
+          const nx=d>.001?dx/d:Math.sin(player.rot||0);
+          const nz=d>.001?dz/d:Math.cos(player.rot||0);
+          b.applyImpulse({x:nx*speed,y:.22,z:nz*speed},true);
+          b.applyTorqueImpulse({x:nz*speed*.45,y:0,z:-nx*speed*.45},true);
+          lastHit.current[player.id]=now;
+        }
+      }
+    }
+    const v=b.linvel();
+    if(p.x<-14.4||p.x>14.4){b.setTranslation({x:clamp(p.x,-14.4,14.4),y:Math.max(.23,p.y),z:p.z},true);b.setLinvel({x:-v.x*.65,y:v.y,z:v.z},true)}
+    if(p.z<-9.4||p.z>9.4){b.setTranslation({x:p.x,y:Math.max(.23,p.y),z:clamp(p.z,-9.4,9.4)},true);b.setLinvel({x:v.x,y:v.y,z:-v.z*.65},true)}
+    if(p.y<.2){b.setTranslation({x:p.x,y:.28,z:p.z},true);b.setLinvel({x:v.x*.92,y:Math.abs(v.y)*.55,z:v.z*.92},true)}
+    if(now-lastBroadcast.current>50){
+      lastBroadcast.current=now;
+      const q=b.translation(),vel=b.linvel();
+      onBallState?.({x:q.x,y:q.y,z:q.z,vx:vel.x,vy:vel.y,vz:vel.z,ts:Date.now()});
+    }
+  });
+  const start=ballState||{x:2,y:.35,z:0};
+  return <RigidBody ref={body} type="dynamic" colliders="ball" mass={.45} restitution={.68} friction={.55} linearDamping={.22} angularDamping={.12} position={[start.x,start.y,start.z]}>
+    <ballCollider/>
+    <primitive object={scene} scale={1.85}/>
+  </RigidBody>;
+}
+function ballCollider(){
+  return <ballColliderImpl />;
+}
+function ballColliderImpl(){
+  return <sphereCollider args={[.205]} />;
+}
+
 function WorldColliders(){
   return <>
     <RigidBody type="fixed" colliders={false} userData={{ecctrl:{excludeCharacterRay:true}}}>
@@ -525,7 +587,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
-function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
+function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const runRef=useRef(false);
@@ -733,17 +795,17 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
 
 export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
-  const [musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
+  const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
   const [musicError,setMusicError]=useState("");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
-  const musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
+  const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
   const attackCooldownRef=useRef(0);
   const chatMessagesRef=useRef([]);
   const playersRef=useRef({});
-  musicRef.current=musicPlaying;musicTrackRef.current=musicTrack;musicStartedAtRef.current=musicStartedAt;musicPositionRef.current=musicPosition;
+  ballStateRef.current=ballState;\n  musicRef.current=musicPlaying;musicTrackRef.current=musicTrack;musicStartedAtRef.current=musicStartedAt;musicPositionRef.current=musicPosition;
   chatMessagesRef.current=chatMessages;
   playersRef.current=players;
   const locksRef=useRef({}),snackStatesRef=useRef({});
@@ -791,7 +853,7 @@ export default function Home(){
         await supabase.realtime.setAuth(session.access_token);
       const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
-    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});\n    const sendBall=s=>channel.send({type:"broadcast",event:"ball_state",payload:s});
     const reconcilePresence=()=>{
       const state=channel.presenceState();
       const online=new Set(Object.keys(state));
@@ -819,7 +881,7 @@ export default function Home(){
     channel.on("presence",{event:"sync"},reconcilePresence);
     channel.on("presence",{event:"join"},reconcilePresence);
     channel.on("presence",{event:"leave"},reconcilePresence);
-    channel.on("broadcast",{event:"player_state"},({payload})=>{
+    channel.on("broadcast",{event:"ball_state"},({payload})=>{if(payload?.ts)setBallState(payload);});\n    channel.on("broadcast",{event:"player_state"},({payload})=>{
       if(!payload?.id)return;
       setPlayers(prev=>{
         const current=prev[payload.id];
@@ -911,7 +973,7 @@ export default function Home(){
           setPlayers(prev=>({...prev,[id]:localRef.current}));
           await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
           send(localRef.current);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);\n          setTimeout(()=>channel.send({type:"broadcast",event:"ball_state",payload:ballStateRef.current}),300);
           setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
           setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
           setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
@@ -955,7 +1017,7 @@ export default function Home(){
     return()=>{disposed=true;cleanup()};
   },[joined,id,avatarId]);
   const combatPositionRef=useRef({ts:0});
-  const onMove=p=>{
+  const onBallState=s=>{ballStateRef.current=s;setBallState(s);channelRef.current?.send({type:"broadcast",event:"ball_state",payload:s});};\n\n  const onMove=p=>{
     if(!id)return;
     const stamped={...p,netTs:Date.now()};
     const combatNow=performance.now();
@@ -1189,7 +1251,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError} onMusicAutoplayBlocked={()=>setMusicError("Tap Music to start audio on this device.")}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError} onMusicAutoplayBlocked={()=>setMusicError("Tap Music to start audio on this device.")}/>;
 
   return <main className="join">
     <div className="card">
