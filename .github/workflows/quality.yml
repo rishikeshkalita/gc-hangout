@@ -15,4 +15,6 @@ jobs:
         with:
           node-version: 24
       - run: npm install
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high || true
       - run: npm run build
