@@ -368,12 +368,9 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
       const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};
       const inputForward=-m2.z;
       const ix=m2.x*right.x+inputForward*forward.x,iz=m2.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
-      const movingInput=Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
-      if(posRef.current.action==="sit"||posRef.current.action==="sleep"){
-        velocity.current.x=0;velocity.current.z=0;
-        posRef.current={...posRef.current,moving:false,speed:0};
-      }
-      const tx=ix/len*targetSpeed,tz=iz/len*targetSpeed;
+      const lockedPose=posRef.current.action==="sit"||posRef.current.action==="sleep";
+      const movingInput=!lockedPose&&Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
+      const tx=lockedPose?0:ix/len*targetSpeed,tz=lockedPose?0:iz/len*targetSpeed;
       velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(movingInput?14:18)*d2);
       velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(movingInput?14:18)*d2);
       if(!movingInput){velocity.current.x*=Math.max(0,1-10*d2);velocity.current.z*=Math.max(0,1-10*d2)}
@@ -462,7 +459,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     };
     window.addEventListener("keydown",down);window.addEventListener("keyup",up);
     return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)};
-  },[onInteract]);
+  },[onInteract,candidate]);
 
   const joystickAt=(el,x,y)=>{
     const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
@@ -544,7 +541,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     </div>
     <div className="cameraGesture" onPointerDown={e=>{e.preventDefault();beginCamera(e)}} onPointerMove={e=>{e.preventDefault();moveCamera(e)}} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
     <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onClick={()=>candidate&&onInteract(candidate)}>✦</button>
+    <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
   </div>
 }
