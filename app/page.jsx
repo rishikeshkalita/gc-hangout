@@ -485,6 +485,13 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const cameraDrag=useRef(null);
 
   const requestInteraction=(item)=>{
+    // Stand is handled by Room so its authoritative controller state is
+    // cleared at the same time as the UI/local player state. This keeps the
+    // on-screen Stand up prompt/button and joystick behavior in sync.
+    if(item?.type==="stand"){
+      standUp();
+      return;
+    }
     if((item?.type==="seat"||item?.type==="bed")&&!interactionRef.current){
       interactionRef.current=item;
     }
