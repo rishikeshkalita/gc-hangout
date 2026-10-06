@@ -27,7 +27,7 @@ const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const FURNITURE={
- sofa:"https://cdn.3dassets.dev/assets/38777/v1/model.glb",
+ sofa:"https://cdn.3dassets.dev/assets/26141/v1/model.glb",
  armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
  diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
  coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
@@ -37,24 +37,24 @@ const FURNITURE={
 };
 
 const SEATS=[
- ...[[-.48],[.48]].map(([x],i)=>({
-   id:"sofa-a-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-6.98],standPosition:[-10+x,0,-6.30],approachPosition:[-10+x,0,-6.30],
+ ...[[-.62],[0],[.62]].map(([x],i)=>({
+   id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-10+x,0,-6.88],standPosition:[-10+x,0,-6.28],approachPosition:[-10+x,0,-6.28],
    rotation:0,seatY:-.30
  })),
- ...[[-.48],[.48]].map(([x],i)=>({
-   id:"sofa-b-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-3.92],standPosition:[-10+x,0,-4.60],approachPosition:[-10+x,0,-4.60],
+ ...[[-.62],[0],[.62]].map(([x],i)=>({
+   id:"sofa-s-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-10+x,0,-4.02],standPosition:[-10+x,0,-4.62],approachPosition:[-10+x,0,-4.62],
    rotation:Math.PI,seatY:-.30
  })),
- ...[[-.48],[.48]].map(([z],i)=>({
-   id:"sofa-c-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-12.55,0,-5.55+z],standPosition:[-12.05,0,-5.55+z],approachPosition:[-12.05,0,-5.55+z],
+ ...[[-.62],[0],[.62]].map(([z],i)=>({
+   id:"sofa-w-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-12.55,0,-5.45+z],standPosition:[-11.95,0,-5.45+z],approachPosition:[-11.95,0,-5.45+z],
    rotation:-Math.PI/2,seatY:-.30
  })),
- ...[[-.48],[.48]].map(([z],i)=>({
-   id:"sofa-d-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-7.45,0,-5.55+z],standPosition:[-7.95,0,-5.55+z],approachPosition:[-7.95,0,-5.55+z],
+ ...[[-.62],[0],[.62]].map(([z],i)=>({
+   id:"sofa-e-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-7.45,0,-5.45+z],standPosition:[-8.05,0,-5.45+z],approachPosition:[-8.05,0,-5.45+z],
    rotation:Math.PI/2,seatY:-.30
  })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
@@ -99,11 +99,11 @@ function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
 
 
 const OBSTACLES=[
-  {x:-10,z:-7.2,rx:1.00,rz:.62,vault:false,name:"livingSofaA"},
-  {x:-10,z:-3.7,rx:1.00,rz:.62,vault:false,name:"livingSofaB"},
+  {x:-10,z:-7.28,rx:1.14,rz:.62,vault:false,name:"livingSofaNorth"},
+  {x:-10,z:-3.62,rx:1.14,rz:.62,vault:false,name:"livingSofaSouth"},
+  {x:-12.58,z:-5.45,rx:.62,rz:1.14,vault:false,name:"livingSofaWest"},
+  {x:-7.42,z:-5.45,rx:.62,rz:1.14,vault:false,name:"livingSofaEast"},
   {x:-10,z:-5.45,rx:.62,rz:.38,vault:true,name:"livingTable"},
-  {x:-13.0,z:-5.55,rx:.62,rz:.88,vault:false,name:"livingSofaC"},
-  {x:-7.0,z:-5.55,rx:.62,rz:.88,vault:false,name:"livingSofaD"},
   {x:0,z:-8.95,rx:5.2,rz:.72,vault:false,name:"tv"},
   {x:9.5,z:-6.7,rx:2.6,rz:1.15,vault:true,name:"rest"},
   {x:10.3,z:5.9,rx:1.25,rz:1.0,vault:true,name:"dining"},
@@ -148,7 +148,7 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.05}/>} 
+function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.0}/>} 
 
 function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
 
@@ -263,10 +263,10 @@ function Hall({musicPlaying,players,snackStates}) {
     {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
 
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
-    <Sofa position={[-10,0,-7.2]} rotation={0}/>
-    <Sofa position={[-10,0,-3.7]} rotation={Math.PI}/>
-    <Sofa position={[-13.0,0,-5.55]} rotation={-Math.PI/2}/>
-    <Sofa position={[-7.0,0,-5.55]} rotation={Math.PI/2}/>
+    <Sofa position={[-10,0,-7.28]} rotation={0}/>
+    <Sofa position={[-10,0,-3.62]} rotation={Math.PI}/>
+    <Sofa position={[-12.58,0,-5.45]} rotation={-Math.PI/2}/>
+    <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
     <Plant x={-13.9} z={-3.0} s={1.1}/>
