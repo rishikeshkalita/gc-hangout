@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text, RoundedBox } from "@react-three/drei";
+import { Billboard, Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 
 const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
@@ -162,14 +162,16 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
         <capsuleGeometry args={[0.11, 0.22, 6, 10]} />
         <meshStandardMaterial color="#171b24" roughness={0.72} />
       </mesh>
-      <Text position={[0, 2.18, 0]} fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center">
-        {displayName}
-      </Text>
+      <Billboard position={[0, 2.18, 0]} follow>
+        <Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">
+          {displayName}
+        </Text>
+      </Billboard>
     </group>
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
+function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -263,17 +265,25 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
     const current = motion.current;
     const keyboardForward = Number(keys.current.has("w") || keys.current.has("arrowup")) - Number(keys.current.has("s") || keys.current.has("arrowdown"));
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
-    const forward = joystickVector?.y || keyboardForward;
-    const strafe = joystickVector?.x || keyboardStrafe;
-    const magnitude = Math.hypot(strafe, forward);
+    const touch = joystickRef.current;
+    const forward = touch.active ? touch.y : keyboardForward;
+    const strafe = touch.active ? touch.x : keyboardStrafe;
+    const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction) {
-      if (magnitude) {
+      if (magnitude > 0.08) {
         const speed = keys.current.has("shift") ? 4.0 : 2.6;
-        const f = forward / magnitude;
-        const s = strafe / magnitude;
-        const dirX = Math.sin(yaw.current) * f + Math.cos(yaw.current) * s;
-        const dirZ = Math.cos(yaw.current) * f - Math.sin(yaw.current) * s;
+        const inputLength = Math.hypot(strafe, forward);
+        const f = forward / inputLength;
+        const s = strafe / inputLength;
+        // Screen-relative mobile controls: stick-up follows the camera's forward vector,
+        // stick-right follows camera-right. This keeps controls stable after camera rotation.
+        const forwardX = Math.sin(yaw.current);
+        const forwardZ = Math.cos(yaw.current);
+        const rightX = Math.cos(yaw.current);
+        const rightZ = -Math.sin(yaw.current);
+        const dirX = forwardX * f + rightX * s;
+        const dirZ = forwardZ * f + rightZ * s;
         const distance = speed * safeDt;
         const moved = tryMove(current.x, current.z, dirX * distance, dirZ * distance);
         current.x = moved.x;
@@ -470,7 +480,7 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickVector }) {
+function Room({ player, onMove, onNearby, interaction, joystickRef }) {
   return (
     <>
       <ambientLight intensity={1.35} />
@@ -502,7 +512,7 @@ function Room({ player, onMove, onNearby, interaction, joystickVector }) {
         OPEN SOCIAL FLOOR
       </Text>
 
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickVector={joystickVector} />
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} />
     </>
   );
 }
@@ -524,6 +534,7 @@ export default function Game() {
   const [nearby, setNearby] = useState(null);
   const [interaction, setInteraction] = useState(null);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
+  const joystickRef = useRef({ x: 0, y: 0, active: false });
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
   const beginInteraction = () => {
     if (!nearby || interaction) return;
@@ -552,24 +563,23 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickVector={joystick} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} />
       </Canvas>
       <div className="hud">
         <div className="hud-title">GC HANGOUT</div>
         <div className="hud-subtitle">Shared home</div>
         <div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div>
+      </div>
       {nearby && !interaction && (
-        <button className="interaction-hint" onClick={beginInteraction}>
+        <button className="interaction-hint" onPointerDown={(event) => event.stopPropagation()} onClick={beginInteraction}>
           <strong>{nearby.label}</strong><span>Tap to interact</span>
         </button>
       )}
       {interaction && (
-        <button className="interaction-hint active" onClick={endInteraction}>
+        <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}>
           <strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span>
         </button>
       )}
-
-      </div>
       <div
         className="touch-controls"
         aria-label="Touch movement controls"
@@ -583,26 +593,40 @@ export default function Game() {
           const dy = event.clientY - (rect.top + rect.height / 2);
           const length = Math.max(1, Math.hypot(dx, dy));
           const scale = Math.min(1, max / length);
-          setJoystick({ x: dx / max * scale, y: -dy / max * scale, active: true });
+          const next = { x: dx / max * scale, y: -dy / max * scale, active: true };
+          joystickRef.current = next;
+          setJoystick(next);
         }}
         onPointerMove={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          if (!joystick.active) return;
+          if (!joystickRef.current.active) return;
           const rect = event.currentTarget.getBoundingClientRect();
           const max = 38;
           const dx = event.clientX - (rect.left + rect.width / 2);
           const dy = event.clientY - (rect.top + rect.height / 2);
           const length = Math.max(1, Math.hypot(dx, dy));
           const scale = Math.min(1, max / length);
-          setJoystick({ x: dx / max * scale, y: -dy / max * scale, active: true });
+          const next = { x: dx / max * scale, y: -dy / max * scale, active: true };
+          joystickRef.current = next;
+          setJoystick(next);
         }}
         onPointerUp={(event) => {
           event.preventDefault();
-          setJoystick({ x: 0, y: 0, active: false });
+          event.stopPropagation();
+          joystickRef.current = { x: 0, y: 0, active: false };
+          setJoystick(joystickRef.current);
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
         }}
-        onPointerCancel={() => setJoystick({ x: 0, y: 0, active: false })}
-        onLostPointerCapture={() => setJoystick({ x: 0, y: 0, active: false })}
+        onPointerCancel={(event) => {
+          joystickRef.current = { x: 0, y: 0, active: false };
+          setJoystick(joystickRef.current);
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+        }}
+        onLostPointerCapture={() => {
+          joystickRef.current = { x: 0, y: 0, active: false };
+          setJoystick(joystickRef.current);
+        }}
       >
         <div className="joystick"><span style={{ transform: `translate(${joystick.x * 30}px, ${-joystick.y * 30}px)` }} /></div>
       </div>
