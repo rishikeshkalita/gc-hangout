@@ -29,6 +29,16 @@ const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
+const PLANT_ASSETS={
+  palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
+  treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
+  banana:"https://cdn.3dassets.dev/assets/38579/v1/model.glb",
+  cycad:"https://cdn.3dassets.dev/assets/38581/v1/model.glb"
+};
+useGLTF.preload(PLANT_ASSETS.palm);
+useGLTF.preload(PLANT_ASSETS.treeFern);
+useGLTF.preload(PLANT_ASSETS.banana);
+useGLTF.preload(PLANT_ASSETS.cycad);
 const FURNITURE={
  sofa:"https://cdn.3dassets.dev/assets/26141/v1/model.glb",
  armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
@@ -205,18 +215,9 @@ function Kitchen() {
 
 function FloorLamp({x,z}){return <SafeFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
 
-function Plant({x,z,s=1}) {
-  const leaves=[
-    [0,.98,0,.95,.18,.42,.2],[.28,1.08,.03,.72,.16,.34,.55],[-.28,1.12,.03,.72,.16,.34,-.55],
-    [.18,1.42,.02,.62,.14,.30,.35],[-.18,1.48,.02,.62,.14,.30,-.35],[0,1.72,.02,.55,.12,.28,0]
-  ];
-  return <group position={[x,0,z]} scale={s}>
-    <mesh castShadow position={[0,.38,0]}><cylinderGeometry args={[.34,.42,.76,24]}/><meshStandardMaterial color="#554035" roughness={.92}/></mesh>
-    <mesh castShadow position={[0,.92,0]} rotation={[0,0,.18]}><cylinderGeometry args={[.055,.075,.9,8]}/><meshStandardMaterial color="#5b493b" roughness={1}/></mesh>
-    {leaves.map(([px,py,pz,sx,sy,sz,rz],i)=><mesh key={i} castShadow position={[px,py,pz]} rotation={[.25,rz,.12]} scale={[sx,sy,sz]}>
-      <sphereGeometry args={[.42,16,10]}/><meshStandardMaterial color={i%2?"#2e7b57":"#3d9a69"} roughness={.95}/>
-    </mesh>)}
-  </group>
+function Plant({x,z,s=1,variant="palm",rotation=0}) {
+  const url=PLANT_ASSETS[variant]||PLANT_ASSETS.palm;
+  return <SafeFurniture url={url} position={[x,0,z]} rotation={rotation} scale={s}/>;
 }
 
 function Rug({x,z,w,d}) {
@@ -274,7 +275,7 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
-    <Plant x={-13.9} z={-3.0} s={1.1}/>
+    <Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>
 
     <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
@@ -289,9 +290,9 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Bed x={12.2} z={-6.2} rotation={Math.PI/2}/>
     <Text position={[10.5,1.75,-8.45]} rotation={[0,0,0]} fontSize={.28} color="#b6afc6">REST / RESET</Text>
 
-    <Plant x={-13.7} z={8.3} s={1.15}/>
-    <Plant x={13.7} z={8.3} s={1.0}/>
-    <Plant x={-3.0} z={9.0} s={.8}/>
+    <Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>
+    <Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>
+    <Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>
     <DigitalSignage/>
     <OpenFloorMark/>
     <Snacks players={players} snackStates={snackStates}/>
