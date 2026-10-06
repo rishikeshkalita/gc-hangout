@@ -945,7 +945,7 @@ export default function Home(){
         return [...map.values()].sort((a,b)=>a.ts-b.ts).slice(-80);
       });
     });
-    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
+    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}}));
     channel.on("broadcast",{event:"attack"},async({payload})=>{
       try{
         if(!payload?.id||payload.id===id)return;
