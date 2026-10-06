@@ -1187,21 +1187,22 @@ export default function Home(){
 
   const onMove=p=>{
     if(!id)return;
-    const stamped={...p,netTs:Date.now()};
+    const transient={emote:p.emote??localRef.current?.emote??null,attacking:p.attacking??localRef.current?.attacking??false,hit:p.hit??localRef.current?.hit??false};
+    const next={...p,...transient};
+    const stamped={...next,netTs:Date.now()};
     const combatNow=performance.now();
     if(combatNow-combatPositionRef.current.ts>=120){
       combatPositionRef.current={ts:combatNow};
       getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0)})).catch(error=>console.warn("combat position sync failed",error));
     }
-    const next={...p,emote:p.emote??localRef.current?.emote??null,attacking:p.attacking??localRef.current?.attacking??false,hit:p.hit??localRef.current?.hit??false};
     localRef.current=next;
     const now=performance.now();
     setPlayers(prev=>{
       const current=prev[id];
-      const stateChanged=current?.action!==p.action||current?.interactionId!==p.interactionId||current?.emote!==p.emote||current?.attacking!==p.attacking||current?.hit!==p.hit;
+      const stateChanged=current?.action!==next.action||current?.interactionId!==next.interactionId||current?.emote!==next.emote||current?.attacking!==next.attacking||current?.hit!==next.hit;
       if(!stateChanged&&now-uiStateAtRef.current<100)return prev;
       uiStateAtRef.current=now;
-      return {...prev,[id]:{...p,uiTs:now}};
+      return {...prev,[id]:{...next,uiTs:now}};
     });
     channelRef.current?.send({type:"broadcast",event:"player_state",payload:stamped});
   };
