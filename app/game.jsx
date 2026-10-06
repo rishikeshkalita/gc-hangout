@@ -31,6 +31,21 @@ const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
+const normalizeChatMessage=payload=>{
+  if(!payload||typeof payload!=="object")return null;
+  const id=typeof payload.id==="string"?payload.id.slice(0,80):"";
+  const text=typeof payload.text==="string"?payload.text.replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,240):"";
+  if(!id||!text)return null;
+  const name=typeof payload.name==="string"?payload.name.replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,18):"Guest";
+  const ts=Number.isFinite(Number(payload.ts))?Number(payload.ts):Date.now();
+  return {id,name:name||"Guest",text,ts};
+};
+const mergeChatMessages=(current,incoming)=>{
+  const list=Array.isArray(incoming)?incoming:[incoming];
+  const map=new Map(current.map(m=>[m.id,m]));
+  for(const raw of list){const message=normalizeChatMessage(raw);if(message)map.set(message.id,message);}
+  return [...map.values()].sort((a,b)=>a.ts-b.ts).slice(-80);
+};
 const PLANT_ASSETS={
   palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
   treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
@@ -614,7 +629,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camListenerTarget="document" />;
 }
-function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,onMusicAutoplayBlocked}) {
+function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const musicPlayBlockedRef=useRef(false);
@@ -810,8 +825,9 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onPointerDown={e=>e.stopPropagation()} onClick={()=>setChatOpen(v=>!v)}>💬</button>
     <div className={`chat${chatOpen?" open":""}`} onPointerDown={e=>e.stopPropagation()}>
       <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span><button className="chatClose" type="button" onClick={()=>setChatOpen(false)}>×</button></div>
-      <div className="chatList">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
-      <form className="chatForm" onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){onSendChat?.(input.value);input.value=""}}}>
+      <div className="chatList" role="log" aria-live="polite" aria-relevant="additions">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
+      {chatError&&<div className="chatError" role="status">{chatError}</div>}
+      <form className="chatForm" onSubmit={async e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){const sent=await onSendChat?.(input.value);if(sent!==false)input.value=""}}}>
         <input name="message" maxLength={240} autoComplete="off" placeholder="Message the room…"/>
         <button type="submit">Send</button>
       </form>
@@ -875,7 +891,7 @@ export default function Home(){
   const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
-  const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
+  const [chatMessages,setChatMessages]=useState([]),[chatError,setChatError]=useState(""),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
   const [musicError,setMusicError]=useState("");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
   const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
@@ -983,18 +999,16 @@ export default function Home(){
       if(typeof payload?.musicPosition==="number")setMusicPosition(payload.musicPosition);
     });
     channel.on("broadcast",{event:"chat_message"},({payload})=>{
-      if(!payload?.id||!payload?.text)return;
-      setChatMessages(prev=>prev.some(m=>m.id===payload.id)?prev:[...prev,payload].slice(-80));
+      const message=normalizeChatMessage(payload);
+      if(!message)return;
+      setChatMessages(prev=>mergeChatMessages(prev,message));
     });
     channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}})});
     channel.on("broadcast",{event:"request_chat"},()=>{
       if(chatMessagesRef.current.length)channel.send({type:"broadcast",event:"chat_history",payload:{messages:chatMessagesRef.current}});
     });
     channel.on("broadcast",{event:"chat_history"},({payload})=>{
-      if(Array.isArray(payload?.messages))setChatMessages(prev=>{
-        const merged=[...prev,...payload.messages],map=new Map(merged.map(m=>[m.id,m]));
-        return [...map.values()].sort((a,b)=>a.ts-b.ts).slice(-80);
-      });
+      if(Array.isArray(payload?.messages))setChatMessages(prev=>mergeChatMessages(prev,payload.messages));
     });
     channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}}));
     channel.on("broadcast",{event:"attack"},async({payload})=>{
@@ -1131,15 +1145,28 @@ export default function Home(){
     channelRef.current?.send({type:"broadcast",event:"player_state",payload:stamped});
   };
 
-  const onSendChat=textValue=>{
+  const onSendChat=async textValue=>{
     const now=Date.now();
-    if(now-chatLastSentRef.current<700)return;
+    if(now-chatLastSentRef.current<700)return false;
     const clean=String(textValue||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,240);
-    if(!clean||!localRef.current)return;
+    if(!clean||!localRef.current)return false;
+    const channel=channelRef.current;
+    if(!channel){setChatError("Chat is not connected.");return false;}
     chatLastSentRef.current=now;
-    const message={id:makeId(),name:localRef.current.name,text:clean,ts:now};
-    setChatMessages(prev=>[...prev,message].slice(-80));
-    channelRef.current?.send({type:"broadcast",event:"chat_message",payload:message});
+    const message=normalizeChatMessage({id:makeId(),name:localRef.current.name,text:clean,ts:now});
+    if(!message)return false;
+    setChatError("");
+    setChatMessages(prev=>mergeChatMessages(prev,message));
+    try{
+      const status=await channel.send({type:"broadcast",event:"chat_message",payload:message});
+      if(status!=="ok")throw new Error("Chat message was rejected.");
+      return true;
+    }catch(error){
+      console.warn("Chat message send failed",error);
+      setChatMessages(prev=>prev.filter(m=>m.id!==message.id));
+      setChatError("Message could not be sent. Check the connection and try again.");
+      return false;
+    }
   };
 
   const refreshVoiceDevices=async()=>{
