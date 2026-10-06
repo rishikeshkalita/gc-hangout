@@ -653,7 +653,10 @@ export default function Home(){
       const clear={...p,action:null,interactionId:null,poseRotation:p.rot,speed:0,moving:false};
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-      if(objectId)channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId,userId:id,locked:false}});
+      if(objectId){
+        setLocks(prev=>{const next={...prev};delete next[objectId];return next});
+        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId,userId:id,locked:false}});
+      }
       setAction(null);
       return;
     }
@@ -676,6 +679,7 @@ export default function Home(){
           const clear={...localRef.current,action:null,interactionId:null};
           localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
           channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+          setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
           channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
         }
       },5000);
@@ -687,6 +691,7 @@ export default function Home(){
       interactionRef.current=candidate;
       const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      setLocks(prev=>({...prev,[candidate.id]:id}));
       channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
       channelRef.current?.send({type:"broadcast",event:"player_state",payload});
       return;
@@ -731,6 +736,7 @@ export default function Home(){
         const clear={...localRef.current,action:null,interactionId:null,poseRotation:localRef.current.rot};
         localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
         channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+        setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
         channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
       }
     },7000);
