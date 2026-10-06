@@ -77,8 +77,7 @@ const SNACKS=[
  {id:"water-2",name:"Water",kind:"waterBottle",position:[-10.95,.84,-5.55],action:"drink",label:"Drink water"}
 ];
 
-const INTERACTABLES=[
- ...SEATS,
+const INTERACTABLES=[ ...SEATS,
  ...BEDS,
  {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
  {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
@@ -147,6 +146,7 @@ function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITU
 function CoffeeTable({x,z}){return <RealFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
 
 function DiningTable(){return <group position={[10,0,5.8]}><RealFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><RealFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
+
 function Bed({x,z,rotation=0}){return <RealFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
 
 
@@ -156,8 +156,7 @@ function Snack({item,state,players}){
   const consumed=!!state?.consumed;
   const gltf=useGLTF(FOOD_ASSETS[item.kind]);
   const scene=useMemo(()=>{
-    const s=SkeletonUtils.clone(gltf.scene);
-    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    const s=SkeletonUtils.clone(gltf.scene);    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
     return s;
   },[gltf.scene]);
   useFrame((_,dt)=>{
@@ -237,7 +236,6 @@ function Speakers({playing}) {
     </group>)}
   </>
 }
-
 function OpenFloorMark() {
   return <group position={[0,.035,0]}>
     <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[4.9,5.02,64]}/><meshBasicMaterial color="#4f5364" transparent opacity={.42}/></mesh>
@@ -303,8 +301,7 @@ function DigitalSignage() {
     <RoundedBox args={[8.82,.58,.035]} radius={.09} smoothness={5} position={[0,0,.08]}>
       <meshStandardMaterial color="#020409" roughness={.16} metalness={.35}/>
     </RoundedBox>
-    <Text position={[0,0,.12]} fontSize={.43} color={color} anchorX="center" anchorY="middle"
-      outlineWidth={.018} outlineColor={color}>
+    <Text position={[0,0,.12]} fontSize={.43} color={color} anchorX="center" anchorY="middle" outlineWidth={.018} outlineColor={color}>
       XOPADHORA GC
     </Text>
     <Text position={[0,0,.105]} fontSize={.50} color={color} fillOpacity={.10} anchorX="center" anchorY="middle">
@@ -318,6 +315,7 @@ function DigitalSignage() {
     </mesh>
   </group>
 }
+
 function RealHuman({player,me}) {
   const {scene,animations}=useGLTF(HUMAN_URL);
   const root=useRef();
@@ -337,8 +335,7 @@ function RealHuman({player,me}) {
       if(!o.isBone)return;
       const n=o.name.toLowerCase().replace(/[^a-z0-9]/g,"");
       const left=/(left|l)$/.test(n)||n.includes("left");
-      const right=/(right|r)$/.test(n)||n.includes("right");
-      if(!b.thighL&&left&&/(thigh|upperleg|upleg)/.test(n))b.thighL=o;
+      const right=/(right|r)$/.test(n)||n.includes("right");      if(!b.thighL&&left&&/(thigh|upperleg|upleg)/.test(n))b.thighL=o;
       if(!b.thighR&&right&&/(thigh|upperleg|upleg)/.test(n))b.thighR=o;
       if(!b.shinL&&left&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinL=o;
       if(!b.shinR&&right&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinR=o;
@@ -417,8 +414,7 @@ function RealHuman({player,me}) {
   const seatedBackX=locked?-Math.sin(targetRot)*.08:0;
   const seatedBackZ=locked?-Math.cos(targetRot)*.08:0;
   return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
-    <group position={[seatedBackX,0,seatedBackZ]}>
-      <primitive object={model} dispose={null}/>
+    <group position={[seatedBackX,0,seatedBackZ]}>      <primitive object={model} dispose={null}/>
       <Text position={[0,2.05,0]} fontSize={.14} color={me?"#bbaeff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#11131a">{player.name}{me?" • you":""}</Text>
       {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}
       {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
@@ -467,7 +463,8 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
       const viewLerp=1-Math.exp(-18*d2);
       v2.yaw+=Math.atan2(Math.sin(v2.targetYaw-v2.yaw),Math.cos(v2.targetYaw-v2.yaw))*viewLerp;
       v2.pitch+=(v2.targetPitch-v2.pitch)*viewLerp;
-      const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};      const inputForward=-m2.z;
+      const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};
+      const inputForward=-m2.z;
       const ix=m2.x*right.x+inputForward*forward.x,iz=m2.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
       const lockedPose=posRef.current.action==="sit"||posRef.current.action==="sleep";
       const movingInput=!lockedPose&&Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
@@ -496,7 +493,6 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
         const next={...posRef.current,moving:false,speed:0,hopUntil:0};posRef.current=next;onMove(next);
       }
     }
-
     const t=posRef.current,dist=v.distance;
     const horizontal=Math.cos(v.pitch)*dist;
     const rawX=t.x+Math.sin(v.yaw)*horizontal;
@@ -577,7 +573,6 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     window.addEventListener("keydown",down);window.addEventListener("keyup",up);
     return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)};
   },[onInteract,candidate]);
-
   const standUp=()=>{
     const p=posRef.current;
     if(p.action!=="sit"&&p.action!=="sleep")return false;
@@ -616,7 +611,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const px=dx*k,pz=dz*k;
     setMoveImmediate({x:clamp(px/42,-1,1),z:clamp(pz/42,-1,1)});
     el.style.setProperty("--jx",px+"px");el.style.setProperty("--jz",pz+"px");
-  };  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
+  };
+  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
   const stop=e=>{e.preventDefault();setMoveImmediate({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
   const beginCamera=e=>{
     if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
@@ -655,8 +651,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
         viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.007,-.48,1.05);
       }}
       onPointerUp={()=>{cameraDrag.current=null}}
-      onPointerCancel={()=>{cameraDrag.current=null}}
-    >
+      onPointerCancel={()=>{cameraDrag.current=null}}    >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
       <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
@@ -735,8 +730,7 @@ export default function Home(){
     });
     channel.on("broadcast",{event:"player_action"},({payload})=>{
       if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],...payload}}:prev)
-    });
-    channel.on("broadcast",{event:"interaction_lock"},({payload})=>{
+    });    channel.on("broadcast",{event:"interaction_lock"},({payload})=>{
       if(!payload?.objectId)return;
       if(payload.locked)setLocks(prev=>({...prev,[payload.objectId]:payload.userId}));
       else setLocks(prev=>{const next={...prev};delete next[payload.objectId];return next});
@@ -815,4 +809,82 @@ export default function Home(){
       setLocks(prev=>({...prev,[candidate.id]:id}));
       channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
       channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+      setTimeout(()=>{        if(localRef.current?.interactionId===candidate.id){
+          const clear={...localRef.current,action:null,interactionId:null};
+          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+          setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
+          channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
+        }
+      },5000);
+      return;
+    }
+
+    if(candidate.type==="seat"||candidate.type==="bed"){
+      const finalAction=candidate.type==="bed"?"sleep":"sit";
+      interactionRef.current=candidate;
+      const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
+      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      setLocks(prev=>({...prev,[candidate.id]:id}));
+      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+      return;
+    }
+
+    const food=SNACKS.find(s=>s.id===candidate.id);
+    if(food){
+      const state=snackStates[food.id];
+      if(state?.consumed||state?.heldBy)return;
+      const held={id:food.id,heldBy:id,consumed:false};
+      setSnackStates(prev=>({...prev,[food.id]:held}));
+      channelRef.current?.send({type:"broadcast",event:"snack_state",payload:held});
+      setLocks(prev=>({...prev,[food.id]:id}));
+      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:true}});
+      const payload={...p,action:food.action,interactionId:food.id,moving:false,speed:0};
+      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
       setTimeout(()=>{
+        const consumed={id:food.id,heldBy:null,consumed:true};
+        setSnackStates(prev=>({...prev,[food.id]:consumed}));
+        channelRef.current?.send({type:"broadcast",event:"snack_state",payload:consumed});
+        if(localRef.current?.interactionId===food.id){
+          const clear={...localRef.current,action:null,interactionId:null};
+          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+        }
+        setLocks(prev=>{const next={...prev};delete next[food.id];return next});
+        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:false}});
+      },1500);
+    }
+  };
+
+  const interactionArrived=(candidate)=>{
+    if(!localRef.current)return;
+    const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
+    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null};
+    localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+    setAction(finalAction);
+    // Stay seated/asleep until the user explicitly presses Stand up or moves
+    // the joystick/keyboard. The old 7s timer was making the interaction state
+    // race with input and could leave the client looking locked.
+  };
+
+  if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived}/>;
+
+  return <main className="join">
+    <div className="card">
+      <div className="logo">🌙</div><h1>GC Hangout Hall</h1>
+      <p>One large shared hall built around movement, camera space and multiplayer interaction.</p>
+      <label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18))} placeholder="e.g. Rishi"/></label>
+      <div className="label">Choose your human</div>
+      <div className="avatars">{PRESETS.map((p,i)=>
+        <button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id)} key={p.id}>
+          <span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small>
+        </button>
+      )}</div>
+      <button className="enter" onClick={join} disabled={!name.trim()}>Enter the hall →</button>
+      <div className="note">Open-plan hall • smooth movement • shared music • multiplayer</div>
+    </div>
+  </main>;
+}
