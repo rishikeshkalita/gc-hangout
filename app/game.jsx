@@ -177,6 +177,9 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
   const drag = useRef(null);
   const cameraTarget = useRef(new THREE.Vector3());
   const cameraPosition = useRef(new THREE.Vector3(0, 3.6, 7.8));
+  const playerGroup = useRef();
+  const motion = useRef({ x: state.x, z: state.z, rot: state.rot, moving: state.moving, speed: state.speed });
+  const dirty = useRef(false);
   const nearbyRef = useRef(null);
   const { camera, gl, size } = useThree();
   const mobile = size.width <= 700;
@@ -208,7 +211,10 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
       yaw.current -= dx * 0.006;
       pitch.current = clamp(pitch.current + dy * 0.004, 0.18, 0.72);
     };
-    const end = (event) => { drag.current = null; if (event?.pointerId != null) element.releasePointerCapture?.(event.pointerId); };
+    const end = (event) => {
+      drag.current = null;
+      if (event?.pointerId != null) element.releasePointerCapture?.(event.pointerId);
+    };
     element.addEventListener("pointerdown", begin);
     element.addEventListener("pointermove", move);
     element.addEventListener("pointerup", end);
@@ -235,14 +241,31 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
     cameraDistance.current = mobile ? clamp(cameraDistance.current, 6.2, 8.8) : clamp(cameraDistance.current, 5.2, 8.8);
   }, [mobile]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!dirty.current) return;
+      dirty.current = false;
+      const snapshot = motion.current;
+      onMove((current) => ({
+        ...current,
+        x: snapshot.x,
+        z: snapshot.z,
+        rot: snapshot.rot,
+        moving: snapshot.moving,
+        speed: snapshot.speed,
+      }));
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [onMove]);
+
   useFrame((_, dt) => {
     const safeDt = Math.min(dt, 0.05);
+    const current = motion.current;
     const keyboardForward = Number(keys.current.has("w") || keys.current.has("arrowup")) - Number(keys.current.has("s") || keys.current.has("arrowdown"));
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const forward = joystickVector?.y || keyboardForward;
     const strafe = joystickVector?.x || keyboardStrafe;
     const magnitude = Math.hypot(strafe, forward);
-    let next = state;
 
     if (!interaction) {
       if (magnitude) {
@@ -252,39 +275,57 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
         const dirX = Math.sin(yaw.current) * f + Math.cos(yaw.current) * s;
         const dirZ = Math.cos(yaw.current) * f - Math.sin(yaw.current) * s;
         const distance = speed * safeDt;
-        const moved = tryMove(state.x, state.z, dirX * distance, dirZ * distance);
-        next = { ...state, ...moved, rot: Math.atan2(dirX, dirZ), moving: true, speed };
-      } else if (state.moving || state.speed !== 0) {
-        next = { ...state, moving: false, speed: 0 };
+        const moved = tryMove(current.x, current.z, dirX * distance, dirZ * distance);
+        current.x = moved.x;
+        current.z = moved.z;
+        current.rot = Math.atan2(dirX, dirZ);
+        current.moving = true;
+        current.speed = speed;
+        dirty.current = true;
+      } else if (current.moving || current.speed !== 0) {
+        current.moving = false;
+        current.speed = 0;
+        dirty.current = true;
       }
-      if (next !== state) onMove(next);
+    } else {
+      current.moving = false;
+      current.speed = 0;
+      dirty.current = true;
     }
 
-    const nearby = findNearestAnchor(next.x, next.z);
+    const nearby = findNearestAnchor(current.x, current.z);
     const nearbyId = nearby?.id || null;
     if (nearbyRef.current !== nearbyId) {
       nearbyRef.current = nearbyId;
       onNearby(nearby);
     }
 
+    if (interaction && (interaction.phase === "align" || interaction.phase === "animate" || interaction.phase === "sync")) {
+      if (Math.hypot(interaction.anchor.x - current.x, interaction.anchor.z - current.z) > 0.02) {
+        current.x = interaction.anchor.x;
+        current.z = interaction.anchor.z;
+        current.rot = interaction.anchor.rot;
+        dirty.current = true;
+      }
+    }
+
+    if (playerGroup.current) {
+      playerGroup.current.position.set(current.x, 0, current.z);
+      playerGroup.current.rotation.y = current.rot;
+    }
+
     const targetY = (mobile ? 0.95 : 1.05) + Math.sin(pitch.current) * cameraDistance.current;
     const horizontal = Math.cos(pitch.current) * cameraDistance.current;
     const desired = cameraTarget.current.set(
-      next.x - Math.sin(yaw.current) * horizontal,
+      current.x - Math.sin(yaw.current) * horizontal,
       targetY,
-      next.z - Math.cos(yaw.current) * horizontal
+      current.z - Math.cos(yaw.current) * horizontal
     );
     cameraPosition.current.lerp(desired, 1 - Math.exp(-8 * safeDt));
     cameraPosition.current.x = clamp(cameraPosition.current.x, -WORLD.halfX + 1.0, WORLD.halfX - 1.0);
     cameraPosition.current.z = clamp(cameraPosition.current.z, -WORLD.halfZ + 1.0, WORLD.halfZ - 1.0);
     camera.position.copy(cameraPosition.current);
-    camera.lookAt(next.x, mobile ? 0.9 : 1.0, next.z);
-
-    if (interaction && (interaction.phase === "align" || interaction.phase === "animate" || interaction.phase === "sync")) {
-      if (Math.hypot(interaction.anchor.x - state.x, interaction.anchor.z - state.z) > 0.02) {
-        onMove({ ...state, x: interaction.anchor.x, z: interaction.anchor.z, rot: interaction.anchor.rot, moving: false, speed: 0 });
-      }
-    }
+    camera.lookAt(current.x, mobile ? 0.9 : 1.0, current.z);
   });
 
   const pose = interaction?.anchor?.type === "SLEEP" ? "sleep"
@@ -295,7 +336,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
     : "idle";
 
   return (
-    <group position={[state.x, 0, state.z]} rotation={[0, state.rot, 0]}>
+    <group ref={playerGroup}>
       <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} />
       {interaction?.status === "active" && <Text position={[0, 2.45, 0]} fontSize={0.16} color="#d8ceff" anchorX="center">{interaction.anchor.label.toUpperCase()}</Text>}
     </group>
