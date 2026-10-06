@@ -612,11 +612,12 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} mode="FixedCamera" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
+  const musicPlayBlockedRef=useRef(false);
   const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
   const [chatOpen,setChatOpen]=useState(false);
@@ -646,8 +647,14 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       if(Number.isFinite(desired)&&Math.abs((audio.currentTime||0)-desired)>.75){
         try{audio.currentTime=desired}catch{}
       }
-      audio.play().catch(error=>{
-        if(musicPlaying)onMusicAutoplayBlocked?.(error);
+      audio.play().then(()=>{
+        musicPlayBlockedRef.current=false;
+        if(musicPlaying)onMusicAutoplayBlocked?.(null);
+      }).catch(error=>{
+        if(musicPlaying){
+          musicPlayBlockedRef.current=true;
+          onMusicAutoplayBlocked?.(error);
+        }
       });
     };
     sync();
@@ -800,8 +807,8 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
-    <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onClick={()=>setChatOpen(v=>!v)}>💬</button>
-    <div className={`chat${chatOpen?" open":""}`}>
+    <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onPointerDown={e=>e.stopPropagation()} onClick={()=>setChatOpen(v=>!v)}>💬</button>
+    <div className={`chat${chatOpen?" open":""}`} onPointerDown={e=>e.stopPropagation()}>
       <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span><button className="chatClose" type="button" onClick={()=>setChatOpen(false)}>×</button></div>
       <div className="chatList">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
       <form className="chatForm" onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){onSendChat?.(input.value);input.value=""}}}>
@@ -809,10 +816,15 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
         <button type="submit">Send</button>
       </form>
     </div>
-    {candidate&&<button className="interactionPrompt" onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
-    <div className="controls">
+    {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
+    <div className="controls" onPointerDown={e=>e.stopPropagation()}>
       <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
-      <button type="button" className={musicPlaying?"active":""} onClick={onToggleMusic} disabled={!musicTracks.length}>🎵 Music</button>
+      <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
+        if(musicPlaying&&musicPlayBlockedRef.current&&audioRef.current){
+          try{await audioRef.current.play();musicPlayBlockedRef.current=false;onMusicAutoplayBlocked?.(null);return}catch(error){onMusicAutoplayBlocked?.(error);return}
+        }
+        onToggleMusic?.();
+      }} disabled={!musicTracks.length}>🎵 Music</button>
       {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
       <label className="musicUpload" title="Add a custom song">＋ Song<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
@@ -821,17 +833,17 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
     </div>
     {emoteOpen&&(
-      <div className="emoteMenu">
+      <div className="emoteMenu" onPointerDown={e=>e.stopPropagation()}>
         <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false)}}>💃 dance</button>
         <button type="button" onClick={()=>{onEmote?.("wave");setEmoteOpen(false)}}>👋 wave</button>
         <button type="button" onClick={()=>{onEmote?.("clap");setEmoteOpen(false)}}>👏 clap</button>
         <button type="button" onClick={()=>{onEmote?.("laugh");setEmoteOpen(false)}}>😂 laugh</button>
       </div>
     )}
-    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
+    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
+    <button className="mobileAction" onPointerDown={e=>e.stopPropagation()} onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     {voiceError&&<div className="voiceError">{voiceError}</div>}
-    <button className="fight" onClick={onAttack}>🥊</button>
+    <button className="fight" onPointerDown={e=>e.stopPropagation()} onClick={onAttack}>🥊</button>
   </div>
 }
 
@@ -1158,7 +1170,9 @@ export default function Home(){
   const uploadMusic=async(file)=>{
     if(!file||!id)return;
     const allowed=["audio/mpeg","audio/mp4","audio/x-m4a","audio/aac","audio/ogg","audio/webm","audio/wav"];
-    if(!allowed.includes(file.type)){setMusicError("Choose an MP3, M4A, AAC, OGG, WebM or WAV file.");return;}
+    const ext=String(file.name||"").split(".").pop()?.toLowerCase();
+    const allowedExt=["mp3","m4a","aac","ogg","webm","wav"];
+    if(file.type&&!allowed.includes(file.type)&&!allowedExt.includes(ext)){setMusicError("Choose an MP3, M4A, AAC, OGG, WebM or WAV file.");return;}
     if(file.size>25*1024*1024){setMusicError("Custom songs must be 25 MB or smaller.");return;}
     try{
       setMusicError("Uploading song…");
