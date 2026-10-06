@@ -352,7 +352,7 @@ function Furniture() {
         </mesh>
         <Text position={[-4.2, 3.15, 0.25]} fontSize={0.3} color="#9e92e8" anchorX="left">GC TV / MUSIC</Text>
       </group>
-      <group position={[9.7, 5.8, 0]}>
+      <group position={[9.7, 0, 5.8]}>
         <RoundedBox args={[4.8, 0.25, 2.4]} position={[0, 0.95, 0]} radius={0.12} smoothness={5} castShadow>
           <meshStandardMaterial color="#72513f" />
         </RoundedBox>
