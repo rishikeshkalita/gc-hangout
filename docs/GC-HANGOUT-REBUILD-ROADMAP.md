@@ -833,6 +833,18 @@ Examples:
 - **Known failures:** none in automated checks; browser/runtime visual behavior remains unverified.
 - **What is actually verified:** repository changes are present on `main`; automated tests and production build pass.
 - **Next wave:** Wave 2 — world + player + camera + interaction foundation.
+### Latest Wave 2 iPhone recording regression — 2026-10-07
+
+- **User evidence reviewed:** full 85-second iPhone Safari screen recording, plus frame-by-frame inspection.
+- **Confirmed failures:** touch avatar rotation was absent; sofa Sit coverage was incomplete; sofa exits could trap the avatar; both sofas faced the same direction and were too close; movement through the lounge was obstructed; Eat/Drink presentation remained incomplete; Sleep still made the avatar disappear; walking speed remained too slow; joystick direction remained unreliable.
+- **Source causes:** touch movement skipped current.rot; both sofa instances used the same rotation and old spacing; sofa anchors/colliders matched the old geometry; coffee-table collision was missing; Sleep rotated the entire player visual/root around the floor origin.
+- **Correction branch:** fix/wave2-final-interaction-pass-v2-20261007.
+- **Correction commit:** 95462d66185ce4f80c802c6ff89c116e04e1011c.
+- **Changes:** opposing sofas with a wider central passage; explicit coffee-table collision; six remapped sofa seat anchors; open sofa exits; touch movement now updates avatar facing from the actual movement vector; mobile speed raised to 5.2; Sleep uses a separate visual pivot so the player root remains stable; Eat remains a dedicated table-edge interaction separate from chair Sit.
+- **Automated verification:** no new GitHub Actions run is available yet for this branch.
+- **Browser result:** **NOT VERIFIED**; no fresh iPhone build has been deployed.
+- **Deployment:** 0 new attempts; Vercel daily deployment quota remains exhausted.
+- **Current gate:** **NOT VERIFIED**. Do not merge to main or start Wave 3 until the fresh device build passes the full furniture/movement matrix.
 ### Wave update format
 
 For every wave, record:
