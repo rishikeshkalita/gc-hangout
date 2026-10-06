@@ -953,9 +953,9 @@ export default function Home(){
   const onMove=p=>{
     if(!id)return;
     const stamped={...p,netTs:Date.now()};
-    const now=performance.now();
-    if(now-combatPositionRef.current.ts>=120){
-      combatPositionRef.current={ts:now};
+    const combatNow=performance.now();
+    if(combatNow-combatPositionRef.current.ts>=120){
+      combatPositionRef.current={ts:combatNow};
       getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0)})).catch(error=>console.warn("combat position sync failed",error));
     }
     localRef.current=p;
