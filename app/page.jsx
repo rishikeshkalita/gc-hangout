@@ -380,7 +380,9 @@ function RealHuman({player,me,liveRef}) {
     const walk=names.find(n=>/walk/i.test(n)&&!/run/i.test(n))||names.find(n=>/walk/i.test(n))||idle;
     const run=names.find(n=>/run|jog|sprint/i.test(n))||walk;
     const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||idle;
-    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle)));
+    const hit=names.find(n=>/hit|hurt|shove|pain|reaction/i.test(n))||null;
+    const emote=player.emote?names.find(n=>new RegExp(player.emote,"i").test(n)):null;
+    const desired=locked?null:(player.hit&&hit?hit:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle)))));
     if(desired===clipRef.current)return;
     const previous=clipRef.current?actions[clipRef.current]:null;
     if(previous)previous.fadeOut(.16);
@@ -452,7 +454,7 @@ function RealHuman({player,me,liveRef}) {
   return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
     <group position={[seatedBackX,0,seatedBackZ]}>      <primitive object={model} dispose={null}/>
       <Text position={[0,2.05,0]} fontSize={.14} color={me?"#bbaeff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#11131a">{player.name}{me?" • you":""}</Text>
-      {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}
+      {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}{player.hit&&<Text position={[0,2.32,0]} fontSize={.18} color="#ff8797" anchorX="center">OUCH!</Text>}
       {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
     </group>
   </group>
@@ -520,7 +522,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
-function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,onTouchInteraction,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
+function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,onToggleMusic,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
   const [move,setMove]=useState({x:0,z:0});\n  const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
   const moveRef=useRef(move);moveRef.current=move;
@@ -684,6 +686,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button className={musicPlaying?"active":""} onClick={onToggleMusic}>🎵 Music</button>
       <button onClick={onAttack}>🥊 Fight</button>
       <button className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
+      <button onClick={()=>onEmote?.("dance")}>💃 Emote</button>
     </div>
     <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
@@ -698,9 +701,12 @@ export default function Home(){
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
   const musicRef=useRef(false);
+  const attackCooldownRef=useRef(0);
   const chatMessagesRef=useRef([]);
+  const playersRef=useRef({});
   musicRef.current=musicPlaying;
   chatMessagesRef.current=chatMessages;
+  playersRef.current=players;
   const locksRef=useRef({}),snackStatesRef=useRef({});
   locksRef.current=locks;snackStatesRef.current=snackStates;
   const channelRef=useRef(null),localRef=useRef(null),voiceRef=useRef(null);
@@ -758,8 +764,15 @@ export default function Home(){
       if(!payload?.id)return;
       setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);      setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
       if(payload.targetId===id&&localRef.current){
-        const nextHealth=Math.max(0,(localRef.current.health||3)-1),next={...localRef.current,health:nextHealth};
+        const attacker=payload.id?playersRef.current?.[payload.id]:null;
+        const victim=localRef.current;
+        const d=attacker?Math.hypot(attacker.x-victim.x,attacker.z-victim.z):99;
+        const angle=attacker?Math.atan2(victim.x-attacker.x,victim.z-attacker.z):0;
+        const facing=attacker?Math.abs(Math.atan2(Math.sin(angle-(attacker.rot||0)),Math.cos(angle-(attacker.rot||0)))):99;
+        if(d>1.9||facing>1.25)return;
+        const nextHealth=Math.max(0,(victim.health||3)-1),next={...victim,health:nextHealth,hit:true};
         localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));send(next);
+        setTimeout(()=>{if(localRef.current?.hit){localRef.current={...localRef.current,hit:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
         if(nextHealth===0)setTimeout(()=>{
           const respawn={...localRef.current,x:0,z:0,health:3,attacking:false,action:null};
           localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn);
@@ -859,12 +872,36 @@ export default function Home(){
 
   const onAttack=()=>{
     if(!localRef.current)return;
+    const now=performance.now();
+    if(now<attackCooldownRef.current)return;
+    attackCooldownRef.current=now+500;
     const me=localRef.current,others=Object.values(players).filter(p=>p.id!==id);
     let target=null,best=99;
-    for(const p of others){const d=Math.hypot(p.x-me.x,p.z-me.z);if(d<best){best=d;target=p}}
+    for(const p of others){
+      const d=Math.hypot(p.x-me.x,p.z-me.z);
+      const angle=Math.atan2(p.x-me.x,p.z-me.z);
+      const facing=Math.abs(Math.atan2(Math.sin(angle-(me.rot||0)),Math.cos(angle-(me.rot||0))));
+      if(d<1.65&&facing<1.05&&d<best){best=d;target=p}
+    }
     const p={...me,attacking:true};localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({type:"broadcast",event:"attack",payload:{id,targetId:target&&best<1.8?target.id:null}});
+    channelRef.current?.send({type:"broadcast",event:"attack",payload:{id,targetId:target?.id||null,at:Date.now()}});
     setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
+  };
+
+  const onEmote=emote=>{
+    if(!localRef.current||localRef.current.action==="sit"||localRef.current.action==="sleep")return;
+    const allowed={dance:"dance",wave:"wave",clap:"clap",laugh:"laugh"};
+    const value=allowed[emote]||"dance";
+    const p={...localRef.current,emote:value};
+    localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+    setTimeout(()=>{
+      if(localRef.current?.emote===value){
+        const clear={...localRef.current,emote:null};
+        localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+        channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...clear,netTs:Date.now()}});
+      }
+    },2600);
   };
 
   const interact=async(candidate)=>{
@@ -967,7 +1004,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
+  if(joined)return <Room local={localRef.current} players={players} onEmote={onEmote} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
 
   return <main className="join">
     <div className="card">
