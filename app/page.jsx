@@ -440,7 +440,10 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
       if(speed>.025){
         const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d2,velocity.current.z*d2);
         if(step.hop)hopRef.current=performance.now()+420;
-        const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:speed>.06,speed,hopUntil:hopRef.current};
+        // Rotate the human to the actual world movement direction. The asset
+        // faces +Z in its rest orientation, hence the half-turn correction.
+        const moveRot=Math.atan2(velocity.current.x,velocity.current.z)+Math.PI;
+        const next={...before,x:step.x,z:step.z,rot:moveRot,moving:speed>.06,speed,hopUntil:hopRef.current,poseRotation:moveRot};
         const movementYaw=next.rot;
         const forwardInput=-m2.z;
         if(Math.abs(forwardInput)>.58 && performance.now()-v2.lastManualCamera>850){
@@ -527,10 +530,20 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)};
   },[onInteract,candidate]);
 
+  const standUp=()=>{
+    const p=posRef.current;
+    if(p.action!=="sit"&&p.action!=="sleep")return false;
+    const stand={id:p.interactionId,type:"stand",position:[p.x,0,p.z],rotation:p.poseRotation||p.rot,label:"Stand up"};
+    interactionRef.current=null;
+    onInteract(stand);
+    return true;
+  };
+
   const joystickAt=(el,x,y)=>{
-    if(posRef.current.action==="sit"||posRef.current.action==="sleep"){
-      const stand={id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"};
-      requestInteraction(stand);
+    if(standUp()){
+      setMoveImmediate({x:0,z:0});
+      el.style.setProperty("--jx","0px");
+      el.style.setProperty("--jz","0px");
       return;
     }
     const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
@@ -712,9 +725,9 @@ export default function Home(){
     const p=localRef.current;
 
     if(candidate.type==="stand"){
-      const objectId=p.interactionId;
+      const objectId=candidate.id||p.interactionId;
       interactionRef.current=null;
-      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,speed:0,moving:false};
+      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0};
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
       if(objectId){
