@@ -861,7 +861,7 @@ export default function Home(){
     setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
   };
 
-  const interact=(candidate)=>{
+  const interact=async(candidate)=>{
     if(!localRef.current||!candidate)return;
     const p=localRef.current;
 
@@ -909,7 +909,6 @@ export default function Home(){
       const finalAction=candidate.type==="bed"?"sleep":"sit";
       const claimed=await claimInteraction(candidate,finalAction);
       if(!claimed)return false;
-      interactionRef.current=candidate;
       const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
       setLocks(prev=>({...prev,[candidate.id]:id}));
