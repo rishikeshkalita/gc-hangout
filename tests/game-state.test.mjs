@@ -79,10 +79,13 @@ test("chat normalization and merge deduplicate messages", () => {
 });
 
 test("music normalization handles playable, empty and malformed responses", () => {
-  const data = {results:[{id:1,name:"Track",artist_name:"Artist",audio:"https://audio.example/1.mp3",duration:"123",license_ccurl:"cc"}]};
+  const data = {results:[{id:1,name:"Track",artist_name:"Artist",audio:"https://audio.example/1.mp3",duration:"123",license_ccurl:"https://creativecommons.org/licenses/by/4.0/"}]};
   assert.equal(normalizeMusicResponse(data).length, 1);
+  assert.equal(normalizeMusicResponse(data)[0].source, "jamendo");
   assert.deepEqual(normalizeMusicResponse({results:[]}), []);
   assert.deepEqual(normalizeMusicResponse({}), []);
+  assert.deepEqual(normalizeMusicResponse({results:[{id:2,name:"No license",audio:"https://audio.example/2.mp3",duration:100}]}), []);
+  assert.deepEqual(normalizeMusicResponse({results:[{id:3,name:"Bad audio",audio:"http://audio.example/3.mp3",duration:100,license_ccurl:"https://creativecommons.org/licenses/by/4.0/"}]}), []);
   assert.equal(classifyMusicResponse({status:200,data}), "AVAILABLE");
   assert.equal(classifyMusicResponse({status:200,data:{results:[]}}), "NO_MUSIC");
   assert.equal(classifyMusicResponse({status:502,data:{configured:true,error:"x"}}), "API_ERROR");
