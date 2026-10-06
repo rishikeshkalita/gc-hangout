@@ -97,6 +97,14 @@ const blocked=(x,z,r=PLAYER_RADIUS)=>{
     return Math.hypot(x-qx,z-qz)<r;
   });
 };
+const lineClear=(ax,az,bx,bz)=>{
+  const steps=10;
+  for(let i=1;i<steps;i++){
+    const t=i/steps,x=ax+(bx-ax)*t,z=az+(bz-az)*t;
+    if(blocked(x,z,.12))return false;
+  }
+  return true;
+};
 const tryMove=(x,z,dx,dz)=>{
   const nx=x+dx,nz=z+dz;
   if(!blocked(nx,nz))return{x:nx,z:nz,hop:false};
@@ -436,7 +444,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
         if(item.id in locks)continue;
         if(item.id in snackStates&&snackStates[item.id]?.consumed)continue;
         const d=Math.hypot(p.x-item.position[0],p.z-item.position[2]);
-        if(d<dist){dist=d;best=item}
+        if(d<dist&&lineClear(p.x,p.z,item.position[0],item.position[2])){dist=d;best=item}
       }
       setCandidate(best);
     },100);
@@ -660,6 +668,7 @@ export default function Home(){
     if(candidate.type==="tv"){
       const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:0,moving:false,speed:0};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      setLocks(prev=>({...prev,[candidate.id]:id}));
       channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
       channelRef.current?.send({type:"broadcast",event:"player_state",payload});
       setTimeout(()=>{
@@ -690,6 +699,7 @@ export default function Home(){
       const held={id:food.id,heldBy:id,consumed:false};
       setSnackStates(prev=>({...prev,[food.id]:held}));
       channelRef.current?.send({type:"broadcast",event:"snack_state",payload:held});
+      setLocks(prev=>({...prev,[food.id]:id}));
       channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:true}});
       const payload={...p,action:food.action,interactionId:food.id,moving:false,speed:0};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
@@ -703,6 +713,7 @@ export default function Home(){
           localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
           channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
         }
+        setLocks(prev=>{const next={...prev};delete next[food.id];return next});
         channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:false}});
       },1500);
     }
