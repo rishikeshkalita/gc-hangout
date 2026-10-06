@@ -744,15 +744,33 @@ Examples:
 
 ### Latest Wave 2 iPhone regression correction — 2026-10-06
 
-- **User evidence reviewed:** five fresh iPhone Safari screenshots showing repeatable furniture-interaction failure: after Sit/Eat, tapping stand/exit leaves the avatar at the furniture and movement no longer resumes; the Eat pose also visibly places the avatar inside the dining table.
-- **Root causes found in source inspection:** interaction alignment used the furniture trigger center as the player position, and the movement loop kept its own ref state without an explicit reset handshake after React state changed on exit.
+- **User evidence reviewed:** five fresh iPhone Safari screenshots showing repeatable furniture-interaction failure. Sofa seating itself renders, but after tapping stand/exit the avatar can remain at the furniture and movement can stay stuck. Eating visibly places the avatar inside/through the dining table. The same exit/stuck behavior was reported for the other furniture interactions.
+- **Additional visual observations:** the human avatar is visibly seated/posed, the TV surface reads correctly, the dining table/chairs are on the floor, and the room remains world-first; the screenshots exposed that interaction exit must restore a clean locomotion state and that interaction target positions must be separated from furniture trigger centers.
+- **Root causes found in source inspection:** interaction alignment used furniture trigger centers as player positions, and the movement loop retained its own ref state without an explicit reset handshake after React interaction state changed on exit.
 - **Correction branch:** `fix/wave2-interactions-graffiti`.
-- **Correction head:** `150930d1d5191932c0f541eb41f3c565559fd5f8`.
-- **Changes:** explicit interaction target/exit coordinates, safe bed/table exits, explicit movement-ref reset synchronization after release, joystick reset on exit, and the requested graffiti wall words with varied size/rotation/color plus splash marks.
-- **Automated verification:** GitHub Actions build for the earlier head `a0ea6f91685fc20ce77989898317c96de69f1578` completed PASS for dependency audit, `npm test`, and `npm run build`. The later head `150930d1d5191932c0f541eb41f3c565559fd5f8` has a new CI run queued/in progress at the latest check.
-- **Browser result:** NOT VERIFIED for this correction because the latest Vercel deployment quota is exhausted; the supplied screenshots remain the only current device evidence.
-- **Deployment:** no new direct deployment attempted.
-- **Next action:** after CI finishes, merge the correction to `main`; then use the next available deployment slot for a fresh iPhone acceptance pass before declaring Wave 2 PASS.
+- **Merged implementation commit:** `ebef788b95cd47ac18274b53c749505e40525f4b` (squashed PR #8 into `main`).
+- **Changes:** explicit interaction target/exit coordinates, safe exits for bed/table interactions, explicit movement-ref reset synchronization after release, joystick reset on exit, and the requested graffiti wall words with varied size/rotation/style plus splash marks.
+- **Graffiti words:** Maksudai, Boineksudai, Rendi, sutamareni, koti mara, buskarpu, suor, kukur, notisuda, boinerlalak, renda, johra, sudhirbhai.
+- **Automated verification:** GitHub Actions run `37511952691` on correction head `0a56d3b199cd83731d87c98ca39ddc3d8bcef810` completed PASS.
+- **Browser result:** **NOT VERIFIED** for the merged correction. The supplied iPhone screenshots are the evidence that drove this fix; no fresh device build has been exercised after the merge.
+- **Deployment:** no new deployment attempted; Vercel deployment quota remains exhausted from the prior testing window.
+- **Current gate:** Wave 2 remains **NOT VERIFIED** until a fresh iPhone/browser build confirms every furniture exit restores movement and the avatar is positioned outside the furniture after interaction.
+- **Next action:** when a deployment slot is available, run the complete interaction regression matrix below before allowing Wave 2 to move to PASS or Wave 3.
+
+### Furniture interaction regression matrix — required next device test
+
+- [ ] Sofa: walk to each sofa seat, sit, verify pelvis/feet/back alignment, stand, immediately walk in all four directions, repeat at least 3 times.
+- [ ] Lounge sofa: same sit/stand/re-walk test from both ends.
+- [ ] Dining chair: sit, stand, walk away without residual movement lock; repeat each chair/anchor.
+- [ ] Eat: approach table, trigger Eat, verify avatar is beside/at the table rather than inside the tabletop, exit, walk away immediately.
+- [ ] Drink: same enter/exit/re-walk test.
+- [ ] Sleep: lie on bed, exit, verify movement and camera return; repeat.
+- [ ] TV: interact, exit, verify movement and camera; repeat.
+- [ ] Generic interaction: enter/exit and verify movement state is restored.
+- [ ] Joystick: while standing after every exit, push up/down/left/right and verify the avatar travels in the same direction as the thumbstick.
+- [ ] Camera: rotate after every exit; camera drag must not remain captured by the joystick or interaction button.
+- [ ] Re-entry: after exiting one interaction, immediately enter a different furniture interaction and then exit again.
+- [ ] Boundary recovery: walk from each furniture zone back into the central floor; no invisible movement lock or snapping.
 
 ### Wave 2 runtime regression correction
 
