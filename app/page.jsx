@@ -27,7 +27,7 @@ const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const FURNITURE={
- sofa:"https://cdn.3dassets.dev/assets/26142/v1/model.glb",
+ sofa:"https://cdn.3dassets.dev/assets/38777/v1/model.glb",
  armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
  diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
  coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
@@ -37,22 +37,22 @@ const FURNITURE={
 };
 
 const SEATS=[
- ...[[-.72],[0],[.72]].map(([x],i)=>({
+ ...[[-.48],[.48]].map(([x],i)=>({
    id:"sofa-a-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-6.92],standPosition:[-10+x,0,-6.35],approachPosition:[-10+x,0,-6.35],
-   rotation:0,seatY:-.12
+   position:[-10+x,0,-6.92],standPosition:[-10+x,0,-6.30],approachPosition:[-10+x,0,-6.30],
+   rotation:0,seatY:-.34
  })),
- ...[[-.72],[0],[.72]].map(([x],i)=>({
+ ...[[-.48],[.48]].map(([x],i)=>({
    id:"sofa-b-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-3.98],standPosition:[-10+x,0,-4.55],approachPosition:[-10+x,0,-4.55],
-   rotation:Math.PI,seatY:-.12
+   position:[-10+x,0,-3.98],standPosition:[-10+x,0,-4.60],approachPosition:[-10+x,0,-4.60],
+   rotation:Math.PI,seatY:-.34
  })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.82:1.82)],
    standPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
    approachPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
-   rotation:side<0?0:Math.PI,seatY:-.10
+   rotation:side<0?0:Math.PI,seatY:-.30
  }))
 ];
 const BEDS=[
@@ -91,8 +91,8 @@ function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
 
 
 const OBSTACLES=[
-  {x:-10,z:-7.2,rx:1.15,rz:.48,vault:false,name:"livingSofaA"},
-  {x:-10,z:-3.7,rx:1.15,rz:.48,vault:false,name:"livingSofaB"},
+  {x:-10,z:-7.2,rx:1.00,rz:.52,vault:false,name:"livingSofaA"},
+  {x:-10,z:-3.7,rx:1.00,rz:.52,vault:false,name:"livingSofaB"},
   {x:-10,z:-5.45,rx:.62,rz:.38,vault:true,name:"livingTable"},
   {x:-13.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairL"},
   {x:-7.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairR"},
@@ -140,14 +140,13 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.02}/>} 
+function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.05}/>} 
 
 function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
 
 function CoffeeTable({x,z}){return <RealFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
 
 function DiningTable(){return <group position={[10,0,5.8]}><RealFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><RealFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
-
 function Bed({x,z,rotation=0}){return <RealFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
 
 
@@ -283,21 +282,42 @@ function Hall({musicPlaying,players,snackStates}) {
     <Plant x={-13.7} z={8.3} s={1.15}/>
     <Plant x={13.7} z={8.3} s={1.0}/>
     <Plant x={-3.0} z={9.0} s={.8}/>
-    <WallArt x={-6.0} z={-9.78}/>
-    <WallArt x={6.0} z={-9.78}/>
+    <DigitalSignage/>
     <OpenFloorMark/>
     <Snacks players={players} snackStates={snackStates}/>
   </group>
 }
 
-function WallArt({x,z}) {
-  return <group position={[x,4.0,z]}>
-    <RoundedBox args={[2.6,1.5,.08]} radius={.04} smoothness={3}><meshStandardMaterial color="#181b22" roughness={.5}/></RoundedBox>
-    <mesh position={[0,0,.06]}><planeGeometry args={[2.25,1.15]}/><meshStandardMaterial color="#596172" roughness={.8}/></mesh>
-    <mesh position={[0,.05,.08]} rotation={[0,0,.3]}><boxGeometry args={[1.1,.08,.03]}/><meshStandardMaterial color="#c0a77f"/></mesh>
+function DigitalSignage() {
+  const [index,setIndex]=useState(0);
+  const colors=["#5cf2ff","#8b7dff","#ff4fd8","#55ff9a","#ffd35c","#ff6b6b"];
+  useEffect(()=>{
+    const id=setInterval(()=>setIndex(i=>(i+1)%colors.length),850);
+    return()=>clearInterval(id);
+  },[]);
+  const color=colors[index];
+  return <group position={[0,6.78,-9.72]}>
+    <RoundedBox castShadow args={[9.2,.82,.12]} radius={.16} smoothness={6}>
+      <meshStandardMaterial color="#090c13" roughness={.22} metalness={.7} emissive={color} emissiveIntensity={.16}/>
+    </RoundedBox>
+    <RoundedBox args={[8.82,.58,.035]} radius={.09} smoothness={5} position={[0,0,.08]}>
+      <meshStandardMaterial color="#020409" roughness={.16} metalness={.35}/>
+    </RoundedBox>
+    <Text position={[0,0,.12]} fontSize={.43} color={color} anchorX="center" anchorY="middle"
+      outlineWidth={.018} outlineColor={color}>
+      XOPADHORA GC
+    </Text>
+    <Text position={[0,0,.105]} fontSize={.50} color={color} fillOpacity={.10} anchorX="center" anchorY="middle">
+      XOPADHORA GC
+    </Text>
+    <mesh position={[-4.28,0,.13]}>
+      <circleGeometry args={[.035,20]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4}/>
+    </mesh>
+    <mesh position={[4.28,0,.13]}>
+      <circleGeometry args={[.035,20]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4}/>
+    </mesh>
   </group>
 }
-
 function RealHuman({player,me}) {
   const {scene,animations}=useGLTF(HUMAN_URL);
   const root=useRef();
@@ -360,7 +380,7 @@ function RealHuman({player,me}) {
     const a=1-Math.exp(-18*dt);
     root.current.position.x+=(player.x-root.current.position.x)*a;
     root.current.position.z+=(player.z-root.current.position.z)*a;
-    const seatedY=seated?(player.seatY??-.12):sleeping?.02:0;
+    const seatedY=seated?(player.seatY??-.34):sleeping?.02:0;
     root.current.position.y+=(seatedY-root.current.position.y)*a;
     root.current.rotation.y+=Math.atan2(Math.sin(targetRot-root.current.rotation.y),Math.cos(targetRot-root.current.rotation.y))*a;
 
@@ -374,8 +394,8 @@ function RealHuman({player,me}) {
         if(!b||!r)return;
         b.rotation.x=r.x+x*p;b.rotation.y=r.y+y*p;b.rotation.z=r.z+z*p;
       };
-      set("thighL",-1.43);set("thighR",-1.43);
-      set("shinL",1.68);set("shinR",1.68);
+      set("thighL",-1.50);set("thighR",-1.50);
+      set("shinL",1.76);set("shinR",1.76);
       set("footL",-0.28);set("footR",-0.28);
       set("spine",0.04);
       set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
@@ -447,8 +467,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
       const viewLerp=1-Math.exp(-18*d2);
       v2.yaw+=Math.atan2(Math.sin(v2.targetYaw-v2.yaw),Math.cos(v2.targetYaw-v2.yaw))*viewLerp;
       v2.pitch+=(v2.targetPitch-v2.pitch)*viewLerp;
-      const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};
-      const inputForward=-m2.z;
+      const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};      const inputForward=-m2.z;
       const ix=m2.x*right.x+inputForward*forward.x,iz=m2.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
       const lockedPose=posRef.current.action==="sit"||posRef.current.action==="sleep";
       const movingInput=!lockedPose&&Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
@@ -597,8 +616,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const px=dx*k,pz=dz*k;
     setMoveImmediate({x:clamp(px/42,-1,1),z:clamp(pz/42,-1,1)});
     el.style.setProperty("--jx",px+"px");el.style.setProperty("--jz",pz+"px");
-  };
-  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
+  };  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
   const stop=e=>{e.preventDefault();setMoveImmediate({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
   const beginCamera=e=>{
     if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
@@ -798,82 +816,3 @@ export default function Home(){
       channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
       channelRef.current?.send({type:"broadcast",event:"player_state",payload});
       setTimeout(()=>{
-        if(localRef.current?.interactionId===candidate.id){
-          const clear={...localRef.current,action:null,interactionId:null};
-          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-          setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
-          channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
-        }
-      },5000);
-      return;
-    }
-
-    if(candidate.type==="seat"||candidate.type==="bed"){
-      const finalAction=candidate.type==="bed"?"sleep":"sit";
-      interactionRef.current=candidate;
-      const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
-      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      setLocks(prev=>({...prev,[candidate.id]:id}));
-      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-      return;
-    }
-
-    const food=SNACKS.find(s=>s.id===candidate.id);
-    if(food){
-      const state=snackStates[food.id];
-      if(state?.consumed||state?.heldBy)return;
-      const held={id:food.id,heldBy:id,consumed:false};
-      setSnackStates(prev=>({...prev,[food.id]:held}));
-      channelRef.current?.send({type:"broadcast",event:"snack_state",payload:held});
-      setLocks(prev=>({...prev,[food.id]:id}));
-      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:true}});
-      const payload={...p,action:food.action,interactionId:food.id,moving:false,speed:0};
-      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-      setTimeout(()=>{
-        const consumed={id:food.id,heldBy:null,consumed:true};
-        setSnackStates(prev=>({...prev,[food.id]:consumed}));
-        channelRef.current?.send({type:"broadcast",event:"snack_state",payload:consumed});
-        if(localRef.current?.interactionId===food.id){
-          const clear={...localRef.current,action:null,interactionId:null};
-          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-        }
-        setLocks(prev=>{const next={...prev};delete next[food.id];return next});
-        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:false}});
-      },1500);
-    }
-  };
-
-  const interactionArrived=(candidate)=>{
-    if(!localRef.current)return;
-    const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
-    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null};
-    localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-    setAction(finalAction);
-    // Stay seated/asleep until the user explicitly presses Stand up or moves
-    // the joystick/keyboard. The old 7s timer was making the interaction state
-    // race with input and could leave the client looking locked.
-  };
-
-  if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived}/>;
-
-  return <main className="join">
-    <div className="card">
-      <div className="logo">🌙</div><h1>GC Hangout Hall</h1>
-      <p>One large shared hall built around movement, camera space and multiplayer interaction.</p>
-      <label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18))} placeholder="e.g. Rishi"/></label>
-      <div className="label">Choose your human</div>
-      <div className="avatars">{PRESETS.map((p,i)=>
-        <button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id)} key={p.id}>
-          <span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small>
-        </button>
-      )}</div>
-      <button className="enter" onClick={join} disabled={!name.trim()}>Enter the hall →</button>
-      <div className="note">Open-plan hall • smooth movement • shared music • multiplayer</div>
-    </div>
-  </main>;
-}
