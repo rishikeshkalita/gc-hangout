@@ -24,7 +24,7 @@ const PRESETS = [
   {id:"kai",label:"Kai"}, {id:"rihan",label:"Rihan"}
 ];
 
-const HUMAN_URL="https://cdn.3dassets.dev/assets/32901/v1/model.glb";
+
 
 const FOOTBALL_URL="https://cdn.3dassets.dev/assets/19091/v1/model.glb";
 
@@ -878,7 +878,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
-            <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
+      <RestoredHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/>
           </Suspense>
         )}
       </Physics>
