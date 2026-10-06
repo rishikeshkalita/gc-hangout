@@ -253,19 +253,22 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 - [x] Add automated tests for interaction-anchor validation and nearest-anchor selection.
 - [x] Preserve the human-avatar requirement and single camera/movement implementation.
 
-### Still required before Wave 2 gate
+### Wave 2 implementation complete
 
-- [ ] Replace remaining primitive furniture with production-quality/local assets where justified.
-- [ ] Add explicit DRINK and generic INTERACT anchors.
-- [ ] Implement reserve → stop → align → animate → sync → release lifecycle.
-- [ ] Finish camera zoom limits and stronger room-boundary camera handling.
-- [ ] Complete responsive touch gameplay controls/joystick rather than pointer-look only.
-- [ ] Verify loading/failure isolation for any external decorative assets.
-- [ ] Browser/visual verification.
+- [x] Keep deterministic procedural furniture for the current foundation; no external GLB/decorative dependency is required to enter the room.
+- [x] Add explicit DRINK and generic INTERACT anchors.
+- [x] Implement explicit reserve → stop → align → animate → sync → release interaction lifecycle primitives.
+- [x] Execute local interaction flow with alignment, movement lock, exit/release, and interaction-specific poses.
+- [x] Add bounded camera zoom and clamp camera position inside the room boundary.
+- [x] Add responsive touch joystick movement alongside keyboard movement.
+- [x] Keep decorative asset loading isolated by using no required external decorative assets in the active runtime.
+- [x] Add mobile-safe interaction controls and safe-area-aware positioning.
+- [x] Expand automated coverage for lifecycle and all interaction types.
+- [ ] Browser/visual verification — **NOT AVAILABLE in the current local tool environment**.
 
 ### Current status
 
-- **Status: IN PROGRESS** — automated verification is running for the current checkpoint; no deployment has been made.
+- **Status: NOT VERIFIED** — Wave 2 implementation and automated verification are complete; browser/visual runtime acceptance remains unavailable. No deployment has been made.
 ---
 
 ## WAVE 3 — ALL CORE INTERACTIONS
@@ -725,12 +728,23 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | TBD | TBD | TBD | 0 | NOT STARTED |
+| 2 | World + player + camera + interaction foundation | `0160d87a9dcfce728f58dc7a7059bd39b9232f49` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
 | 6 | Mobile UX + performance + full QA | TBD | TBD | TBD | 0 | NOT STARTED |
 | 7 | Release + iPhone acceptance | TBD | TBD | TBD | 0 / 1 | NOT STARTED |
+
+### Wave 2 completion record
+
+- **Commit:** `0160d87a9dcfce728f58dc7a7059bd39b9232f49`.
+- **What changed:** completed the world/interaction foundation with explicit DRINK and INTERACT anchors, deterministic lifecycle state, local reserve/stop/align/animate/sync/release flow, interaction poses, bounded camera zoom/boundaries, responsive touch joystick movement, mobile-safe controls, and non-blocking procedural room assets.
+- **Tests:** GitHub Actions run `37497866574`: `npm test` PASS; `npm run build` PASS; dependency audit PASS.
+- **Browser result:** NOT AVAILABLE from the current local tool environment.
+- **Deployment count:** 0.
+- **Known failures:** none in the final automated run. Earlier Wave 2 checkpoints failed due to test-fixture/import mistakes and were corrected before the final green run.
+- **What is actually verified:** the final Wave 2 commit is on `main`; automated tests, production build, and dependency audit pass.
+- **Next wave:** Wave 3 — all core interactions.
 
 ### Wave 1 completion record
 
