@@ -878,20 +878,42 @@ export default function Home(){
       if(payload?.snackStates)setSnackStates(payload.snackStates);
     });
     voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:enabled=>{setVoiceEnabled(enabled);setVoiceError("");}});
-    channel.subscribe(async (status,err)=>{
-      if(status==="SUBSCRIBED"&&localRef.current){
-        setPlayers(prev=>({...prev,[id]:localRef.current}));
-        await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
-        send(localRef.current);
-        setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
-        setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
-        setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
-        setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
-      }
-    });
+    let reconnectTimer=null;
+    let reconnecting=false;
+    const subscribe=()=>{
+      channel.subscribe(async(status,err)=>{
+        if(status==="SUBSCRIBED"&&localRef.current){
+          reconnecting=false;
+          if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+          setConnectionError("");
+          setPlayers(prev=>({...prev,[id]:localRef.current}));
+          await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
+          send(localRef.current);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
+          return;
+        }
+        if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)&&!reconnecting&&!disposed){
+          reconnecting=true;
+          setConnectionError(err?.message||"Realtime connection interrupted. Reconnecting…");
+          reconnectTimer=setTimeout(async()=>{
+            reconnectTimer=null;
+            reconnecting=false;
+            if(disposed)return;
+            const {data:{session}}=await supabase.auth.getSession();
+            if(session?.access_token)await supabase.realtime.setAuth();
+            subscribe();
+          },1500);
+        }
+      });
+    };
+    subscribe();
     cleanup=()=>{
       const active=localRef.current?.interactionId;
       if(active)supabase.rpc("gc_release_interaction",{p_object_id:active,p_holder_id:id}).catch(()=>{});
+      if(reconnectTimer)clearTimeout(reconnectTimer);
       voiceRef.current?.destroy();voiceRef.current=null;
       channel.unsubscribe();channelRef.current=null;
     };
