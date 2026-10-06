@@ -324,7 +324,7 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
-    {showDecor&&<>\n    <Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>
+    {showDecor&&(<Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>)}
 
     <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
@@ -339,14 +339,14 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Bed x={12.2} z={-6.2} rotation={Math.PI/2}/>
     <Text position={[10.5,1.75,-8.45]} rotation={[0,0,0]} fontSize={.28} color="#b6afc6">REST / RESET</Text>
 
-    <Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>
-    <Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>
-    <Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>
-    <Plant x={6.4} z={8.55} s={0.95} variant="palm" rotation={-0.2}/>
-    <Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>
-    <Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>
-    <Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>
-    </>}\n    <DigitalSignage/>
+    {showDecor&&(<Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>)}
+    {showDecor&&(<Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>)}
+    {showDecor&&(<Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>)}
+    {showDecor&&(<Plant x={6.4} z={8.55} s={0.95} variant="palm" rotation={-0.2}/>)}
+    {showDecor&&(<Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>)}
+    {showDecor&&(<Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>)}
+    {showDecor&&(<Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>)}
+    <DigitalSignage/>
     <OpenFloorMark/>
     {showDecor&&<Snacks players={players} snackStates={snackStates}/>}
   </group>
@@ -384,7 +384,7 @@ function DigitalSignage() {
 
 function RealHuman({player,me,liveRef}) {
   const {scene,animations}=useGLTF(HUMAN_URL);  const root=useRef();
-  const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
+  const model=useMemo(()=>{const cloned=SkeletonUtils.clone(scene);runtimeDiag("asset-loaded",{kind:"avatar",url:HUMAN_URL});return cloned},[scene]);
   const {actions}=useAnimations(animations,root);
   const clipRef=useRef(null);
   const emoteClipRef=useRef(null);
