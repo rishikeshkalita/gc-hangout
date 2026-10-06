@@ -25,23 +25,25 @@ const PRESETS = [
 ];
 
 const HUMAN_URL="https://cdn.3dassets.dev/assets/32901/v1/model.glb";
-useGLTF.preload(HUMAN_URL);
+
 const FOOTBALL_URL="https://cdn.3dassets.dev/assets/19091/v1/model.glb";
-useGLTF.preload(FOOTBALL_URL);
+
 const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
+const RUNTIME_DIAGNOSTICS=process.env.NODE_ENV!=="production";
+const runtimeDiag=(event,data={})=>{if(RUNTIME_DIAGNOSTICS)console.info("[GC runtime]",event,data)};
 const PLANT_ASSETS={
   palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
   treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
   banana:"https://cdn.3dassets.dev/assets/38579/v1/model.glb",
   cycad:"https://cdn.3dassets.dev/assets/38581/v1/model.glb"
 };
-useGLTF.preload(PLANT_ASSETS.palm);
-useGLTF.preload(PLANT_ASSETS.treeFern);
-useGLTF.preload(PLANT_ASSETS.banana);
-useGLTF.preload(PLANT_ASSETS.cycad);
+
+
+
+
 const FURNITURE={
  sofa:"https://cdn.3dassets.dev/assets/26141/v1/model.glb",
  armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
@@ -109,7 +111,7 @@ const INTERACTABLES=[ ...SEATS, ...BEDS,
 ];
 function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
  const gltf=useGLTF(url);
- const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return s},[gltf.scene]);
+ const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});runtimeDiag("asset-loaded",{kind:"furniture",url});return s},[gltf.scene,url]);
  return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
 }
 
@@ -172,7 +174,7 @@ class ErrorBoundary extends React.Component {
   constructor(p){super(p);this.state={failed:false}}
   static getDerivedStateFromError(){return{failed:true}}
   componentDidCatch(e){
-    console.error("3D asset load/render failure", {asset:this.props.label||"3D asset", url:this.props.url||"unknown", error:e?.message||String(e)});
+    runtimeDiag("asset-failed",{asset:this.props.label||"3D asset",url:this.props.url||"unknown",error:e?.message||String(e)});
   }
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
@@ -302,6 +304,8 @@ function OpenFloorMark() {
 }
 
 function Hall({musicPlaying,musicTrack,players,snackStates}) {
+  const [showDecor,setShowDecor]=useState(false);
+  useEffect(()=>{const timer=setTimeout(()=>setShowDecor(true),1200);return()=>clearTimeout(timer)},[]);
   return <group>
     <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
     <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
@@ -320,7 +324,7 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
-    <Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>
+    {showDecor&&<>\n    <Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>
 
     <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
@@ -342,9 +346,9 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>
     <Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>
     <Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>
-    <DigitalSignage/>
+    </>}\n    <DigitalSignage/>
     <OpenFloorMark/>
-    <Snacks players={players} snackStates={snackStates}/>
+    {showDecor&&<Snacks players={players} snackStates={snackStates}/>}
   </group>
 }
 
@@ -667,7 +671,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="domElement" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="document" />;
 }
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,voiceState,musicStatus,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
