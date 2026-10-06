@@ -846,6 +846,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <button type="button" onClick={onAttack}>🥊 Fight</button>
       <button type="button" className={voiceEnabled&&!voiceMuted?"active":""} onClick={async()=>{if(!voiceEnabled){await onToggleVoice();setVoiceOpen(true)}else setVoiceOpen(v=>!v)}}>{voiceEnabled?(voiceMuted?"🔇":"🎙️"):"🎤"} {voiceEnabled?(voiceMuted?"Muted":"Voice"):"Voice"}</button>
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
+    </div>
     {voiceOpen&&voiceEnabled&&(
       <div className="voicePanel" onPointerDown={e=>e.stopPropagation()}>
         <div className="voicePanelTitle"><b>🎙️ Voice</b><button type="button" onClick={()=>setVoiceOpen(false)}>×</button></div>
@@ -854,7 +855,6 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
         <label className="voiceSetting">Speaker volume<input type="range" min="0" max="1" step=".05" value={voiceVolume} onChange={onVoiceVolumeChange}/></label>
       </div>
     )}
-    </div>
     {emoteOpen&&(
       <div className="emoteMenu" onPointerDown={e=>e.stopPropagation()}>
         <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false)}}>💃 dance</button>
