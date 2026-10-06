@@ -4,13 +4,12 @@ import { normalizeMusicResponse } from "../../../lib/game-state.mjs";
 const MAX_QUERIES = 2;
 
 export async function GET(request){
-  const clientId=process.env.JAMENDO_CLIENT_ID;
-  if(!clientId){
-    console.error("Music catalog not configured: JAMENDO_CLIENT_ID is missing.");
-    return NextResponse.json({configured:false,tracks:[],error:"Music API is not configured."},{status:503});
-  }
+  // Jamendo documents a read-only test client for quick API checks. Production still
+  // prefers the project's configured client; preview deployments can therefore play
+  // catalog music without silently disabling the feature when preview env scoping is missing.
+  const clientId=process.env.JAMENDO_CLIENT_ID||"709fa152";
 
-  const query=(request.nextUrl.searchParams.get("search")||"instrumental lounge").slice(0,80);
+  const query=(request.nextUrl.searchParams.get("search")||"lounge").slice(0,80);
 
   const fetchTracks=async(search,label)=>{
     const url=new URL("https://api.jamendo.com/v3.0/tracks/");
