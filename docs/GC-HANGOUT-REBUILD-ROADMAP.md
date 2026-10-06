@@ -264,11 +264,18 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 - [x] Keep decorative asset loading isolated by using no required external decorative assets in the active runtime.
 - [x] Add mobile-safe interaction controls and safe-area-aware positioning.
 - [x] Expand automated coverage for lifecycle and all interaction types.
-- [x] Browser/visual verification — **PASS: iPhone Safari screenshots supplied from the current production build**.
+- [x] Harden mobile camera framing so the avatar does not dominate narrow viewports.
+- [x] Move the touch joystick outside the HUD stacking context and isolate its pointer capture from camera gestures.
+- [x] Correct dining furniture coordinates so the table/chairs sit on the floor rather than at ceiling height.
+- [x] Reduce per-frame React state churn by notifying proximity changes only when the nearest anchor changes.
+- [x] Improve the procedural human avatar with face details, shoes, name labels, and visible local interaction poses.
+- [x] Improve TV presentation so it reads as a TV/music surface instead of a full-screen black rectangle.
+- [x] Soften room lighting and rebalance the floor presentation.
+- [x] Consolidate mobile-safe CSS and remove conflicting duplicate joystick/interaction rules.
 
 ### Current status
 
-- **Status: PASS for the Wave 2 foundation smoke/visual gate** — the supplied iPhone Safari screenshots show the production build loading the 3D room, rendering the human avatar, TV, sofa area, lamp, plant, open central floor, and multiple camera orientations without the previous React runtime failure. Full interaction acceptance remains in Wave 3.
+- **Status: NOT VERIFIED** — all identified Wave 2 source defects from the supplied iPhone screenshot are corrected on main, and the final CI run passes. A fresh real-device build is still required before Wave 2 can be marked PASS.
 ---
 
 ## WAVE 3 — ALL CORE INTERACTIONS
@@ -728,7 +735,7 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | `057f4f23c2877b37f77c3977243b14ea939bf2ca` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT VERIFIED — current follow-up fixes require a fresh device build | 2 attempted / 1 successful | NOT VERIFIED |
+| 2 | World + player + camera + interaction foundation | `16e2cac9f7b598286bc6a716a7575755a7199568` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT VERIFIED — fresh device build still required | 2 attempted / 1 successful | NOT VERIFIED |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
@@ -746,14 +753,14 @@ Examples:
 
 ### Wave 2 completion record
 
-- **Commit:** `057f4f23c2877b37f77c3977243b14ea939bf2ca`.
-- **What changed:** completed the world/interaction foundation with explicit DRINK and INTERACT anchors, deterministic lifecycle state, local reserve/stop/align/animate/sync/release flow, interaction poses, bounded camera zoom/boundaries, responsive touch joystick movement, mobile-safe controls, and non-blocking procedural room assets.
-- **Tests:** GitHub Actions run `37497866574`: `npm test` PASS; `npm run build` PASS; dependency audit PASS.
-- **Browser result:** NOT VERIFIED for the latest correction. User-supplied iPhone Safari screenshots exposed two additional Wave 2 defects: the touch joystick was displaced/non-functional, and the dining furniture was vertically mispositioned near the ceiling.
-- **Deployment count:** 1 successful production deployment; 1 additional production deployment attempt was blocked by Vercel's daily deployment quota.
-- **Known failures:** the joystick was nested under the backdrop-filter HUD and had pointer events disabled; the dining furniture group used Y=5.8 instead of Z=5.8. Both source defects are corrected on `main`. The corrected source has not yet been exercised on the iPhone because the deployment quota blocked a fresh build.
-- **What is actually verified:** the previous production build rendered successfully on iPhone Safari, but its joystick and furniture composition were not acceptable. The current source contains the corrections; automated CI for the new commits is not exposed by the repository's current workflow-run query.
-- **Next wave:** Wave 3 — all core interactions, after the current Wave 2 mobile correction is device-verified.
+- **Implementation commit:** 16e2cac9f7b598286bc6a716a7575755a7199568.
+- **What changed:** corrected the mobile camera framing, moved and hardened the touch joystick, fixed the dining table coordinate bug, removed per-frame proximity React updates, improved the human avatar/name presentation and local poses, improved the TV surface, softened lighting, and consolidated mobile-safe CSS.
+- **Tests:** GitHub Actions run 37506658658: npm test PASS; npm run build PASS; dependency audit PASS.
+- **Browser result:** NOT VERIFIED. The supplied iPhone Safari screenshot remains the evidence that exposed the defects; no fresh device build has been exercised after these source fixes.
+- **Deployment count:** 1 successful production deployment; 1 additional production deployment attempt was blocked by Vercel's daily deployment quota. No further deployment was attempted for local debugging.
+- **Known failures:** none remain confirmed by source inspection or CI. Real-device behavior of the new camera/joystick/layout/visual fixes is still unverified.
+- **What is actually verified:** current main source contains the corrections and the final CI pipeline passes. The local/container environment cannot clone the repo because outbound GitHub DNS is unavailable; therefore no separate local browser/build run was performed.
+- **Next wave:** Wave 3 — all core interactions, only after Wave 2 receives a fresh device/browser acceptance pass.
 
 ### Wave 1 completion record
 
