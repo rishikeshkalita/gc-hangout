@@ -27,7 +27,7 @@ const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const FURNITURE={
- sofa:"https://cdn.3dassets.dev/assets/16990/v1/model.glb",
+ sofa:"https://cdn.3dassets.dev/assets/26142/v1/model.glb",
  armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
  diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
  coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
@@ -37,13 +37,22 @@ const FURNITURE={
 };
 
 const SEATS=[
- {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-6.48],standPosition:[-10.45,0,-6.4],approachPosition:[-10.45,0,-6.4],rotation:0},
- {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-6.48],standPosition:[-9.55,0,-6.4],approachPosition:[-9.55,0,-6.4],rotation:0},
- {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-4.42],standPosition:[-10.45,0,-4.88],approachPosition:[-10.45,0,-4.88],rotation:Math.PI},
- {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-4.42],standPosition:[-9.55,0,-4.88],approachPosition:[-9.55,0,-4.88],rotation:Math.PI},
+ ...[[-.72],[0],[.72]].map(([x],i)=>({
+   id:"sofa-a-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-10+x,0,-6.92],standPosition:[-10+x,0,-6.35],approachPosition:[-10+x,0,-6.35],
+   rotation:0,seatY:-.12
+ })),
+ ...[[-.72],[0],[.72]].map(([x],i)=>({
+   id:"sofa-b-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-10+x,0,-3.98],standPosition:[-10+x,0,-4.55],approachPosition:[-10+x,0,-4.55],
+   rotation:Math.PI,seatY:-.12
+ })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
-   position:[10+x,0,5.8+(side<0?-1.82:1.82)],rotation:side<0?0:Math.PI
+   position:[10+x,0,5.8+(side<0?-1.82:1.82)],
+   standPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
+   approachPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
+   rotation:side<0?0:Math.PI,seatY:-.10
  }))
 ];
 const BEDS=[
@@ -82,8 +91,8 @@ function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
 
 
 const OBSTACLES=[
-  {x:-10,z:-7.2,rx:.84,rz:.44,vault:false,name:"livingSofaA"},
-  {x:-10,z:-3.7,rx:.84,rz:.44,vault:false,name:"livingSofaB"},
+  {x:-10,z:-7.2,rx:1.15,rz:.48,vault:false,name:"livingSofaA"},
+  {x:-10,z:-3.7,rx:1.15,rz:.48,vault:false,name:"livingSofaB"},
   {x:-10,z:-5.45,rx:.62,rz:.38,vault:true,name:"livingTable"},
   {x:-13.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairL"},
   {x:-7.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairR"},
@@ -131,7 +140,7 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.08}/>} 
+function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.02}/>} 
 
 function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
 
@@ -351,7 +360,8 @@ function RealHuman({player,me}) {
     const a=1-Math.exp(-18*dt);
     root.current.position.x+=(player.x-root.current.position.x)*a;
     root.current.position.z+=(player.z-root.current.position.z)*a;
-    root.current.position.y+=((locked?.02:0)-root.current.position.y)*a;
+    const seatedY=seated?(player.seatY??-.12):sleeping?.02:0;
+    root.current.position.y+=(seatedY-root.current.position.y)*a;
     root.current.rotation.y+=Math.atan2(Math.sin(targetRot-root.current.rotation.y),Math.cos(targetRot-root.current.rotation.y))*a;
 
     const targetPose=seated?1:sleeping?.68:0;
@@ -364,9 +374,9 @@ function RealHuman({player,me}) {
         if(!b||!r)return;
         b.rotation.x=r.x+x*p;b.rotation.y=r.y+y*p;b.rotation.z=r.z+z*p;
       };
-      set("thighL",-1.28);set("thighR",-1.28);
-      set("shinL",1.48);set("shinR",1.48);
-      set("footL",-0.24);set("footR",-0.24);
+      set("thighL",-1.43);set("thighR",-1.43);
+      set("shinL",1.68);set("shinR",1.68);
+      set("footL",-0.28);set("footR",-0.28);
       set("spine",0.04);
       set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
       set("forearmL",-0.28);set("forearmR",-0.28);
@@ -428,7 +438,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
         const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
       }else{
         const finalPosition=target.position;
-        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id};
+        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id,seatY:target.seatY??null};
         velocity.current.x=0;velocity.current.z=0;posRef.current=next;interactionRef.current=null;
         onMove(next);onInteractionArrive?.(target);
       }
@@ -566,7 +576,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       }
     }
     const safe=candidates.find(q=>!blocked(q[0],q[2],.34))||[clamp(p.x,-HALL_HALF_X+.5,HALL_HALF_X-.5),0,clamp(p.z,-HALL_HALF_Z+.5,HALL_HALF_Z-.5)];
-    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0};
+    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null};
     interactionRef.current=null;
     posRef.current=clear;
     setCandidate(null);
@@ -677,7 +687,7 @@ export default function Home(){
   const channelRef=useRef(null),localRef=useRef(null);
 
   const join=()=>{
-    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0};
+    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null};
     localRef.current=p;setJoined(true);
   };
 
@@ -763,7 +773,7 @@ export default function Home(){
     if(candidate.type==="stand"){
       const objectId=candidate.id||p.interactionId;
       interactionRef.current=null;
-      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0};
+      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null};
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
       if(objectId){
@@ -840,7 +850,7 @@ export default function Home(){
   const interactionArrived=(candidate)=>{
     if(!localRef.current)return;
     const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
-    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation};
+    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null};
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload});
     setAction(finalAction);
