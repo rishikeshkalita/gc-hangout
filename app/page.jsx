@@ -36,31 +36,35 @@ const FURNITURE={
 };
 
 const SEATS=[
- {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.58,0,-6.18],rotation:Math.PI},
- {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.42,0,-6.18],rotation:Math.PI},
- {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.58,0,-4.92],rotation:0},
- {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.42,0,-4.92],rotation:0},
- ...[[-.72,-1],[0,-1],[.72,-1],[-.72,1],[0,1],[.72,1]].map(([x,side],i)=>({
+ {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.75,0,-6.18],rotation:Math.PI},
+ {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.25,0,-6.18],rotation:Math.PI},
+ {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.75,0,-4.92],rotation:0},
+ {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.25,0,-4.92],rotation:0},
+ ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
-   position:[10+x,0,5.8+(side<0?-1.2:1.2)],rotation:side<0?0:Math.PI
+   position:[10+x,0,5.8+(side<0?-1.82:1.82)],rotation:side<0?0:Math.PI
  }))
 ];
 const BEDS=[
  {id:"bed-a",label:"Sleep",type:"bed",finalAction:"sleep",position:[8.7,0,-6.2],rotation:Math.PI/2},
  {id:"bed-b",label:"Sleep",type:"bed",finalAction:"sleep",position:[12.2,0,-6.2],rotation:Math.PI/2}
 ];
+const FOOD_ASSETS={
+ burgerTray:"https://cdn.3dassets.dev/assets/34314/v1/model.glb",
+ snackBasket:"https://cdn.3dassets.dev/assets/33873/v1/model.glb",
+ sodaCan:"https://cdn.3dassets.dev/assets/24445/v1/model.glb",
+ waterBottle:"https://cdn.3dassets.dev/assets/24444/v1/model.glb",
+ chocolate:"https://cdn.3dassets.dev/assets/24429/v1/model.glb"
+};
 const SNACKS=[
- {id:"chips",name:"Chips",kind:"chips",position:[-8.75,.76,-5.55],action:"eat",label:"Eat chips"},
- {id:"cookies",name:"Cookies",kind:"cookies",position:[-11.05,.76,-5.55],action:"eat",label:"Eat cookies"},
- {id:"pizza",name:"Pizza",kind:"pizza",position:[-9.55,.76,-5.55],action:"eat",label:"Eat pizza"},
- {id:"soda",name:"Soda",kind:"can",position:[-7.15,.76,-5.55],action:"drink",label:"Drink soda"},
- {id:"popcorn",name:"Popcorn",kind:"popcorn",position:[0,.8,-7.0],action:"eat",label:"Eat popcorn"},
- {id:"donut",name:"Donut",kind:"donut",position:[10,.82,5.8],action:"eat",label:"Eat donut"},
- {id:"burger",name:"Burger",kind:"burger",position:[10.8,.82,5.8],action:"eat",label:"Eat burger"},
- {id:"sandwich",name:"Sandwich",kind:"sandwich",position:[-13,.78,-5.55],action:"eat",label:"Eat sandwich"},
- {id:"candy",name:"Candy",kind:"candy",position:[-6.85,.76,-5.55],action:"eat",label:"Eat candy"},
- {id:"fruit",name:"Fruit",kind:"fruit",position:[12.8,.78,7.3],action:"eat",label:"Eat fruit"},
- {id:"bottle",name:"Bottle",kind:"bottle",position:[11.7,.9,4.55],action:"drink",label:"Drink"}
+ {id:"burger-tray",name:"Burger & chips",kind:"burgerTray",position:[9.35,.86,5.8],action:"eat",label:"Eat burger & chips"},
+ {id:"snack-basket",name:"Fries",kind:"snackBasket",position:[10.65,.82,5.8],action:"eat",label:"Eat fries"},
+ {id:"soda",name:"Soda",kind:"sodaCan",position:[9.0,.82,5.55],action:"drink",label:"Drink soda"},
+ {id:"water",name:"Water",kind:"waterBottle",position:[11.0,.84,5.55],action:"drink",label:"Drink water"},
+ {id:"chocolate",name:"Chocolate",kind:"chocolate",position:[-9.65,.72,-5.55],action:"eat",label:"Eat chocolate"},
+ {id:"fries-2",name:"Fries",kind:"snackBasket",position:[-10.35,.82,-5.55],action:"eat",label:"Eat fries"},
+ {id:"soda-2",name:"Soda",kind:"sodaCan",position:[-9.05,.82,-5.55],action:"drink",label:"Drink soda"},
+ {id:"water-2",name:"Water",kind:"waterBottle",position:[-10.95,.84,-5.55],action:"drink",label:"Drink water"}
 ];
 
 const INTERACTABLES=[
@@ -141,30 +145,24 @@ function Snack({item,state,players}){
   const ref=useRef();
   const holder=state?.heldBy?players[state.heldBy]:null;
   const consumed=!!state?.consumed;
+  const gltf=useGLTF(FOOD_ASSETS[item.kind]);
+  const scene=useMemo(()=>{
+    const s=SkeletonUtils.clone(gltf.scene);
+    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    return s;
+  },[gltf.scene]);
   useFrame((_,dt)=>{
     if(!ref.current)return;
-    const target=holder?[holder.x,.95,holder.z]:item.position;
-    const a=1-Math.exp(-14*dt);
+    const target=holder?[holder.x,.98,holder.z]:item.position;
+    const a=1-Math.exp(-16*dt);
     ref.current.position.x+=(target[0]-ref.current.position.x)*a;
     ref.current.position.y+=(target[1]-ref.current.position.y)*a;
     ref.current.position.z+=(target[2]-ref.current.position.z)*a;
-    ref.current.rotation.y+=dt*(holder?3.2:.35);
+    if(holder)ref.current.rotation.y+=dt*3.2;
   });
   if(consumed)return null;
-  const body=()=>{
-    if(item.kind==="chips")return <><RoundedBox args={[.42,.62,.18]} radius={.06} smoothness={3}><meshStandardMaterial color="#d85a49" roughness={.5}/></RoundedBox><Text position={[0,0,.1]} fontSize={.09} color="#fff" anchorX="center" anchorY="middle">CHIPS</Text></>;
-    if(item.kind==="cookies")return <group>{[-.12,.12].map((x,i)=><mesh key={i} position={[x,0,0]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.12,.12,.045,20]}/><meshStandardMaterial color="#c88b52" roughness={.8}/></mesh>)}</group>;
-    if(item.kind==="pizza")return <mesh rotation={[-Math.PI/2,0,0]}><coneGeometry args={[.34,.06,3]} /><meshStandardMaterial color="#e0a05a" roughness={.8}/></mesh>;
-    if(item.kind==="can")return <><mesh><cylinderGeometry args={[.09,.09,.34,20]}/><meshStandardMaterial color="#6b78d8" metalness={.25} roughness={.45}/></mesh><mesh position={[0,.05,.091]}><planeGeometry args={[.11,.16]}/><meshStandardMaterial color="#f0f0f0"/></mesh></>;
-    if(item.kind==="popcorn")return <><mesh><coneGeometry args={[.25,.42,4]} /><meshStandardMaterial color="#e9d7b1" roughness={.8}/></mesh><mesh position={[0,.28,0]}><sphereGeometry args={[.24,16,10]}/><meshStandardMaterial color="#fff3d6"/></mesh></>;
-    if(item.kind==="donut")return <mesh rotation={[Math.PI/2,0,0]}><torusGeometry args={[.18,.075,12,24]}/><meshStandardMaterial color="#c67b55" roughness={.75}/></mesh>;
-    if(item.kind==="burger")return <group>{[-.11,0,.11].map((y,i)=><mesh key={i} position={[0,y,0]}><cylinderGeometry args={[.2,.2,.08,20]}/><meshStandardMaterial color={i===1?"#8f5538":"#d29b55"} roughness={.8}/></mesh>)}</group>;
-    if(item.kind==="sandwich")return <RoundedBox args={[.38,.18,.28]} radius={.04} smoothness={3}><meshStandardMaterial color="#d9b27b" roughness={.8}/></RoundedBox>;
-    if(item.kind==="candy")return <mesh rotation={[0,0,Math.PI/2]}><capsuleGeometry args={[.06,.18,8,12]}/><meshStandardMaterial color="#e36a9d" roughness={.5}/></mesh>;
-    if(item.kind==="bottle")return <group><mesh position={[0,.08,0]}><cylinderGeometry args={[.085,.1,.36,18]}/><meshStandardMaterial color="#77a6cf" roughness={.3} metalness={.1}/></mesh><mesh position={[0,.3,0]}><cylinderGeometry args={[.055,.055,.1,16]}/><meshStandardMaterial color="#d9dde5"/></mesh></group>;
-    return <mesh><sphereGeometry args={[.13,16,12]}/><meshStandardMaterial color="#e7a45d" roughness={.7}/></mesh>;
-  };
-  return <group ref={ref} position={item.position}>{body()}</group>;
+  const scale=item.kind==="burgerTray"?.9:item.kind==="snackBasket"?.9:item.kind==="waterBottle"?1.5:item.kind==="sodaCan"?1.7:2.0;
+  return <group ref={ref} position={item.position} scale={scale}><primitive object={scene}/></group>;
 }
 
 function Snacks({players,snackStates}){
@@ -295,32 +293,81 @@ function RealHuman({player,me}) {
   const root=useRef();
   const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
   const {actions}=useAnimations(animations,root);
+  const clipRef=useRef(null);
+  const poseRef=useRef(0);
+  const bones=useMemo(()=>{
+    const b={thighL:null,thighR:null,shinL:null,shinR:null,footL:null,footR:null,spine:null,upperArmL:null,upperArmR:null,forearmL:null,forearmR:null};
+    model.traverse(o=>{
+      if(!o.isBone)return;
+      const n=o.name.toLowerCase().replace(/[^a-z0-9]/g,"");
+      const left=/(left|l)$/.test(n)||n.includes("left");
+      const right=/(right|r)$/.test(n)||n.includes("right");
+      if(!b.thighL&&left&&/(thigh|upperleg|upleg)/.test(n))b.thighL=o;
+      if(!b.thighR&&right&&/(thigh|upperleg|upleg)/.test(n))b.thighR=o;
+      if(!b.shinL&&left&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinL=o;
+      if(!b.shinR&&right&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinR=o;
+      if(!b.footL&&left&&/(foot|ankle)/.test(n))b.footL=o;
+      if(!b.footR&&right&&/(foot|ankle)/.test(n))b.footR=o;
+      if(!b.spine&&/(spine2|spine1|chest|spine)/.test(n))b.spine=o;
+      if(!b.upperArmL&&left&&/(upperarm|arm)/.test(n))b.upperArmL=o;
+      if(!b.upperArmR&&right&&/(upperarm|arm)/.test(n))b.upperArmR=o;
+      if(!b.forearmL&&left&&/(forearm|lowerarm)/.test(n))b.forearmL=o;
+      if(!b.forearmR&&right&&/(forearm|lowerarm)/.test(n))b.forearmR=o;
+    });
+    return b;
+  },[model]);
+
+  useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
+
   useEffect(()=>{
     if(!actions)return;
     const names=Object.keys(actions);
     const idle=names.find(n=>/idle/i.test(n))||names[0];
     const walk=names.find(n=>/walk/i.test(n))||idle;
-    const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||walk;
-    const clip=player.action==="eat"||player.action==="drink"?grasp:player.moving?walk:idle;
-    Object.values(actions).forEach(a=>a?.stop());
-    actions[clip]?.reset().fadeIn(.18).play();
-    return()=>actions[clip]?.fadeOut(.12);
-  },[actions,player.moving,player.action]);
-
-  useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
+    const run=names.find(n=>/run/i.test(n))||walk;
+    const grasp=names.find(n=>/grasp/i.test(n))||idle;
+    const locked=player.action==="sit"||player.action==="sleep";
+    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:(player.speed||0)>3.15?run:(player.speed||0)>.08?walk:idle);
+    if(desired===clipRef.current)return;
+    const prev=clipRef.current?actions[clipRef.current]:null;
+    if(prev)prev.fadeOut(.2);
+    if(desired&&actions[desired]){
+      actions[desired].reset().fadeIn(.2).play();
+      clipRef.current=desired;
+    }else clipRef.current=null;
+  },[actions,player.action,player.speed]);
 
   useFrame((_,dt)=>{
     if(!root.current)return;
-    const a=Math.min(1,13*dt),target=player.rot||0;
+    const a=1-Math.exp(-18*dt);
     root.current.position.x+=(player.x-root.current.position.x)*a;
     root.current.position.z+=(player.z-root.current.position.z)*a;
-    const hop=player.hopUntil&&player.hopUntil>Date.now()?Math.sin(((player.hopUntil-Date.now())/420)*Math.PI)*.52:0;
-    const actionY=player.action==="sit"?.48:player.action==="sleep"?.12:0;
-    root.current.position.y+=(hop+actionY-root.current.position.y)*a;
-    const targetRot=player.action==="sleep"?0:target;
+    const seated=player.action==="sit";
+    const sleeping=player.action==="sleep";
+    const yTarget=seated?.10:sleeping?.03:0;
+    root.current.position.y+=(yTarget-root.current.position.y)*a;
+    const targetRot=player.poseRotation??player.rot??0;
     root.current.rotation.y+=Math.atan2(Math.sin(targetRot-root.current.rotation.y),Math.cos(targetRot-root.current.rotation.y))*a;
-    if(player.action==="sleep")root.current.rotation.x+=(Math.PI/2-root.current.rotation.x)*a;
-    else root.current.rotation.x+=(0-root.current.rotation.x)*a;
+    root.current.rotation.x+=(0-root.current.rotation.x)*a;
+
+    const targetPose=seated?1:sleeping?.65:0;
+    poseRef.current+=(targetPose-poseRef.current)*(1-Math.exp(-10*dt));
+    const p=poseRef.current;
+
+    if(bones.thighL)bones.thighL.rotation.x=-1.05*p;
+    if(bones.thighR)bones.thighR.rotation.x=-1.05*p;
+    if(bones.shinL)bones.shinL.rotation.x=1.25*p;
+    if(bones.shinR)bones.shinR.rotation.x=1.25*p;
+    if(bones.footL)bones.footL.rotation.x=-.22*p;
+    if(bones.footR)bones.footR.rotation.x=-.22*p;
+    if(bones.spine)bones.spine.rotation.x=.12*p;
+    if(bones.upperArmL)bones.upperArmL.rotation.x=-.08*p;
+    if(bones.upperArmR)bones.upperArmR.rotation.x=-.08*p;
+
+    const active=clipRef.current?actions[clipRef.current]:null;
+    if(active){
+      active.timeScale=/run/i.test(clipRef.current)?clamp((player.speed||3.9)/3.9,.82,1.16):/walk/i.test(clipRef.current)?clamp((player.speed||2.1)/2.1,.72,1.3):1;
+    }
   });
 
   return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
@@ -329,7 +376,7 @@ function RealHuman({player,me}) {
       {player.name}{me?" • you":""}
     </Text>
     {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}
-    {player.action&&player.action!=="walk"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
+    {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
   </group>
 }
 
@@ -456,6 +503,9 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
       const k=e.key.toLowerCase();
       if(k===" "){e.preventDefault();requestInteraction(candidate);return}
+      if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep")){
+        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
+      }
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       e.preventDefault();
       const next={x:k==="a"||k==="arrowleft"? -1:k==="d"||k==="arrowright"?1:moveRef.current.x,z:k==="w"||k==="arrowup"?-1:k==="s"||k==="arrowdown"?1:moveRef.current.z};setMoveImmediate(next);
@@ -470,6 +520,10 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   },[onInteract,candidate]);
 
   const joystickAt=(el,x,y)=>{
+    if(posRef.current.action==="sit"||posRef.current.action==="sleep"){
+      const stand={id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"};
+      requestInteraction(stand);
+    }
     const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
     const len=Math.hypot(dx,dz),max=42,k=len>max?max/len:1;
     const px=dx*k,pz=dz*k;
