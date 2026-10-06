@@ -16,7 +16,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ensureAnonymousSession, getSupabase } from "../lib/supabase";
 import { VoiceMesh } from "../lib/voice";
-import { applyPlayerState, arriveInteraction, beginInteraction, classifyMusicResponse, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, upsertPlayer } from "../lib/game-state.mjs";
+import { applyPlayerState, arriveInteraction, beginInteraction, classifyMusicResponse, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, upsertPlayer, VOICE_STATES } from "../lib/game-state.mjs";
 
 const PRESETS = [
   {id:"maya",label:"Maya"}, {id:"noah",label:"Noah"}, {id:"riya",label:"Riya"},
@@ -669,7 +669,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="domElement" />;
 }
-function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,musicStatus,onMusicAutoplayBlocked}) {
+function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,voiceState,musicStatus,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const musicPlayBlockedRef=useRef(false);
@@ -941,7 +941,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
-      <button type="button" aria-pressed={voiceEnabled&&!voiceMuted} className={`voiceState ${voiceEnabled&&!voiceMuted?"active":voiceMuted?"muted":""}`} onClick={async()=>{if(!voiceEnabled){const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}else onToggleMute?.()}}>{voiceEnabled?(voiceMuted?"🔇 MUTED":"🎙️ LIVE / UNMUTED"):"🎤 MIC OFF"}</button>
+      <button type="button" aria-pressed={voiceState===VOICE_STATES.LIVE} className={`voiceState ${voiceState===VOICE_STATES.LIVE?"active":voiceState===VOICE_STATES.MUTED?"muted":voiceState===VOICE_STATES.ERROR?"error":voiceState===VOICE_STATES.DISCONNECTED?"disconnected":""}`} onClick={async()=>{if(voiceState===VOICE_STATES.LIVE||voiceState===VOICE_STATES.MUTED){onToggleMute?.();return} const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}}>{voiceState===VOICE_STATES.REQUESTING_PERMISSION?"🎤 REQUESTING…":voiceState===VOICE_STATES.LIVE?"🎙️ LIVE / UNMUTED":voiceState===VOICE_STATES.MUTED?"🔇 MUTED":voiceState===VOICE_STATES.ERROR?"🎤 MIC ERROR":voiceState===VOICE_STATES.DISCONNECTED?"🔌 DISCONNECTED":"🎤 MIC OFF"}</button>
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
     </div>
     {voiceOpen&&voiceEnabled&&(
@@ -972,7 +972,7 @@ export default function Home(){
   const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
-  const [chatMessages,setChatMessages]=useState([]),[chatError,setChatError]=useState(""),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
+  const [chatMessages,setChatMessages]=useState([]),[chatError,setChatError]=useState(""),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceState,setVoiceState]=useState(VOICE_STATES.OFF),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
   const [musicError,setMusicError]=useState(""),[musicStatus,setMusicStatus]=useState("LOADING");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
   const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
@@ -1149,7 +1149,7 @@ export default function Home(){
       if(payload?.locks)setLocks(payload.locks);
       if(payload?.snackStates)setSnackStates(payload.snackStates);
     });
-    voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:(enabled,error)=>{setVoiceEnabled(enabled);setVoiceError(error||"");if(!enabled)setVoiceMuted(false);}});
+    voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:(state,error)=>{setVoiceState(state);const enabled=state===VOICE_STATES.LIVE||state===VOICE_STATES.MUTED;setVoiceEnabled(enabled);setVoiceError(error||"");if(!enabled)setVoiceMuted(false);}});
     let reconnectTimer=null;
     let reconnecting=false;
     const subscribe=()=>{
@@ -1285,6 +1285,7 @@ export default function Home(){
     }catch(e){
       console.error("Voice chat failed",e);
       setVoiceError(e?.message||"Microphone access failed.");
+      setVoiceState(VOICE_STATES.ERROR);
       setVoiceEnabled(false);
       return false;
     }
@@ -1326,7 +1327,7 @@ export default function Home(){
   const onSelectMusic=trackId=>{
     const track=musicTracks.find(t=>t.id===trackId);if(!track)return;
     const started=Date.now();
-    setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);
+    setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);setMusicStatus("AVAILABLE");
     broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
   };
   const onNextMusic=()=>{
@@ -1524,7 +1525,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} musicStatus={musicStatus} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>{setMusicStatus(error?"PLAYBACK_ERROR":"AVAILABLE");setMusicError(error?"Tap Music to start audio on this device.":"")}}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} musicStatus={musicStatus} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} voiceState={voiceState} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>{setMusicStatus(error?"PLAYBACK_ERROR":"AVAILABLE");setMusicError(error?"Tap Music to start audio on this device.":"")}}/>;
 
   return <main className="join">
     <div className="card">
