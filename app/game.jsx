@@ -349,192 +349,54 @@ function DigitalSignage() {
   </group>
 }
 
-function RealHuman({player,me,liveRef}) {
-  const {scene,animations}=useGLTF(HUMAN_URL);  const root=useRef();
-  const model=useMemo(()=>{const cloned=SkeletonUtils.clone(scene);runtimeDiag("asset-loaded",{kind:"avatar",url:HUMAN_URL});return cloned},[scene]);
-  const {actions}=useAnimations(animations,root);
-  const clipRef=useRef(null);
-  const emoteClipRef=useRef(null);
-  const fallbackEmoteActive=useRef(false);
-  const wasSeated=useRef(false);
-  const poseBlend=useRef(0);
+function RestoredHuman({player,me,liveRef}) {
+  const ref=useRef();
+  const phase=useRef(Math.random()*Math.PI*2);
   const seated=player.action==="sit";
   const sleeping=player.action==="sleep";
-  const poseLocked=seated||sleeping;
-  const movementLocked=poseLocked||player.action==="emote";
-  const targetRot=player.poseRotation??player.rot??0;
-  const poseType=player.poseType??(sleeping?"bed":"sofa");
-
-  const bones=useMemo(()=>{
-    const b={thighL:null,thighR:null,shinL:null,shinR:null,footL:null,footR:null,spine:null,upperArmL:null,upperArmR:null,forearmL:null,forearmR:null};
-    model.traverse(o=>{
-      if(!o.isBone)return;
-      const n=o.name.toLowerCase().replace(/[^a-z0-9]/g,"");
-      const left=/(left|l)$/.test(n)||n.includes("left");
-      const right=/(right|r)$/.test(n)||n.includes("right");      if(!b.thighL&&left&&/(thigh|upperleg|upleg)/.test(n))b.thighL=o;
-      if(!b.thighR&&right&&/(thigh|upperleg|upleg)/.test(n))b.thighR=o;
-      if(!b.shinL&&left&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinL=o;
-      if(!b.shinR&&right&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinR=o;
-      if(!b.footL&&left&&/(foot|ankle)/.test(n))b.footL=o;
-      if(!b.footR&&right&&/(foot|ankle)/.test(n))b.footR=o;
-      if(!b.spine&&/(spine2|spine1|chest|spine)/.test(n))b.spine=o;
-      if(!b.upperArmL&&left&&/(upperarm|arm)/.test(n))b.upperArmL=o;
-      if(!b.upperArmR&&right&&/(upperarm|arm)/.test(n))b.upperArmR=o;
-      if(!b.forearmL&&left&&/(forearm|lowerarm)/.test(n))b.forearmL=o;
-      if(!b.forearmR&&right&&/(forearm|lowerarm)/.test(n))b.forearmR=o;
-    });
-    return b;
-  },[model]);
-
-  const restBones=useMemo(()=>{
-    const rest={};
-    for(const [name,b] of Object.entries(bones))rest[name]=b?{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}:null;
-    return rest;
-  },[bones]);
-
-  useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
-
-  useEffect(()=>{
-    if(!actions)return;
-    const names=Object.keys(actions);
-    const idle=names.find(n=>/idle/i.test(n))||names[0];
-    const walk=names.find(n=>/walk/i.test(n)&&!/run/i.test(n))||names.find(n=>/walk/i.test(n))||idle;
-    const run=names.find(n=>/run|jog|sprint/i.test(n))||walk;
-    const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||idle;
-    const hit=names.find(n=>/hit|hurt|shove|pain|reaction/i.test(n))||null;
-    const attack=names.find(n=>/punch|jab|kick|attack|fight|combo/i.test(n))||null;
-    const emoteMatchers={dance:/dance|danc|celebrat|groove|party/i,wave:/wave|greet|hello|salute/i,clap:/clap|applause|cheer/i,laugh:/laugh|joy|happy/i};
-    const emote=player.emote?names.find(n=>(emoteMatchers[player.emote]||new RegExp(player.emote,"i")).test(n)):null;
-    emoteClipRef.current=emote||null;
-    const desired=poseLocked?null:(player.hit&&hit?hit:(player.attacking&&attack?attack:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle))))));
-    if(desired===clipRef.current)return;
-    const previous=clipRef.current?actions[clipRef.current]:null;
-    if(previous)previous.fadeOut(.16);
-    if(desired&&actions[desired]){actions[desired].reset().fadeIn(.16).play();clipRef.current=desired;}
-    else clipRef.current=null;
-  },[actions,poseLocked,player.action,player.speed,player.hit,player.attacking,player.emote]);
-
-  useFrame((_,dt)=>{
-    if(!root.current)return;
-    const live=liveRef?.current||player;
-    const tx=live.x??player.x??0,tz=live.z??player.z??0,trot=live.rot??targetRot,tspeed=live.speed??player.speed??0;
-    const a=1-Math.exp(-(me?28:18)*dt);
-    root.current.position.x+=(tx-root.current.position.x)*a;
-    root.current.position.z+=(tz-root.current.position.z)*a;
-    const seatedY=seated?(player.seatY??-.34):(sleeping?0.02:0);
-    root.current.position.y+=(seatedY-root.current.position.y)*a;
-    root.current.rotation.y+=Math.atan2(Math.sin(trot-root.current.rotation.y),Math.cos(trot-root.current.rotation.y))*a;
-
-    const targetPose=seated?1:(sleeping?0.68:0);
-    poseBlend.current+=(targetPose-poseBlend.current)*(1-Math.exp(-12*dt));
-    const p=poseBlend.current;
-
-    if(poseLocked){
-      const set=(name,x=0,y=0,z=0)=>{
-        const b=bones[name],r=restBones[name];
-        if(!b||!r)return;
-        b.rotation.x=r.x+x*p;b.rotation.y=r.y+y*p;b.rotation.z=r.z+z*p;
-      };
-      if(sleeping){
-        // Bed: reclined posture rather than the upright chair/sofa pose.
-        set("thighL",-0.18);set("thighR",-0.18);
-        set("shinL",0.22);set("shinR",0.22);
-        set("footL",-0.08);set("footR",-0.08);
-        set("spine",-1.12);
-        set("upperArmL",-0.22,0.02,-0.06);set("upperArmR",-0.22,-0.02,0.06);
-        set("forearmL",-0.42);set("forearmR",-0.42);
-      }else if(poseType==="chair"){
-        // Dining chair: more upright hips/knees and arms relaxed beside the torso.
-        set("thighL",-1.38);set("thighR",-1.38);
-        set("shinL",1.60);set("shinR",1.60);
-        set("footL",-0.18);set("footR",-0.18);
-        set("spine",0.015);
-        set("upperArmL",-0.07,0.02,-0.02);set("upperArmR",-0.07,-0.02,0.02);
-        set("forearmL",-0.18);set("forearmR",-0.18);
-      }else{
-        // Sofa/armchair: deeper, relaxed sit with knees raised to the cushion.
-        set("thighL",-1.58);set("thighR",-1.58);
-        set("shinL",1.88);set("shinR",1.88);
-        set("footL",-0.30);set("footR",-0.30);
-        set("spine",0.035);
-        set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
-        set("forearmL",-0.28);set("forearmR",-0.28);
-      }
-      wasSeated.current=true;    }else if(wasSeated.current){
-      for(const [name,r] of Object.entries(restBones)){
-        const b=bones[name];
-        if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
-      }
-      wasSeated.current=false;poseBlend.current=0;
-    }
-
-    const active=clipRef.current?actions[clipRef.current]:null;
-    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.88,1.12);
-    else if(active)active.timeScale=1;
-
-    const moving=!movementLocked&&tspeed>.08;
-    if(moving&&!/walk|run/i.test(clipRef.current||"")){
-      const swing=Math.sin(performance.now()/110*Math.min(1.6,Math.max(.8,tspeed/2.1)));
-      const setFallback=(name,x=0,y=0,z=0)=>{
-        const b=bones[name],r=restBones[name];
-        if(!b||!r)return;
-        b.rotation.x=r.x+x;b.rotation.y=r.y+y;b.rotation.z=r.z+z;
-      };
-      setFallback("thighL",swing*.38);setFallback("thighR",-swing*.38);
-      setFallback("shinL",-Math.max(0,swing)*.16);setFallback("shinR",Math.max(0,swing)*.16);
-      setFallback("upperArmL",-swing*.22);setFallback("upperArmR",swing*.22);
-    }
-    if(!poseLocked&&player.emote&&!emoteClipRef.current){
-      fallbackEmoteActive.current=true;
-      const t=performance.now()/1000;
-      const setEmote=(name,x=0,y=0,z=0)=>{
-        const b=bones[name],r=restBones[name];
-        if(!b||!r)return;
-        b.rotation.x=r.x+x;b.rotation.y=r.y+y;b.rotation.z=r.z+z;
-      };
-      if(player.emote==="wave"){
-        setEmote("upperArmR",-1.0,0,-.12);setEmote("forearmR",-.45+Math.sin(t*9)*.35);
-      }else if(player.emote==="clap"){
-        setEmote("upperArmL",-1.0,0,-.32);setEmote("upperArmR",-1.0,0,.32);
-        setEmote("forearmL",-1.15+Math.sin(t*8)*.18);setEmote("forearmR",-1.15-Math.sin(t*8)*.18);
-      }else if(player.emote==="laugh"){
-        setEmote("spine",Math.sin(t*7)*.08);setEmote("upperArmL",-1.05,0,-.28);setEmote("upperArmR",-1.05,0,.28);
-      }else{
-        setEmote("spine",Math.sin(t*4)*.12);setEmote("upperArmL",-.45+Math.sin(t*5)*.28,0,-.25);setEmote("upperArmR",-.45-Math.sin(t*5)*.28,0,.25);
-      }
-    }else if(fallbackEmoteActive.current){
-      for(const [name,r] of Object.entries(restBones)){
-        const b=bones[name];
-        if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
-      }
-      fallbackEmoteActive.current=false;
-    }
-  });
-
-  const seatedBackX=locked?-Math.sin(targetRot)*.08:0;
-  const seatedBackZ=locked?-Math.cos(targetRot)*.08:0;
-  return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
-    <group position={[seatedBackX,0,seatedBackZ]}>      <primitive object={model} dispose={null}/>
-      <Text position={[0,2.05,0]} fontSize={.14} color={me?"#bbaeff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#11131a">{player.name}{me?" • you":""}</Text>
-      {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}{player.hit&&<Text position={[0,2.32,0]} fontSize={.18} color="#ff8797" anchorX="center">OUCH!</Text>}
-      {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
-    </group>
-  </group>
-}
-function FallbackHuman({player,me}) {
-  const ref=useRef();
+  const live=liveRef?.current||player;
   useFrame((_,dt)=>{
     if(!ref.current)return;
-    ref.current.position.x+=(player.x-ref.current.position.x)*Math.min(1,10*dt);
-    ref.current.position.z+=(player.z-ref.current.position.z)*Math.min(1,10*dt);
+    const tx=live.x??player.x??0,tz=live.z??player.z??0,rot=live.rot??player.rot??0;
+    const a=1-Math.exp(-18*dt);
+    ref.current.position.x+=(tx-ref.current.position.x)*a;
+    ref.current.position.z+=(tz-ref.current.position.z)*a;
+    ref.current.rotation.y+=Math.atan2(Math.sin(rot-ref.current.rotation.y),Math.cos(rot-ref.current.rotation.y))*a;
+    const moving=!seated&&!sleeping&&(live.speed??player.speed??0)>.08;
+    const t=performance.now()/1000+phase.current;
+    const swing=moving?Math.sin(t*8)*.55:0;
+    const armSwing=moving?Math.sin(t*8)*.32:0;
+    const pose=seated?1:0;
+    const sleepPose=sleeping?1:0;
+    if(ref.current.userData){
+      ref.current.userData.leftLeg.rotation.x=swing*(1-pose);
+      ref.current.userData.rightLeg.rotation.x=-swing*(1-pose);
+      ref.current.userData.leftArm.rotation.x=-armSwing*(1-pose);
+      ref.current.userData.rightArm.rotation.x=armSwing*(1-pose);
+      ref.current.userData.torso.rotation.x=seated?.08:sleepPose?-1.15:0;
+      ref.current.userData.leftLeg.rotation.x=seated?-1.25+swing*.08:sleepPose?-.2:swing;
+      ref.current.userData.rightLeg.rotation.x=seated?-1.25-swing*.08:sleepPose?-.2:-swing;
+    }
   });
-  return <group ref={ref} position={[player.x||0,0,player.z||0]}>
-    <mesh castShadow position={[0,.72,0]}><capsuleGeometry args={[.24,.55,8,16]}/><meshStandardMaterial color="#5967b8"/></mesh>
-    <mesh castShadow position={[0,1.34,0]}><sphereGeometry args={[.28,20,14]}/><meshStandardMaterial color="#c78e69"/></mesh>
-    <Text position={[0,1.8,0]} fontSize={.13} color={me?"#bbaeff":"#fff"} anchorX="center">{player.name}{me?" • you":""}</Text>
-  </group>
+  const skin=["#8d5524","#c68642","#e0ac69","#f1c27d","#ffdbac"][Number(player.avatarIndex)||0];
+  const shirt=["#5146a8","#d45a7a","#2d8a76","#c98a40","#4d6b9a"][Number(player.avatarIndex)||0];
+  return <group ref={ref} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
+    <group ref={g=>{if(!g)return;ref.current.userData.torso=g}}>
+      <RoundedBox castShadow args={[.52,.72,.34]} radius={.08} smoothness={5} position={[0,1.05,0]}><meshStandardMaterial color={shirt} roughness={.82}/></RoundedBox>
+    </group>
+    <mesh castShadow position={[0,1.68,0]}><sphereGeometry args={[.29,24,18]}/><meshStandardMaterial color={skin} roughness={.9}/></mesh>
+    <mesh castShadow position={[0,1.88,-.01]}><sphereGeometry args={[.30,20,14]}/><meshStandardMaterial color="#241b18" roughness={1}/></mesh>
+    <mesh castShadow position={[-.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
+    <mesh castShadow position={[.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
+    <mesh castShadow position={[-.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
+    <mesh castShadow position={[.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
+    <group ref={g=>{if(g)ref.current.userData.leftArm=g}} position={[-.38,1.15,0]}><mesh castShadow rotation={[0,0,.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
+    <group ref={g=>{if(g)ref.current.userData.rightArm=g}} position={[.38,1.15,0]}><mesh castShadow rotation={[0,0,-.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
+    <group ref={g=>{if(g)ref.current.userData.leftLeg=g}} position={[-.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
+    <group ref={g=>{if(g)ref.current.userData.rightLeg=g}} position={[.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
+    <Text position={[0,2.08,0]} fontSize={.14} color={me?"#bbaeff":"#fff"} anchorX="center" outlineWidth={.01}>{player.name}{me?" • you":""}</Text>
+  </group>;
 }
-
 function Football({players,localId,ballState,onBallState}) {
   const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
   const gltf=useGLTF(FOOTBALL_URL);
@@ -845,7 +707,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
-            <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
+            <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RestoredHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
           </Suspense>
         )}
       </Physics>
