@@ -9,8 +9,8 @@ const Game = dynamic(() => import("./game"), {
     <main className="join">
       <div className="card">
         <div className="logo">🌙</div>
-        <h1>GC Hangout Hall</h1>
-        <p>Loading the shared 3D room…</p>
+        <h1>GC Hangout</h1>
+        <p>Loading your shared virtual home…</p>
       </div>
     </main>
   ),
@@ -37,7 +37,7 @@ class AppErrorBoundary extends React.Component {
         <div className="card">
           <div className="logo">🌙</div>
           <h1>GC Hangout needs a reload</h1>
-          <p>The 3D client hit a browser error. Your multiplayer session is preserved where possible.</p>
+          <p>The 3D client hit a browser error. The local game state is safe; reload to retry.</p>
           <button className="enter" onClick={() => window.location.reload()}>
             Reload the hall
           </button>
