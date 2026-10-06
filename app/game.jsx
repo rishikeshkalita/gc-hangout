@@ -293,6 +293,10 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>
     <Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>
     <Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>
+    <Plant x={6.4} z={8.55} s={0.95} variant="palm" rotation={-0.2}/>
+    <Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>
+    <Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>
+    <Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>
     <DigitalSignage/>
     <OpenFloorMark/>
     <Snacks players={players} snackStates={snackStates}/>
