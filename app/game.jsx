@@ -694,6 +694,18 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
   const lastPropStateRef=useRef({...local});
   const interactionRef=useRef(null);
   useEffect(()=>{
+    if(!chatInitializedRef.current){
+      for(const m of chatMessages)chatSeenRef.current.add(m.id);
+      chatInitializedRef.current=true;
+      return;
+    }
+    const fresh=chatMessages.filter(m=>!chatSeenRef.current.has(m.id));
+    if(!fresh.length)return;
+    fresh.forEach(m=>chatSeenRef.current.add(m.id));
+    setChatNotices(prev=>[...fresh,...prev].slice(0,4));
+    fresh.forEach(m=>window.setTimeout(()=>setChatNotices(prev=>prev.filter(item=>item.id!==m.id)),4500));
+  },[chatMessages]);
+  useEffect(()=>{
     const previous=lastPropStateRef.current;
     const distance=Math.hypot((local?.x??0)-(previous?.x??0),(local?.z??0)-(previous?.z??0));
     const stateChanged=local?.action!==previous?.action||local?.interactionId!==previous?.interactionId;
