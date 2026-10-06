@@ -356,6 +356,7 @@ function RealHuman({player,me,liveRef}) {
   const {actions}=useAnimations(animations,root);
   const clipRef=useRef(null);
   const emoteClipRef=useRef(null);
+  const fallbackEmoteActive=useRef(false);
   const wasSeated=useRef(false);
   const poseBlend=useRef(0);
   const seated=player.action==="sit";
@@ -483,6 +484,7 @@ function RealHuman({player,me,liveRef}) {
       setFallback("upperArmL",-swing*.22);setFallback("upperArmR",swing*.22);
     }
     if(!locked&&player.emote&&!emoteClipRef.current){
+      fallbackEmoteActive.current=true;
       const t=performance.now()/1000;
       const setEmote=(name,x=0,y=0,z=0)=>{
         const b=bones[name],r=restBones[name];
@@ -499,6 +501,12 @@ function RealHuman({player,me,liveRef}) {
       }else{
         setEmote("spine",Math.sin(t*4)*.12);setEmote("upperArmL",-.45+Math.sin(t*5)*.28,0,-.25);setEmote("upperArmR",-.45-Math.sin(t*5)*.28,0,.25);
       }
+    }else if(fallbackEmoteActive.current){
+      for(const [name,r] of Object.entries(restBones)){
+        const b=bones[name];
+        if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
+      }
+      fallbackEmoteActive.current=false;
     }
   });
 
