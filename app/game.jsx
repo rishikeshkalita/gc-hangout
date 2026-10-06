@@ -938,7 +938,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
-      <button type="button" aria-pressed={voiceEnabled&&!voiceMuted} className={voiceEnabled&&!voiceMuted?"active":voiceMuted?"muted":""} onClick={async()=>{if(!voiceEnabled){const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}else onToggleMute?.()}}>{voiceEnabled?(voiceMuted?"🔇 MUTED":"🎙️ LIVE / UNMUTED"):"🎤 MIC OFF"}</button>
+      <button type="button" aria-pressed={voiceEnabled&&!voiceMuted} className={`voiceState ${voiceEnabled&&!voiceMuted?"active":voiceMuted?"muted":""}`} onClick={async()=>{if(!voiceEnabled){const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}else onToggleMute?.()}}>{voiceEnabled?(voiceMuted?"🔇 MUTED":"🎙️ LIVE / UNMUTED"):"🎤 MIC OFF"}</button>
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
     </div>
     {voiceOpen&&voiceEnabled&&(
