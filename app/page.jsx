@@ -871,9 +871,26 @@ export default function Home(){
     if(supabase&&objectId)supabase.rpc("gc_touch_interaction",{p_object_id:objectId,p_holder_id:id,p_lease_seconds:30}).catch(()=>{});
   };
 
+  const broadcastMusic=payload=>channelRef.current?.send({type:"broadcast",event:"room_state",payload});
   const toggleMusic=()=>{
-    const next=!musicPlaying;setMusicPlaying(next);
-    channelRef.current?.send({type:"broadcast",event:"room_state",payload:{musicPlaying:next}});
+    if(!musicTrack)return;
+    const now=Date.now();
+    const next=!musicPlaying;
+    const pos=musicPlaying&&musicStartedAt?Math.max(0,(now-musicStartedAt)/1000):musicPosition;
+    const started=next?now-pos*1000:null;
+    setMusicPlaying(next);setMusicPosition(pos);setMusicStartedAt(started);
+    broadcastMusic({musicPlaying:next,musicTrack,musicStartedAt:started,musicPosition:pos});
+  };
+  const onSelectMusic=trackId=>{
+    const track=musicTracks.find(t=>t.id===trackId);if(!track)return;
+    const started=Date.now();
+    setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);
+    broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
+  };
+  const onNextMusic=()=>{
+    if(!musicTracks.length)return;
+    const index=Math.max(0,musicTracks.findIndex(t=>t.id===musicTrack?.id));
+    onSelectMusic(musicTracks[(index+1)%musicTracks.length].id);
   };
 
   useEffect(()=>{if(!joined)return;fetch("/api/music?search=instrumental%20lounge").then(r=>r.json()).then(data=>{if(Array.isArray(data.tracks)&&data.tracks.length){setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0])}}).catch(e=>console.warn("music catalog unavailable",e))},[joined]);
@@ -1012,7 +1029,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined)return <Room local={localRef.current} players={players} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
+  if(joined)return <Room local={localRef.current} players={players} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
 
   return <main className="join">
     <div className="card">
