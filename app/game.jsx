@@ -1,5 +1,5 @@
 "use client";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody, CuboidCollider, BallCollider } from "@react-three/rapier";
 import { Ecctrl } from "ecctrl";
 import React from "react";
@@ -8,9 +8,7 @@ import {
   RoundedBox,
   Environment,
   ContactShadows,
-  useGLTF,
 } from "@react-three/drei";
-import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ensureAnonymousSession, getSupabase } from "../lib/supabase";
 import { VoiceMesh } from "../lib/voice";
@@ -24,7 +22,6 @@ const PRESETS = [
 
 
 
-const FOOTBALL_URL="https://cdn.3dassets.dev/assets/19091/v1/model.glb";
 
 const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
@@ -32,12 +29,6 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const RUNTIME_DIAGNOSTICS=process.env.NODE_ENV!=="production";
 const runtimeDiag=(event,data={})=>{if(RUNTIME_DIAGNOSTICS)console.info("[GC runtime]",event,data)};
-const PLANT_ASSETS={
-  palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
-  treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
-  banana:"https://cdn.3dassets.dev/assets/38579/v1/model.glb",
-  cycad:"https://cdn.3dassets.dev/assets/38581/v1/model.glb"
-};
 
 
 
@@ -75,13 +66,6 @@ const BEDS=[
  {id:"bed-a",label:"Sleep",type:"bed",finalAction:"sleep",position:[8.7,0,-6.2],rotation:Math.PI/2,seatY:.02,poseType:"bed"},
  {id:"bed-b",label:"Sleep",type:"bed",finalAction:"sleep",position:[12.2,0,-6.2],rotation:Math.PI/2,seatY:.02,poseType:"bed"}
 ];
-const FOOD_ASSETS={
- burgerTray:"https://cdn.3dassets.dev/assets/34314/v1/model.glb",
- snackBasket:"https://cdn.3dassets.dev/assets/33873/v1/model.glb",
- sodaCan:"https://cdn.3dassets.dev/assets/24445/v1/model.glb",
- waterBottle:"https://cdn.3dassets.dev/assets/24444/v1/model.glb",
- chocolate:"https://cdn.3dassets.dev/assets/24429/v1/model.glb"
-};
 const SNACKS=[
  {id:"burger-tray",name:"Burger & chips",kind:"burgerTray",position:[9.35,1.55,5.8],action:"eat",label:"Eat burger & chips"},
  {id:"snack-basket",name:"Fries",kind:"snackBasket",position:[10.65,1.52,5.8],action:"eat",label:"Eat fries"},
@@ -202,10 +186,6 @@ function SnackUnsafe({item,state,players}){
   const ref=useRef();
   const holder=state?.heldBy?players[state.heldBy]:null;
   const consumed=!!state?.consumed;
-  const gltf=useGLTF(FOOD_ASSETS[item.kind]);
-  const scene=useMemo(()=>{
-    const s=SkeletonUtils.clone(gltf.scene);    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-    return s;  },[gltf.scene]);
   useFrame((_,dt)=>{
     if(!ref.current)return;
     const target=holder?[holder.x,.98,holder.z]:item.position;
@@ -216,11 +196,17 @@ function SnackUnsafe({item,state,players}){
     if(holder)ref.current.rotation.y+=dt*3.2;
   });
   if(consumed)return null;
-  const scale=item.kind==="burgerTray"?.9:item.kind==="snackBasket"?.9:item.kind==="waterBottle"?1.5:item.kind==="sodaCan"?1.7:2.0;
-  return <group ref={ref} position={item.position} scale={scale}><primitive object={scene}/></group>;
+  const colors={burgerTray:"#b86b3c",snackBasket:"#d49a42",sodaCan:"#5d7fd4",waterBottle:"#79b7cf",chocolate:"#5a3b2c"};
+  const color=colors[item.kind]||"#c48a54";
+  const scale=item.kind==="burgerTray"?1:item.kind==="snackBasket"?1:item.kind==="waterBottle"?.85:item.kind==="sodaCan"?.7:.75;
+  return <group ref={ref} position={item.position} scale={scale}>
+    {item.kind==="burgerTray"&&<><mesh castShadow position={[0,.16,0]}><boxGeometry args={[1.05,.12,.72]}/><meshStandardMaterial color="#2c241f" roughness={.7}/></mesh><mesh castShadow position={[-.22,.3,0]}><sphereGeometry args={[.18,16,12]}/><meshStandardMaterial color={color}/></mesh><mesh castShadow position={[.22,.3,0]}><sphereGeometry args={[.16,16,12]}/><meshStandardMaterial color="#e0c06a"/></mesh></>}
+    {item.kind==="snackBasket"&&<><mesh castShadow position={[0,.2,0]}><cylinderGeometry args={[.34,.26,.28,16]}/><meshStandardMaterial color="#9b663c"/></mesh>{[-.13,0,.13].map((x,i)=><mesh key={i} castShadow position={[x,.42,0]}><boxGeometry args={[.07,.28,.07]}/><meshStandardMaterial color="#e5b64f"/></mesh>)}</>}
+    {(item.kind==="sodaCan"||item.kind==="waterBottle")&&<><mesh castShadow position={[0,.28,0]}><cylinderGeometry args={[.12,.12,.52,18]}/><meshStandardMaterial color={color} metalness={.35} roughness={.35}/></mesh><mesh castShadow position={[0,.56,0]}><cylinderGeometry args={[.08,.08,.04,16]}/><meshStandardMaterial color="#d5d8dc" metalness={.5}/></mesh></>}
+    {item.kind==="chocolate"&&<mesh castShadow position={[0,.18,0]}><boxGeometry args={[.5,.16,.28]}/><meshStandardMaterial color={color} roughness={.45}/></mesh>}
+  </group>;
 }
-
-function Snack({item,state,players}){const url=FOOD_ASSETS[item.kind];return <AssetBoundary url={url} label={item.name} fallback={null}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
+function Snack({item,state,players}){return <SnackUnsafe item={item} state={state} players={players}/>}
 function Snacks({players,snackStates}){
   return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
 }
@@ -251,18 +237,20 @@ function FloorLamp({x,z}) {
   </group>;
 }
 
-function OptionalGLTF({url,position=[0,0,0],rotation=0,scale=1}) {
-  const gltf=useGLTF(url);
-  const scene=useMemo(()=>{
-    const s=SkeletonUtils.clone(gltf.scene);
-    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-    return s;
-  },[gltf.scene]);
-  return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
-}
 function Plant({x,z,s=1,variant="palm",rotation=0}) {
-  const url=PLANT_ASSETS[variant]||PLANT_ASSETS.palm;
-  return <AssetBoundary url={url} label={variant} fallback={null}><OptionalGLTF url={url} position={[x,0,z]} rotation={rotation} scale={s}/></AssetBoundary>;
+  const count=variant==="cycad"?5:variant==="banana"?4:variant==="treeFern"?6:5;
+  return <group position={[x,0,z]} rotation={[0,rotation,0]} scale={s}>
+    <mesh castShadow position={[0,.18,0]}><cylinderGeometry args={[.24,.30,.36,16]}/><meshStandardMaterial color="#5b4636" roughness={.9}/></mesh>
+    <mesh castShadow position={[0,1.35,0]}><cylinderGeometry args={[.06,.10,2.2,10]}/><meshStandardMaterial color="#315d3d" roughness={.9}/></mesh>
+    {Array.from({length:count},(_,i)=>{
+      const a=(i/count)*Math.PI*2;
+      const y=variant==="banana"?1.25+(i%2)*.25:1.55;
+      const r=variant==="cycad"?(.7+.08*(i%2)):.85;
+      return <group key={i} rotation={[0,a,variant==="banana"?.28:variant==="treeFern"?.12:.32]} position={[0,y,0]}>
+        <mesh castShadow position={[r*.5,0,0]} scale={[r, .06, .22]}><sphereGeometry args={[.5,12,8]}/><meshStandardMaterial color={variant==="palm"?"#4c8a4a":variant==="banana"?"#6e9f3e":"#3d7442"} roughness={.9}/></mesh>
+      </group>;
+    })}
+  </group>;
 }
 
 function Rug({x,z,w,d}) {
@@ -507,39 +495,26 @@ function LocalHuman({player,me,liveRef}) {
 }
 function FootballUnsafe({players,localId,ballState,onBallState}) {
   const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
-  const gltf=useGLTF(FOOTBALL_URL);
-  const scene=useMemo(()=>{
-    const s=SkeletonUtils.clone(gltf.scene);
-    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-    return s;
-  },[gltf.scene]);
   const owner=localId&&Object.keys(players).filter(Boolean).sort()[0]===localId;
   useFrame((_,dt)=>{
     const b=body.current;
     if(!b)return;
     if(!owner){
-      const s=ballState||{x:2,y:.28,z:0,vx:0,vy:0,vz:0};
-      b.setTranslation({x:s.x,y:s.y,z:s.z},true);
-      b.setLinvel({x:s.vx||0,y:s.vy||0,z:s.vz||0},true);
-      b.setAngvel({x:0,y:0,z:0},true);
+      const ss=ballState||{x:2,y:.28,z:0,vx:0,vy:0,vz:0};
+      b.setTranslation({x:ss.x,y:ss.y,z:ss.z},true);
+      b.setLinvel({x:ss.vx||0,y:ss.vy||0,z:ss.vz||0},true);
       return;
     }
-    const p=b.translation();
-    const now=performance.now();
+    const p=b.translation(),now=performance.now();
     for(const player of Object.values(players)){
       if(!player?.id)continue;
-      const dx=p.x-player.x,dz=p.z-player.z;
-      const d=Math.hypot(dx,dz);
-      if(d<.72&&Math.abs(p.y-.45)<.75){
-        const last=lastHit.current[player.id]||0;
-        if(now-last>180){
-          const speed=Math.max(1.4,Math.min(4.8,Number(player.speed)||1.8));
-          const nx=d>.001?dx/d:Math.sin(player.rot||0);
-          const nz=d>.001?dz/d:Math.cos(player.rot||0);
-          b.applyImpulse({x:nx*speed,y:.22,z:nz*speed},true);
-          b.applyTorqueImpulse({x:nz*speed*.45,y:0,z:-nx*speed*.45},true);
-          lastHit.current[player.id]=now;
-        }
+      const dx=p.x-player.x,dz=p.z-player.z,d=Math.hypot(dx,dz);
+      if(d<.72&&Math.abs(p.y-.45)<.75&&(now-(lastHit.current[player.id]||0)>180)){
+        const speed=Math.max(1.4,Math.min(4.8,Number(player.speed)||1.8));
+        const nx=d>.001?dx/d:Math.sin(player.rot||0),nz=d>.001?dz/d:Math.cos(player.rot||0);
+        b.applyImpulse({x:nx*speed,y:.22,z:nz*speed},true);
+        b.applyTorqueImpulse({x:nz*speed*.45,y:0,z:-nx*speed*.45},true);
+        lastHit.current[player.id]=now;
       }
     }
     const v=b.linvel();
@@ -554,13 +529,13 @@ function FootballUnsafe({players,localId,ballState,onBallState}) {
   });
   const start=ballState||{x:2,y:.35,z:0};
   return <RigidBody ref={body} type="dynamic" colliders={false} mass={.45} restitution={.68} friction={.55} linearDamping={.22} angularDamping={.12} position={[start.x,start.y,start.z]}>
-    <BallCollider args={[.205]} />
-    <primitive object={scene} scale={1.85}/>
+    <BallCollider args={[.205]}/>
+    <mesh castShadow receiveShadow><sphereGeometry args={[.28,24,16]}/><meshStandardMaterial color="#f0f1f5" roughness={.55}/></mesh>
+    <mesh castShadow rotation={[0,.7,.35]}><torusGeometry args={[.18,.025,8,32]}/><meshStandardMaterial color="#272a31" roughness={.5}/></mesh>
   </RigidBody>;
 }
-
 function Football({players,localId,ballState,onBallState}) {
-  return <AssetBoundary url={FOOTBALL_URL} label="football" fallback={null}><FootballUnsafe players={players} localId={localId} ballState={ballState} onBallState={onBallState}/></AssetBoundary>;
+  return <FootballUnsafe players={players} localId={localId} ballState={ballState} onBallState={onBallState}/>;
 }
 
 function WorldColliders(){
@@ -612,8 +587,55 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.8} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="domElement" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" disableFollowCam={true} />;
 }
+function FollowCamera({targetRef}) {
+  const {camera,gl}=useThree();
+  const yaw=useRef(0);
+  const pitch=useRef(.18);
+  const distance=useRef(6.8);
+  const gesture=useRef({active:false,id:null,x:0,y:0});
+  useEffect(()=>{
+    const el=gl.domElement;
+    const down=e=>{
+      if(e.pointerType==="mouse"&&e.button!==0)return;
+      gesture.current={active:true,id:e.pointerId,x:e.clientX,y:e.clientY};
+      try{el.setPointerCapture(e.pointerId)}catch{}
+    };
+    const move=e=>{
+      const g=gesture.current;
+      if(!g.active||g.id!==e.pointerId)return;
+      const dx=e.clientX-g.x,dy=e.clientY-g.y;
+      g.x=e.clientX;g.y=e.clientY;
+      yaw.current-=dx*.008;
+      pitch.current=clamp(pitch.current-dy*.006,-.55,.85);
+    };
+    const up=e=>{if(gesture.current.id===e.pointerId)gesture.current.active=false};
+    el.addEventListener("pointerdown",down,{passive:false});
+    el.addEventListener("pointermove",move,{passive:false});
+    el.addEventListener("pointerup",up,{passive:true});
+    el.addEventListener("pointercancel",up,{passive:true});
+    return()=>{el.removeEventListener("pointerdown",down);el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up)};
+  },[gl]);
+  useEffect(()=>{
+    const wheel=e=>{distance.current=clamp(distance.current+e.deltaY*.006,4.2,8.6)};
+    gl.domElement.addEventListener("wheel",wheel,{passive:true});
+    return()=>gl.domElement.removeEventListener("wheel",wheel);
+  },[gl]);
+  useFrame((_,dt)=>{
+    const p=targetRef.current||{x:0,y:0,z:0};
+    const targetX=p.x||0,targetY=(p.y||0)+1.15,targetZ=p.z||0;
+    const cp=Math.cos(pitch.current),sp=Math.sin(pitch.current);
+    const desired={x:targetX+Math.sin(yaw.current)*cp*distance.current,y:targetY+sp*distance.current,z:targetZ+Math.cos(yaw.current)*cp*distance.current};
+    const a=1-Math.exp(-10*dt);
+    camera.position.x+=(desired.x-camera.position.x)*a;
+    camera.position.y+=(desired.y-camera.position.y)*a;
+    camera.position.z+=(desired.z-camera.position.z)*a;
+    camera.lookAt(targetX,targetY,targetZ);
+  });
+  return null;
+}
+
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,voiceState,musicStatus,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
@@ -808,6 +830,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     >
       <Physics gravity={[0,-9.81,0]}>
         <WorldColliders/>
+        <FollowCamera targetRef={posRef}/>
         <EcctrlLocalController posRef={posRef} moveRef={moveRef} runRef={runRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
@@ -887,7 +910,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
       <button type="button" aria-pressed={voiceState===VOICE_STATES.LIVE} className={`voiceState ${voiceState===VOICE_STATES.LIVE?"active":voiceState===VOICE_STATES.MUTED?"muted":voiceState===VOICE_STATES.ERROR?"error":voiceState===VOICE_STATES.DISCONNECTED?"disconnected":""}`} onClick={async()=>{if(voiceState===VOICE_STATES.LIVE||voiceState===VOICE_STATES.MUTED){onToggleMute?.();return} const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}}>{voiceState===VOICE_STATES.REQUESTING_PERMISSION?"🎤 REQUESTING…":voiceState===VOICE_STATES.LIVE?"🎙️ LIVE / UNMUTED":voiceState===VOICE_STATES.MUTED?"🔇 MUTED":voiceState===VOICE_STATES.ERROR?"🎤 MIC ERROR":voiceState===VOICE_STATES.DISCONNECTED?"🔌 DISCONNECTED":"🎤 MIC OFF"}</button>
-      <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
+      <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)} aria-label="Open emotes">💃 Emote</button>
     </div>
     {voiceOpen&&voiceEnabled&&(
       <div className="voicePanel" onPointerDown={e=>e.stopPropagation()}>
@@ -906,7 +929,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       </div>
     )}
     <div className="joystick" onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onPointerDown={e=>e.stopPropagation()} onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
+    <button className="mobileAction" onPointerDown={e=>e.stopPropagation()} onClick={()=>candidate&&requestInteraction(candidate)}>✦</button><button className="emoteTrigger" onPointerDown={e=>e.stopPropagation()} onClick={()=>setEmoteOpen(v=>!v)} aria-label="Open emotes">💃</button>
     {voiceError&&<div className="voiceError">{voiceError}</div>}
     <button className="fight" onPointerDown={e=>e.stopPropagation()} onClick={onAttack}>🥊</button>
   </div>
@@ -1286,29 +1309,31 @@ export default function Home(){
     const allowed=["audio/mpeg","audio/mp4","audio/x-m4a","audio/aac","audio/ogg","audio/webm","audio/wav"];
     const ext=String(file.name||"").split(".").pop()?.toLowerCase();
     const allowedExt=["mp3","m4a","aac","ogg","webm","wav"];
-    if(file.type&&!allowed.includes(file.type)&&!allowedExt.includes(ext)){setMusicError("Choose an MP3, M4A, AAC, OGG, WebM or WAV file.");return;}
-    const mimeByExt={mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",webm:"audio/webm",wav:"audio/wav"};
-    const uploadType=file.type||mimeByExt[ext]||"audio/mpeg";
+    if(file.type&&!allowed.includes(file.type)&&!allowedExt.includes(ext)){setMusicError("Choose MP3, M4A, AAC, OGG, WebM or WAV.");return;}
     if(file.size>25*1024*1024){setMusicError("Custom songs must be 25 MB or smaller.");return;}
+    const mimeByExt={mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",webm:"audio/webm",wav:"audio/wav"};
     try{
-      setMusicError("Uploading song…");
+      setMusicError("Adding song…");
+      let audioUrl="";
+      let shared=true;
       const supabase=await getSupabase();
-      if(!supabase)throw new Error("Music storage is unavailable.");
-      const safeName=file.name.replace(/[^a-z0-9._-]+/gi,"-").slice(-100)||"song";
-      const path=id+"/"+makeId()+"-"+safeName;
-      const {error}=await supabase.storage.from("gc-music").upload(path,file,{cacheControl:"3600",upsert:false,contentType:uploadType});
-      if(error)throw error;
-      const {data}=supabase.storage.from("gc-music").getPublicUrl(path);
-      if(!data?.publicUrl)throw new Error("Uploaded song URL could not be created.");
-      const track={id:"custom-"+makeId(),title:file.name.replace(/\.[^.]+$/,"").slice(0,80)||"Custom song",artist:localRef.current?.name||"Custom",album:"Custom song",image:"",audio:data.publicUrl,duration:0,license:"User uploaded"};
-      setMusicTracks(prev=>[...prev,track]);
-      setMusicError("");
+      if(supabase){
+        const safeName=file.name.replace(/[^a-z0-9._-]+/gi,"-").slice(-100)||"song";
+        const path=id+"/"+makeId()+"-"+safeName;
+        const {error}=await supabase.storage.from("gc-music").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type||mimeByExt[ext]||"audio/mpeg"});
+        if(!error)audioUrl=supabase.storage.from("gc-music").getPublicUrl(path)?.data?.publicUrl||"";
+      }
+      if(!audioUrl){audioUrl=URL.createObjectURL(file);shared=false;}
+      if(!audioUrl)throw new Error("The song could not be loaded.");
+      const track={id:"custom-"+makeId(),title:file.name.replace(/\.[^.]+$/,"").slice(0,80)||"Custom song",artist:localRef.current?.name||"You",album:"Custom song",image:"",audio:audioUrl,duration:0,license:shared?"User uploaded":"Local device",source:"custom",localOnly:!shared};
+      setMusicTracks(prev=>[...prev.filter(t=>t.id!==track.id),track]);
+      setMusicError(shared?"":"Added on this device.");
       const started=Date.now();
       setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);
-      broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
+      if(shared)broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
     }catch(error){
       console.error("Custom music upload failed",error);
-      setMusicError(error?.message||"Custom song upload failed.");
+      setMusicError(error?.message||"Could not add that song.");
     }
   };
 
