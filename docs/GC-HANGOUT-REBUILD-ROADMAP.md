@@ -728,7 +728,7 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | `057f4f23c2877b37f77c3977243b14ea939bf2ca` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | PASS — iPhone Safari production smoke/visual verification | 1 | PASS (foundation gate) |
+| 2 | World + player + camera + interaction foundation | `057f4f23c2877b37f77c3977243b14ea939bf2ca` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT VERIFIED — current follow-up fixes require a fresh device build | 2 attempted / 1 successful | NOT VERIFIED |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
@@ -749,11 +749,11 @@ Examples:
 - **Commit:** `057f4f23c2877b37f77c3977243b14ea939bf2ca`.
 - **What changed:** completed the world/interaction foundation with explicit DRINK and INTERACT anchors, deterministic lifecycle state, local reserve/stop/align/animate/sync/release flow, interaction poses, bounded camera zoom/boundaries, responsive touch joystick movement, mobile-safe controls, and non-blocking procedural room assets.
 - **Tests:** GitHub Actions run `37497866574`: `npm test` PASS; `npm run build` PASS; dependency audit PASS.
-- **Browser result:** PASS — user-supplied iPhone Safari screenshots from the current production build show successful 3D runtime rendering across multiple camera orientations, with the human avatar and room/furniture visible and no React error screen.
-- **Deployment count:** 1 production deployment used for real-device verification.
-- **Known failures:** the earlier Wave 2 React #306 regression was corrected before this verification. The screenshots do not verify the full Wave 3 interaction behaviors, multiplayer, music, chat, or voice systems.
-- **What is actually verified:** the corrected Wave 2 production build loads on iPhone Safari and renders the intended human player plus the furnished shared-room foundation; automated tests, production build, and dependency audit pass.
-- **Next wave:** Wave 3 — all core interactions.
+- **Browser result:** NOT VERIFIED for the latest correction. User-supplied iPhone Safari screenshots exposed two additional Wave 2 defects: the touch joystick was displaced/non-functional, and the dining furniture was vertically mispositioned near the ceiling.
+- **Deployment count:** 1 successful production deployment; 1 additional production deployment attempt was blocked by Vercel's daily deployment quota.
+- **Known failures:** the joystick was nested under the backdrop-filter HUD and had pointer events disabled; the dining furniture group used Y=5.8 instead of Z=5.8. Both source defects are corrected on `main`. The corrected source has not yet been exercised on the iPhone because the deployment quota blocked a fresh build.
+- **What is actually verified:** the previous production build rendered successfully on iPhone Safari, but its joystick and furniture composition were not acceptable. The current source contains the corrections; automated CI for the new commits is not exposed by the repository's current workflow-run query.
+- **Next wave:** Wave 3 — all core interactions, after the current Wave 2 mobile correction is device-verified.
 
 ### Wave 1 completion record
 
