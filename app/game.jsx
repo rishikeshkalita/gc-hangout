@@ -707,7 +707,7 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
     {candidate&&<button className="interactionPrompt" onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
     <div className="controls">
       <button onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
-      <button className={musicPlaying?"active":""} onClick={onToggleMusic} disabled={!musicTracks.length}>🎵 Music</button>{musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
+      <button className={musicPlaying?"active":""} onClick={onToggleMusic} disabled={!musicTracks.length}>🎵 Music</button>{musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}{musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button onClick={onAttack}>🥊 Fight</button>
       <button className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
       <button onClick={()=>onEmote?.("dance")}>💃 Emote</button>
@@ -725,6 +725,7 @@ export default function Home(){
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
+  const [musicError,setMusicError]=useState("");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
   const musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
   const attackCooldownRef=useRef(0);
@@ -734,6 +735,7 @@ export default function Home(){
   chatMessagesRef.current=chatMessages;
   playersRef.current=players;
   const locksRef=useRef({}),snackStatesRef=useRef({});
+  const chatLastSentRef=useRef(0);
   locksRef.current=locks;snackStatesRef.current=snackStates;
   const channelRef=useRef(null),localRef=useRef(null),voiceRef=useRef(null);
   const uiStateAtRef=useRef(0);
@@ -779,6 +781,7 @@ export default function Home(){
       setPlayers(prev=>{
         const next={...prev};
         for(const key of Object.keys(next)){if(key!==id&&!online.has(key))delete next[key];}
+        setLocks(prev=>{const cleaned={...prev};for(const [objectId,holder] of Object.entries(cleaned)){if(holder!==id&&!online.has(holder))delete cleaned[objectId];}return cleaned});
         for(const [key,entries] of Object.entries(state)){
           if(key===id)continue;
           const meta=entries?.[0]||{};
@@ -890,9 +893,12 @@ export default function Home(){
   };
 
   const onSendChat=textValue=>{
-    const clean=String(textValue||"").trim().slice(0,240);
+    const now=Date.now();
+    if(now-chatLastSentRef.current<700)return;
+    const clean=String(textValue||"").replace(/[\\u0000-\\u001f\\u007f]/g," ").replace(/\\s+/g," ").trim().slice(0,240);
     if(!clean||!localRef.current)return;
-    const message={id:makeId(),name:localRef.current.name,text:clean,ts:Date.now()};
+    chatLastSentRef.current=now;
+    const message={id:makeId(),name:localRef.current.name,text:clean,ts:now};
     setChatMessages(prev=>[...prev,message].slice(-80));
     channelRef.current?.send({type:"broadcast",event:"chat_message",payload:message});
   };
@@ -955,7 +961,7 @@ export default function Home(){
     onSelectMusic(musicTracks[(index+1)%musicTracks.length].id);
   };
 
-  useEffect(()=>{if(!joined)return;fetch("/api/music?search=instrumental%20lounge").then(r=>r.json()).then(data=>{if(Array.isArray(data.tracks)&&data.tracks.length){setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0])}}).catch(e=>console.warn("music catalog unavailable",e))},[joined]);
+  useEffect(()=>{if(!joined)return;setMusicError("");fetch("/api/music?search=instrumental%20lounge").then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data?.error||"Music catalog unavailable.");return data}).then(data=>{if(Array.isArray(data.tracks)&&data.tracks.length){setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0])}else setMusicError("No licensed music tracks are available right now.")}).catch(e=>{console.warn("music catalog unavailable",e);setMusicError(e?.message||"Music catalog unavailable.")})},[joined]);
 
   const onAttack=()=>{
     if(!localRef.current)return;
