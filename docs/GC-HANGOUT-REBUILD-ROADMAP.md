@@ -264,11 +264,11 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 - [x] Keep decorative asset loading isolated by using no required external decorative assets in the active runtime.
 - [x] Add mobile-safe interaction controls and safe-area-aware positioning.
 - [x] Expand automated coverage for lifecycle and all interaction types.
-- [ ] Browser/visual verification — **NOT AVAILABLE in the current local tool environment**.
+- [x] Browser/visual verification — **PASS: iPhone Safari screenshots supplied from the current production build**.
 
 ### Current status
 
-- **Status: NOT VERIFIED** — Wave 2 implementation and automated verification are complete; browser/visual runtime acceptance remains unavailable. No deployment has been made.
+- **Status: PASS for the Wave 2 foundation smoke/visual gate** — the supplied iPhone Safari screenshots show the production build loading the 3D room, rendering the human avatar, TV, sofa area, lamp, plant, open central floor, and multiple camera orientations without the previous React runtime failure. Full interaction acceptance remains in Wave 3.
 ---
 
 ## WAVE 3 — ALL CORE INTERACTIONS
@@ -728,7 +728,7 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | `057f4f23c2877b37f77c3977243b14ea939bf2ca` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
+| 2 | World + player + camera + interaction foundation | `057f4f23c2877b37f77c3977243b14ea939bf2ca` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | PASS — iPhone Safari production smoke/visual verification | 1 | PASS (foundation gate) |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
@@ -742,17 +742,17 @@ Examples:
 - **Correction:** restored the complete last-known-good game source and reapplied Wave 2 changes explicitly.
 - **Correction commit:** `057f4f23c2877b37f77c3977243b14ea939bf2ca`.
 - **Automated verification:** GitHub Actions run `37499910608` PASS.
-- **Browser verification:** still requires a fresh deployment and real-device reload.
+- **Browser verification:** superseded by current evidence below; the corrected production build was reloaded and visually exercised on iPhone Safari.
 
 ### Wave 2 completion record
 
 - **Commit:** `057f4f23c2877b37f77c3977243b14ea939bf2ca`.
 - **What changed:** completed the world/interaction foundation with explicit DRINK and INTERACT anchors, deterministic lifecycle state, local reserve/stop/align/animate/sync/release flow, interaction poses, bounded camera zoom/boundaries, responsive touch joystick movement, mobile-safe controls, and non-blocking procedural room assets.
 - **Tests:** GitHub Actions run `37497866574`: `npm test` PASS; `npm run build` PASS; dependency audit PASS.
-- **Browser result:** NOT AVAILABLE from the current local tool environment.
-- **Deployment count:** 0.
-- **Known failures:** a Wave 2 runtime regression was discovered on the deployed Vercel build: `app/game.jsx` had been truncated before its `Game` default export, causing React error #306 (`dynamic()` received a module namespace instead of a component). The complete game component was restored and Wave 2 changes reapplied explicitly in commit `057f4f23c2877b37f77c3977243b14ea939bf2ca`. GitHub Actions then passed.
-- **What is actually verified:** the final Wave 2 commit is on `main`; automated tests, production build, and dependency audit pass.
+- **Browser result:** PASS — user-supplied iPhone Safari screenshots from the current production build show successful 3D runtime rendering across multiple camera orientations, with the human avatar and room/furniture visible and no React error screen.
+- **Deployment count:** 1 production deployment used for real-device verification.
+- **Known failures:** the earlier Wave 2 React #306 regression was corrected before this verification. The screenshots do not verify the full Wave 3 interaction behaviors, multiplayer, music, chat, or voice systems.
+- **What is actually verified:** the corrected Wave 2 production build loads on iPhone Safari and renders the intended human player plus the furnished shared-room foundation; automated tests, production build, and dependency audit pass.
 - **Next wave:** Wave 3 — all core interactions.
 
 ### Wave 1 completion record
