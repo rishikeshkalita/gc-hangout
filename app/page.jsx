@@ -26,7 +26,7 @@ const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const FURNITURE={
- sofa:"https://cdn.3dassets.dev/assets/38778/v1/model.glb",
+ sofa:"https://cdn.3dassets.dev/assets/38777/v1/model.glb",
  armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
  diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
  coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
@@ -36,10 +36,10 @@ const FURNITURE={
 };
 
 const SEATS=[
- {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.75,0,-6.18],rotation:Math.PI},
- {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.25,0,-6.18],rotation:Math.PI},
- {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.75,0,-4.92],rotation:0},
- {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.25,0,-4.92],rotation:0},
+ {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-6.62],rotation:0},
+ {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-6.62],rotation:0},
+ {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-4.28],rotation:Math.PI},
+ {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-4.28],rotation:Math.PI},
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.82:1.82)],rotation:side<0?0:Math.PI
@@ -81,9 +81,9 @@ function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
 
 
 const OBSTACLES=[
-  {x:-10,z:-7.05,rx:1.34,rz:.52,vault:false,name:"livingSofaA"},
-  {x:-10,z:-4.05,rx:1.34,rz:.52,vault:false,name:"livingSofaB"},
-  {x:-10,z:-5.55,rx:.72,rz:.42,vault:true,name:"livingTable"},
+  {x:-10,z:-7.25,rx:.98,rz:.48,vault:false,name:"livingSofaA"},
+  {x:-10,z:-3.65,rx:.98,rz:.48,vault:false,name:"livingSofaB"},
+  {x:-10,z:-5.45,rx:.62,rz:.38,vault:true,name:"livingTable"},
   {x:-13.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairL"},
   {x:-7.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairR"},
   {x:0,z:-8.95,rx:5.2,rz:.72,vault:false,name:"tv"},
@@ -130,7 +130,7 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0,width=3.4}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={width/2.5}/>}
+function Sofa({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1}/>} 
 
 function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
 
@@ -249,9 +249,9 @@ function Hall({musicPlaying,players,snackStates}) {
     {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
 
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
-    <Sofa position={[-10,0,-7.05]} rotation={Math.PI}/>
-    <Sofa position={[-10,0,-4.05]} rotation={0}/>
-    <CoffeeTable x={-10} z={-5.55}/>
+    <Sofa position={[-10,0,-7.25]} rotation={0}/>
+    <Sofa position={[-10,0,-3.65]} rotation={Math.PI}/>
+    <CoffeeTable x={-10} z={-5.45}/>
     <Chair position={[-13.0,0,-5.55]} rotation={Math.PI/2}/>
     <Chair position={[-7.0,0,-5.55]} rotation={-Math.PI/2}/>
     <FloorLamp x={-13.8} z={-7.7}/>
@@ -295,6 +295,7 @@ function RealHuman({player,me}) {
   const {actions}=useAnimations(animations,root);
   const clipRef=useRef(null);
   const poseRef=useRef(0);
+  const restBones=useRef(null);
   const bones=useMemo(()=>{
     const b={thighL:null,thighR:null,shinL:null,shinR:null,footL:null,footR:null,spine:null,upperArmL:null,upperArmR:null,forearmL:null,forearmR:null};
     model.traverse(o=>{
@@ -314,6 +315,7 @@ function RealHuman({player,me}) {
       if(!b.forearmL&&left&&/(forearm|lowerarm)/.test(n))b.forearmL=o;
       if(!b.forearmR&&right&&/(forearm|lowerarm)/.test(n))b.forearmR=o;
     });
+    restBones.current=Object.fromEntries(Object.entries(b).map(([k,v])=>[k,v?{x:v.rotation.x,y:v.rotation.y,z:v.rotation.z}:null]));
     return b;
   },[model]);
 
@@ -356,19 +358,23 @@ function RealHuman({player,me}) {
     poseRef.current+=(targetPose-poseRef.current)*(1-Math.exp(-10*dt));
     const p=poseRef.current;
 
-    // Procedural bone offsets are ONLY applied while the locomotion clips are
-    // stopped. Previously these were written as zero every frame while walking,
-    // fighting the animation mixer and producing the distorted gait.
-    if(seated||sleeping){
-      if(bones.thighL)bones.thighL.rotation.x=-1.05*p;
-      if(bones.thighR)bones.thighR.rotation.x=-1.05*p;
-      if(bones.shinL)bones.shinL.rotation.x=1.25*p;
-      if(bones.shinR)bones.shinR.rotation.x=1.25*p;
-      if(bones.footL)bones.footL.rotation.x=-.22*p;
-      if(bones.footR)bones.footR.rotation.x=-.22*p;
-      if(bones.spine)bones.spine.rotation.x=.12*p;
-      if(bones.upperArmL)bones.upperArmL.rotation.x=-.08*p;
-      if(bones.upperArmR)bones.upperArmR.rotation.x=-.08*p;
+    // Build the seated pose from each bone's authored rest rotation instead
+    // of replacing the bone rotation outright. This keeps the anatomy aligned
+    // with the character rig and avoids the twisted knees/torso seen previously.
+    const rest=restBones.current;
+    if((seated||sleeping)&&rest){
+      const sit=sleeping?.72:p;
+      const set=(name,x=0,y=0,z=0)=>{const b=bones[name],r=rest[name];if(!b||!r)return;b.rotation.x=r.x+x*sit;b.rotation.y=r.y+y*sit;b.rotation.z=r.z+z*sit};
+      set("thighL",-1.18); set("thighR",-1.18);
+      set("shinL",1.38); set("shinR",1.38);
+      set("footL",-0.18); set("footR",-0.18);
+      set("spine",0.08);
+      set("upperArmL",-0.16,0.02,-0.05); set("upperArmR",-0.16,-0.02,0.05);
+      set("forearmL",-0.18,0,0); set("forearmR",-0.18,0,0);
+    }else if(!rest||p<.001){
+      // Let the normal idle/walk animation own the bones after standing.
+      // Also clear any residual procedural pose immediately.
+      if(rest)for(const [name,r] of Object.entries(rest)){const b=bones[name];if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}}
     }
 
     const active=clipRef.current?actions[clipRef.current]:null;
