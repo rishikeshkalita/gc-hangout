@@ -15,6 +15,7 @@ import {
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabase";
+import { VoiceMesh } from "../lib/voice";
 
 const PRESETS = [
   {id:"maya",label:"Maya"}, {id:"noah",label:"Noah"}, {id:"riya",label:"Riya"},
@@ -325,7 +326,7 @@ function DigitalSignage() {
   </group>
 }
 
-function RealHuman({player,me}) {
+function RealHuman({player,me,liveRef}) {
   const {scene,animations}=useGLTF(HUMAN_URL);  const root=useRef();
   const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
   const {actions}=useAnimations(animations,root);
@@ -383,12 +384,14 @@ function RealHuman({player,me}) {
 
   useFrame((_,dt)=>{
     if(!root.current)return;
-    const a=1-Math.exp(-18*dt);
-    root.current.position.x+=(player.x-root.current.position.x)*a;
-    root.current.position.z+=(player.z-root.current.position.z)*a;
+    const live=liveRef?.current||player;
+    const tx=live.x??player.x??0,tz=live.z??player.z??0,trot=live.rot??targetRot,tspeed=live.speed??player.speed??0;
+    const a=1-Math.exp(-(me?28:18)*dt);
+    root.current.position.x+=(tx-root.current.position.x)*a;
+    root.current.position.z+=(tz-root.current.position.z)*a;
     const seatedY=seated?(player.seatY??-.34):(sleeping?0.02:0);
     root.current.position.y+=(seatedY-root.current.position.y)*a;
-    root.current.rotation.y+=Math.atan2(Math.sin(targetRot-root.current.rotation.y),Math.cos(targetRot-root.current.rotation.y))*a;
+    root.current.rotation.y+=Math.atan2(Math.sin(trot-root.current.rotation.y),Math.cos(trot-root.current.rotation.y))*a;
 
     const targetPose=seated?1:(sleeping?0.68:0);
     poseBlend.current+=(targetPose-poseBlend.current)*(1-Math.exp(-12*dt));
@@ -434,7 +437,7 @@ function RealHuman({player,me}) {
     }
 
     const active=clipRef.current?actions[clipRef.current]:null;
-    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((player.speed||2.1)/2.1,.82,1.18);
+    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.82,1.18);
     else if(active)active.timeScale=1;
   });
 
@@ -511,7 +514,7 @@ function EcctrlLocalController({posRef,moveRef,onMove,interactionRef,onInteracti
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
-function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,locks,snackStates}) {
+function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,onTouchInteraction,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
   const [move,setMove]=useState({x:0,z:0});
   const [candidate,setCandidate]=useState(null);
   const moveRef=useRef(move);moveRef.current=move;
@@ -530,7 +533,9 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     if((item?.type==="seat"||item?.type==="bed")&&!interactionRef.current){
       interactionRef.current={...item,movePosition:item.approachPosition||item.position};
     }
-    onInteract(item);
+    Promise.resolve(onInteract(item)).then(ok=>{
+      if(ok===false)interactionRef.current=null;
+    });
   };
 
   useEffect(()=>{
@@ -625,6 +630,12 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     return()=>{window.removeEventListener("pointerup",release);window.removeEventListener("pointercancel",release);window.removeEventListener("blur",release)};
   },[]);
 
+  useEffect(()=>{
+    if(!local?.interactionId)return;
+    const timer=setInterval(()=>onTouchInteraction?.(local.interactionId),8000);
+    return()=>clearInterval(timer);
+  },[local?.interactionId,onTouchInteraction]);
+
   return <div className="room">
     <Canvas
       shadows dpr={[1,1.25]} performance={{min:.55}}
@@ -645,7 +656,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
-            <AssetBoundary fallback={null}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary>
+            <AssetBoundary fallback={null}><RealHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
           </Suspense>
         )}
       </Physics>
@@ -654,16 +665,23 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
 
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
-    <div className="chat"><b>💬 GC CHAT</b><div className="msg"><strong>Room</strong> {Object.keys(players).length} people here</div><div className="input">Type a message…</div></div>
+    <div className="chat">
+      <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span></div>
+      <div className="chatList">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
+      <form className="chatForm" onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){onSendChat?.(input.value);input.value=""}}}>
+        <input name="message" maxLength={240} placeholder="Message the room…"/>
+      </form>
+    </div>
     {candidate&&<button className="interactionPrompt" onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
     <div className="controls">
       <button onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
       <button className={musicPlaying?"active":""} onClick={onToggleMusic}>🎵 Music</button>
       <button onClick={onAttack}>🥊 Fight</button>
-      <button>💬 Chat</button>
+      <button className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
     </div>
     <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
+    {voiceError&&<div className="voiceError">{voiceError}</div>}
     <button className="fight" onClick={onAttack}>🥊</button>
   </div>
 }
@@ -672,14 +690,17 @@ export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
   const [id]=useState(makeId),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
+  const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
   const musicRef=useRef(false);
+  const chatMessagesRef=useRef([]);
   musicRef.current=musicPlaying;
+  chatMessagesRef.current=chatMessages;
   const locksRef=useRef({}),snackStatesRef=useRef({});
   locksRef.current=locks;snackStatesRef.current=snackStates;
-  const channelRef=useRef(null),localRef=useRef(null);
+  const channelRef=useRef(null),localRef=useRef(null),voiceRef=useRef(null);
 
   const join=()=>{
-    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null};
+    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
     localRef.current=p;setJoined(true);
   };
 
@@ -687,12 +708,45 @@ export default function Home(){
     if(!joined)return;
     const supabase=getSupabase();
     if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
-    const channel=supabase.channel("gc-hangout-main",{config:{broadcast:{self:false},presence:{key:id}}});
+    const channel=supabase.channel("gc-hangout-main",{config:{broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
-    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:p});
+    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+    const reconcilePresence=()=>{
+      const state=channel.presenceState();
+      const online=new Set(Object.keys(state));
+      setPlayers(prev=>{
+        const next={...prev};
+        for(const key of Object.keys(next)){if(key!==id&&!online.has(key))delete next[key];}
+        for(const [key,entries] of Object.entries(state)){
+          if(key===id)continue;
+          const meta=entries?.[0]||{};
+          next[key]={...(next[key]||{}),id:key,name:meta.name||next[key]?.name||"Guest",avatarId:meta.avatarId||next[key]?.avatarId||"maya",voiceEnabled:!!meta.voiceEnabled};
+        }
+        return next;
+      });
+      for(const [key,entries] of Object.entries(state)){
+        if(key!==id&&entries?.[0]?.voiceEnabled&&voiceRef.current&&voiceRef.current.enabled&&id<key)voiceRef.current.offerTo(key).catch(()=>{});
+      }
+    };
+    channel.on("presence",{event:"sync"},reconcilePresence);
+    channel.on("presence",{event:"join"},reconcilePresence);
+    channel.on("presence",{event:"leave"},reconcilePresence);
     channel.on("broadcast",{event:"player_state"},({payload})=>payload?.id&&setPlayers(prev=>({...prev,[payload.id]:payload})));
     channel.on("broadcast",{event:"request_state"},()=>localRef.current&&send(localRef.current));
     channel.on("broadcast",{event:"room_state"},({payload})=>{if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying)});
+    channel.on("broadcast",{event:"chat_message"},({payload})=>{
+      if(!payload?.id||!payload?.text)return;
+      setChatMessages(prev=>prev.some(m=>m.id===payload.id)?prev:[...prev,payload].slice(-80));
+    });
+    channel.on("broadcast",{event:"request_chat"},()=>{
+      if(chatMessagesRef.current.length)channel.send({type:"broadcast",event:"chat_history",payload:{messages:chatMessagesRef.current}});
+    });
+    channel.on("broadcast",{event:"chat_history"},({payload})=>{
+      if(Array.isArray(payload?.messages))setChatMessages(prev=>{
+        const merged=[...prev,...payload.messages],map=new Map(merged.map(m=>[m.id,m]));
+        return [...map.values()].sort((a,b)=>a.ts-b.ts).slice(-80);
+      });
+    });
     channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
     channel.on("broadcast",{event:"attack"},({payload})=>{
       if(!payload?.id)return;
@@ -723,22 +777,73 @@ export default function Home(){
       if(payload?.locks)setLocks(payload.locks);
       if(payload?.snackStates)setSnackStates(payload.snackStates);
     });
-    channel.subscribe(async status=>{
+    voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:enabled=>{setVoiceEnabled(enabled);setVoiceError("");}});
+    channel.subscribe(async (status,err)=>{
       if(status==="SUBSCRIBED"&&localRef.current){
         setPlayers(prev=>({...prev,[id]:localRef.current}));
-        await channel.track({id,name:localRef.current.name,avatarId});
+        await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
         send(localRef.current);
         setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
         setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
         setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
+        setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
       }
     });
-    return()=>{channel.unsubscribe();channelRef.current=null};
+    return()=>{
+      const active=localRef.current?.interactionId;
+      if(active)supabase.rpc("gc_release_interaction",{p_object_id:active,p_holder_id:id}).catch(()=>{});
+      voiceRef.current?.destroy();voiceRef.current=null;
+      channel.unsubscribe();channelRef.current=null;
+    };
   },[joined,id,avatarId]);
 
   const onMove=p=>{
     localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:p});
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+  };
+
+  const onSendChat=textValue=>{
+    const clean=String(textValue||"").trim().slice(0,240);
+    if(!clean||!localRef.current)return;
+    const message={id:makeId(),name:localRef.current.name,text:clean,ts:Date.now()};
+    setChatMessages(prev=>[...prev,message].slice(-80));
+    channelRef.current?.send({type:"broadcast",event:"chat_message",payload:message});
+  };
+
+  const onToggleVoice=async()=>{
+    if(!voiceRef.current)return;
+    try{
+      setVoiceError("");
+      await voiceRef.current.setEnabled(!voiceRef.current.enabled);
+      if(channelRef.current&&localRef.current){
+        localRef.current={...localRef.current,voiceEnabled:voiceRef.current.enabled};
+        setPlayers(prev=>({...prev,[id]:localRef.current}));
+        await channelRef.current.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current.enabled});
+      }
+    }catch(e){
+      console.error("Voice chat failed",e);
+      setVoiceError(e?.message||"Microphone access failed.");
+      setVoiceEnabled(false);
+    }
+  };
+
+  const claimInteraction=async(candidate,action)=>{
+    const supabase=getSupabase();
+    if(!supabase)return true;
+    const {data,error}=await supabase.rpc("gc_claim_interaction",{p_object_id:candidate.id,p_holder_id:id,p_action:action,p_lease_seconds:30});
+    if(error){console.error("interaction claim failed",error);return false;}
+    return data===true;
+  };
+
+  const releaseInteraction=async objectId=>{
+    const supabase=getSupabase();
+    if(!supabase||!objectId)return;
+    await supabase.rpc("gc_release_interaction",{p_object_id:objectId,p_holder_id:id}).catch(()=>{});
+  };
+
+  const touchInteraction=objectId=>{
+    const supabase=getSupabase();
+    if(supabase&&objectId)supabase.rpc("gc_touch_interaction",{p_object_id:objectId,p_holder_id:id,p_lease_seconds:30}).catch(()=>{});
   };
 
   const toggleMusic=()=>{
@@ -762,11 +867,11 @@ export default function Home(){
 
     if(candidate.type==="stand"){
       const objectId=candidate.id||p.interactionId;
-      interactionRef.current=null;
       const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null};
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
       if(objectId){
+        releaseInteraction(objectId);
         setLocks(prev=>{const next={...prev};delete next[objectId];return next});
         channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId,userId:id,locked:false}});
       }
@@ -774,13 +879,15 @@ export default function Home(){
       return;
     }
 
-    if(locks[candidate.id]&&locks[candidate.id]!==id)return;
+    if(locks[candidate.id]&&locks[candidate.id]!==id)return false;
     if(candidate.type==="music"){
       toggleMusic();
-      return;
+      return true;
     }
 
     if(candidate.type==="tv"){
+      const claimed=await claimInteraction(candidate,"watch");
+      if(!claimed)return false;
       const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:0,moving:false,speed:0};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
       setLocks(prev=>({...prev,[candidate.id]:id}));
@@ -790,28 +897,33 @@ export default function Home(){
           const clear={...localRef.current,action:null,interactionId:null};
           localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
           channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+          releaseInteraction(candidate.id);
           setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
           channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
         }
       },5000);
-      return;
+      return true;
     }
 
     if(candidate.type==="seat"||candidate.type==="bed"){
       const finalAction=candidate.type==="bed"?"sleep":"sit";
+      const claimed=await claimInteraction(candidate,finalAction);
+      if(!claimed)return false;
       interactionRef.current=candidate;
       const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
       setLocks(prev=>({...prev,[candidate.id]:id}));
       channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
       channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-      return;
+      return true;
     }
 
     const food=SNACKS.find(s=>s.id===candidate.id);
     if(food){
       const state=snackStates[food.id];
-      if(state?.consumed||state?.heldBy)return;
+      if(state?.consumed||state?.heldBy)return false;
+      const claimed=await claimInteraction(food,food.action);
+      if(!claimed)return false;
       const held={id:food.id,heldBy:id,consumed:false};
       setSnackStates(prev=>({...prev,[food.id]:held}));
       channelRef.current?.send({type:"broadcast",event:"snack_state",payload:held});
@@ -829,10 +941,13 @@ export default function Home(){
           localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
           channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
         }
+        releaseInteraction(food.id);
         setLocks(prev=>{const next={...prev};delete next[food.id];return next});
         channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:false}});
       },1500);
+      return true;
     }
+    return false;
   };
 
   const interactionArrived=(candidate)=>{
@@ -840,14 +955,14 @@ export default function Home(){
     const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
     const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null,poseType:candidate.poseType??candidate.type??null};
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
     setAction(finalAction);
     // Stay seated/asleep until the user explicitly presses Stand up or moves
     // the joystick/keyboard. The old 7s timer was making the interaction state
     // race with input and could leave the client looking locked.
   };
 
-  if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived}/>;
+  if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
 
   return <main className="join">
     <div className="card">
