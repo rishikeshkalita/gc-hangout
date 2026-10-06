@@ -1144,7 +1144,7 @@ export default function Home(){
       if(payload?.locks)setLocks(payload.locks);
       if(payload?.snackStates)setSnackStates(payload.snackStates);
     });
-    voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:enabled=>{setVoiceEnabled(enabled);setVoiceError("");}});
+    voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:(enabled,error)=>{setVoiceEnabled(enabled);setVoiceError(error||"");if(!enabled)setVoiceMuted(false);}});
     let reconnectTimer=null;
     let reconnecting=false;
     const subscribe=()=>{
