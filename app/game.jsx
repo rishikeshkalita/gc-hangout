@@ -34,6 +34,25 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const RUNTIME_DIAGNOSTICS=process.env.NODE_ENV!=="production";
 const runtimeDiag=(event,data={})=>{if(RUNTIME_DIAGNOSTICS)console.info("[GC runtime]",event,data)};
+const PLANT_ASSETS={
+  palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
+  treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
+  banana:"https://cdn.3dassets.dev/assets/38579/v1/model.glb",
+  cycad:"https://cdn.3dassets.dev/assets/38581/v1/model.glb"
+};
+
+
+
+
+const FURNITURE={
+ sofa:"https://cdn.3dassets.dev/assets/26141/v1/model.glb",
+ armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
+ diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
+ coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
+ diningTable:"https://cdn.3dassets.dev/assets/38791/v1/model.glb",
+ bed:"https://cdn.3dassets.dev/assets/38770/v1/model.glb",
+ lamp:"https://cdn.3dassets.dev/assets/38797/v1/model.glb"
+};
 
 const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
@@ -90,43 +109,13 @@ const INTERACTABLES=[ ...SEATS, ...BEDS,
  {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
  {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
 ];
-function Sofa({position=[0,0,0],rotation=0,width=3.4}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[width,.48,1.0]} radius={.16} smoothness={6} position={[0,.48,0]}><meshStandardMaterial color="#3e4859" roughness={.82}/></RoundedBox>
-    <RoundedBox castShadow args={[width,1.05,.28]} radius={.12} smoothness={5} position={[0,1.02,-.36]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[-width/2+.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[width/2-.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-  </group>;
+function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
+ const gltf=useGLTF(url);
+ const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});runtimeDiag("asset-loaded",{kind:"furniture",url});return s},[gltf.scene,url]);
+ return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
 }
-function Chair({position=[0,0,0],rotation=0}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
-    <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
-    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
-  </group>;
-}
-function CoffeeTable({x,z}) {
-  return <group position={[x,0,z]}>
-    <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
-    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
-  </group>;
-}
-function DiningTable() {
-  return <group position={[10,0,5.8]}>
-    <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
-    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
-    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>
-    <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
-  </group>;
-}
-function Bed({x,z,rotation=0}) {
-  return <group position={[x,0,z]} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[2.6,.35,4.2]} radius={.1} smoothness={5} position={[0,.42,0]}><meshStandardMaterial color="#313847" roughness={.8}/></RoundedBox>
-    <RoundedBox castShadow args={[2.45,.28,2.6]} radius={.1} smoothness={5} position={[0,.72,.45]}><meshStandardMaterial color="#d6d1c8" roughness={.95}/></RoundedBox>
-    <RoundedBox castShadow args={[2.3,.42,.55]} radius={.12} smoothness={5} position={[0,.86,-1.55]}><meshStandardMaterial color="#ebe7df" roughness={.9}/></RoundedBox>
-    <RoundedBox castShadow args={[2.8,1.5,.16]} radius={.05} smoothness={4} position={[0,1.0,-2.0]}><meshStandardMaterial color="#3a4250" roughness={.7}/></RoundedBox>
-  </group>;
-}
+
+
 const OBSTACLES=[
   {x:-10,z:-7.28,rx:1.14,rz:.62,vault:false,name:"livingSofaNorth"},
   {x:-10,z:-3.62,rx:1.14,rz:.62,vault:false,name:"livingSofaSouth"},
@@ -190,43 +179,43 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0,width=3.4}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[width,.48,1.0]} radius={.16} smoothness={6} position={[0,.48,0]}><meshStandardMaterial color="#3e4859" roughness={.82}/></RoundedBox>
-    <RoundedBox castShadow args={[width,1.05,.28]} radius={.12} smoothness={5} position={[0,1.02,-.36]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[-width/2+.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[width/2-.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-  </group>;
+function SafeFurniture(props){
+  const {url}=props;
+  return <AssetBoundary url={url} label={url} fallback={<AssetFailureMarker url={url} label="Furniture"/>}><RealFurniture {...props}/></AssetBoundary>;
 }
-function Chair({position=[0,0,0],rotation=0}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
-    <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
-    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
-  </group>;
+function Sofa({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.0}/>} 
+function Chair({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
+function CoffeeTable({x,z}){return <SafeFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
+function DiningTable(){return <group position={[10,0,5.8]}><SafeFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><SafeFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
+function Bed({x,z,rotation=0}){return <SafeFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
+
+function SnackUnsafe({item,state,players}){
+  const ref=useRef();
+  const holder=state?.heldBy?players[state.heldBy]:null;
+  const consumed=!!state?.consumed;
+  const gltf=useGLTF(FOOD_ASSETS[item.kind]);
+  const scene=useMemo(()=>{
+    const s=SkeletonUtils.clone(gltf.scene);    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    return s;  },[gltf.scene]);
+  useFrame((_,dt)=>{
+    if(!ref.current)return;
+    const target=holder?[holder.x,.98,holder.z]:item.position;
+    const a=1-Math.exp(-16*dt);
+    ref.current.position.x+=(target[0]-ref.current.position.x)*a;
+    ref.current.position.y+=(target[1]-ref.current.position.y)*a;
+    ref.current.position.z+=(target[2]-ref.current.position.z)*a;
+    if(holder)ref.current.rotation.y+=dt*3.2;
+  });
+  if(consumed)return null;
+  const scale=item.kind==="burgerTray"?.9:item.kind==="snackBasket"?.9:item.kind==="waterBottle"?1.5:item.kind==="sodaCan"?1.7:2.0;
+  return <group ref={ref} position={item.position} scale={scale}><primitive object={scene}/></group>;
 }
-function CoffeeTable({x,z}) {
-  return <group position={[x,0,z]}>
-    <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
-    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
-  </group>;
+
+function Snack({item,state,players}){const url=FOOD_ASSETS[item.kind];return <AssetBoundary url={url} label={item.name} fallback={<AssetFailureMarker url={url} label={item.name}/>}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
+function Snacks({players,snackStates}){
+  return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
 }
-function DiningTable() {
-  return <group position={[10,0,5.8]}>
-    <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
-    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
-    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>)}
-    <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
-  </group>;
-}
-function Bed({x,z,rotation=0}) {
-  return <group position={[x,0,z]} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[2.6,.35,4.2]} radius={.1} smoothness={5} position={[0,.42,0]}><meshStandardMaterial color="#313847" roughness={.8}/></RoundedBox>
-    <RoundedBox castShadow args={[2.45,.28,2.6]} radius={.1} smoothness={5} position={[0,.72,.45]}><meshStandardMaterial color="#d6d1c8" roughness={.95}/></RoundedBox>
-    <RoundedBox castShadow args={[2.3,.42,.55]} radius={.12} smoothness={5} position={[0,.86,-1.55]}><meshStandardMaterial color="#ebe7df" roughness={.9}/></RoundedBox>
-    <RoundedBox castShadow args={[2.8,1.5,.16]} radius={.05} smoothness={4} position={[0,1.0,-2.0]}><meshStandardMaterial color="#3a4250" roughness={.7}/></RoundedBox>
-  </group>;
-}
+
 function Kitchen() {
   return <group position={[13.0,0,1.0]}>
     <RoundedBox castShadow args={[1.5,1.15,6.0]} radius={.12} smoothness={5} position={[0,.65,0]}>
@@ -245,14 +234,13 @@ function Kitchen() {
   </group>
 }
 
-function FloorLamp({x,z}){return <group position={[x,0,z]}><mesh castShadow position={[0,1.65,0]}><cylinderGeometry args={[.035,.035,3.3,12]}/><meshStandardMaterial color="#252932" metalness={.65} roughness={.32}/></mesh><mesh castShadow position={[0,3.25,0]}><coneGeometry args={[.42,.5,24]}/><meshStandardMaterial color="#e5d7bd" emissive="#fff1cf" emissiveIntensity={.22}/></mesh><pointLight position={[0,3,0]} intensity={1.2} distance={5.5} color="#ffe7be"/></group>}
+function FloorLamp({x,z}){return <SafeFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
 
-function Plant({x,z,s=1,rotation=0}) {
-  return <group position={[x,0,z]} rotation={[0,rotation,0]} scale={s}>
-    <mesh castShadow position={[0,.3,0]}><cylinderGeometry args={[.28,.34,.6,20]}/><meshStandardMaterial color="#5b3d2e" roughness={1}/></mesh>
-    {[[-.18,.85,0],[.18,.9,.02],[-.28,.7,.08],[.28,.76,-.06],[0,1.04,.03]].map((p,i)=><mesh key={i} castShadow position={p} scale={[1,.8,1]}><sphereGeometry args={[.23,16,12]}/><meshStandardMaterial color={i%2?"#2f7f59":"#3f9869"} roughness={1}/></mesh>)}
-  </group>;
+function Plant({x,z,s=1,variant="palm",rotation=0}) {
+  const url=PLANT_ASSETS[variant]||PLANT_ASSETS.palm;
+  return <SafeFurniture url={url} position={[x,0,z]} rotation={rotation} scale={s}/>;
 }
+
 function Rug({x,z,w,d}) {
   return <mesh receiveShadow position={[x,.025,z]} rotation={[-Math.PI/2,0,0]}>
     <planeGeometry args={[w,d]}/><meshStandardMaterial color="#252b38" roughness={1}/>
@@ -316,6 +304,8 @@ function OpenFloorMark() {
 }
 
 function Hall({musicPlaying,musicTrack,players,snackStates}) {
+  const [showDecor,setShowDecor]=useState(false);
+  useEffect(()=>{const timer=setTimeout(()=>setShowDecor(true),1200);return()=>clearTimeout(timer)},[]);
   return <group>
     <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
     <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
@@ -334,7 +324,7 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
-    <Plant x={-13.9} z={-3.0} s={1.0} rotation={0.25}/>
+    {showDecor&&(<Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>)}
 
     <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
@@ -349,16 +339,16 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Bed x={12.2} z={-6.2} rotation={Math.PI/2}/>
     <Text position={[10.5,1.75,-8.45]} rotation={[0,0,0]} fontSize={.28} color="#b6afc6">REST / RESET</Text>
 
-    <Plant x={-13.7} z={8.3} s={1.0} rotation={-0.2}/>
-    <Plant x={13.7} z={8.3} s={0.9} rotation={0.35}/>
-    <Plant x={-3.0} z={9.0} s={0.9} rotation={-0.35}/>
-    <Plant x={6.4} z={8.55} s={0.95} rotation={-0.2}/>
-    <Plant x={-6.4} z={8.55} s={0.95} rotation={0.15}/>
-    <Plant x={5.8} z={-8.15} s={0.9} rotation={0.35}/>
-    <Plant x={-14.0} z={0.2} s={0.85} rotation={-0.25}/>
+    {showDecor&&(<Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>)}
+    {showDecor&&(<Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>)}
+    {showDecor&&(<Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>)}
+    {showDecor&&(<Plant x={6.4} z={8.55} s={0.95} variant="palm" rotation={-0.2}/>)}
+    {showDecor&&(<Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>)}
+    {showDecor&&(<Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>)}
+    {showDecor&&(<Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>)}
     <DigitalSignage/>
     <OpenFloorMark/>
-    <Snacks players={players} snackStates={snackStates}/>
+    {showDecor&&<Snacks players={players} snackStates={snackStates}/>}
   </group>
 }
 
@@ -392,54 +382,192 @@ function DigitalSignage() {
   </group>
 }
 
-function RestoredHuman({player,me,liveRef}) {
-  const ref=useRef();
-  const phase=useRef(Math.random()*Math.PI*2);
+function RealHuman({player,me,liveRef}) {
+  const {scene,animations}=useGLTF(HUMAN_URL);  const root=useRef();
+  const model=useMemo(()=>{const cloned=SkeletonUtils.clone(scene);runtimeDiag("asset-loaded",{kind:"avatar",url:HUMAN_URL});return cloned},[scene]);
+  const {actions}=useAnimations(animations,root);
+  const clipRef=useRef(null);
+  const emoteClipRef=useRef(null);
+  const fallbackEmoteActive=useRef(false);
+  const wasSeated=useRef(false);
+  const poseBlend=useRef(0);
   const seated=player.action==="sit";
   const sleeping=player.action==="sleep";
-  const live=liveRef?.current||player;
+  const poseLocked=seated||sleeping;
+  const movementLocked=poseLocked||player.action==="emote";
+  const targetRot=player.poseRotation??player.rot??0;
+  const poseType=player.poseType??(sleeping?"bed":"sofa");
+
+  const bones=useMemo(()=>{
+    const b={thighL:null,thighR:null,shinL:null,shinR:null,footL:null,footR:null,spine:null,upperArmL:null,upperArmR:null,forearmL:null,forearmR:null};
+    model.traverse(o=>{
+      if(!o.isBone)return;
+      const n=o.name.toLowerCase().replace(/[^a-z0-9]/g,"");
+      const left=/(left|l)$/.test(n)||n.includes("left");
+      const right=/(right|r)$/.test(n)||n.includes("right");      if(!b.thighL&&left&&/(thigh|upperleg|upleg)/.test(n))b.thighL=o;
+      if(!b.thighR&&right&&/(thigh|upperleg|upleg)/.test(n))b.thighR=o;
+      if(!b.shinL&&left&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinL=o;
+      if(!b.shinR&&right&&/(shin|lowerleg|leglower|calf)/.test(n))b.shinR=o;
+      if(!b.footL&&left&&/(foot|ankle)/.test(n))b.footL=o;
+      if(!b.footR&&right&&/(foot|ankle)/.test(n))b.footR=o;
+      if(!b.spine&&/(spine2|spine1|chest|spine)/.test(n))b.spine=o;
+      if(!b.upperArmL&&left&&/(upperarm|arm)/.test(n))b.upperArmL=o;
+      if(!b.upperArmR&&right&&/(upperarm|arm)/.test(n))b.upperArmR=o;
+      if(!b.forearmL&&left&&/(forearm|lowerarm)/.test(n))b.forearmL=o;
+      if(!b.forearmR&&right&&/(forearm|lowerarm)/.test(n))b.forearmR=o;
+    });
+    return b;
+  },[model]);
+
+  const restBones=useMemo(()=>{
+    const rest={};
+    for(const [name,b] of Object.entries(bones))rest[name]=b?{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}:null;
+    return rest;
+  },[bones]);
+
+  useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
+
+  useEffect(()=>{
+    if(!actions)return;
+    const names=Object.keys(actions);
+    const idle=names.find(n=>/idle/i.test(n))||names[0];
+    const walk=names.find(n=>/walk/i.test(n)&&!/run/i.test(n))||names.find(n=>/walk/i.test(n))||idle;
+    const run=names.find(n=>/run|jog|sprint/i.test(n))||walk;
+    const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||idle;
+    const hit=names.find(n=>/hit|hurt|shove|pain|reaction/i.test(n))||null;
+    const attack=names.find(n=>/punch|jab|kick|attack|fight|combo/i.test(n))||null;
+    const emoteMatchers={dance:/dance|danc|celebrat|groove|party/i,wave:/wave|greet|hello|salute/i,clap:/clap|applause|cheer/i,laugh:/laugh|joy|happy/i};
+    const emote=player.emote?names.find(n=>(emoteMatchers[player.emote]||new RegExp(player.emote,"i")).test(n)):null;
+    emoteClipRef.current=emote||null;
+    const desired=poseLocked?null:(player.hit&&hit?hit:(player.attacking&&attack?attack:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle))))));
+    if(desired===clipRef.current)return;
+    const previous=clipRef.current?actions[clipRef.current]:null;
+    if(previous)previous.fadeOut(.16);
+    if(desired&&actions[desired]){actions[desired].reset().fadeIn(.16).play();clipRef.current=desired;}
+    else clipRef.current=null;
+  },[actions,poseLocked,player.action,player.speed,player.hit,player.attacking,player.emote]);
+
   useFrame((_,dt)=>{
-    if(!ref.current)return;
-    const tx=live.x??player.x??0,tz=live.z??player.z??0,rot=live.rot??player.rot??0;
-    const a=1-Math.exp(-18*dt);
-    ref.current.position.x+=(tx-ref.current.position.x)*a;
-    ref.current.position.z+=(tz-ref.current.position.z)*a;
-    ref.current.rotation.y+=Math.atan2(Math.sin(rot-ref.current.rotation.y),Math.cos(rot-ref.current.rotation.y))*a;
-    const moving=!seated&&!sleeping&&(live.speed??player.speed??0)>.08;
-    const t=performance.now()/1000+phase.current;
-    const swing=moving?Math.sin(t*8)*.55:0;
-    const armSwing=moving?Math.sin(t*8)*.32:0;
-    const pose=seated?1:0;
-    const sleepPose=sleeping?1:0;
-    if(ref.current.userData){
-      ref.current.userData.leftLeg.rotation.x=swing*(1-pose);
-      ref.current.userData.rightLeg.rotation.x=-swing*(1-pose);
-      ref.current.userData.leftArm.rotation.x=-armSwing*(1-pose);
-      ref.current.userData.rightArm.rotation.x=armSwing*(1-pose);
-      ref.current.userData.torso.rotation.x=seated?.08:sleepPose?-1.15:0;
-      ref.current.userData.leftLeg.rotation.x=seated?-1.25+swing*.08:sleepPose?-.2:swing;
-      ref.current.userData.rightLeg.rotation.x=seated?-1.25-swing*.08:sleepPose?-.2:-swing;
+    if(!root.current)return;
+    const live=liveRef?.current||player;
+    const tx=live.x??player.x??0,tz=live.z??player.z??0,trot=live.rot??targetRot,tspeed=live.speed??player.speed??0;
+    const a=1-Math.exp(-(me?28:18)*dt);
+    root.current.position.x+=(tx-root.current.position.x)*a;
+    root.current.position.z+=(tz-root.current.position.z)*a;
+    const seatedY=seated?(player.seatY??-.34):(sleeping?0.02:0);
+    root.current.position.y+=(seatedY-root.current.position.y)*a;
+    root.current.rotation.y+=Math.atan2(Math.sin(trot-root.current.rotation.y),Math.cos(trot-root.current.rotation.y))*a;
+
+    const targetPose=seated?1:(sleeping?0.68:0);
+    poseBlend.current+=(targetPose-poseBlend.current)*(1-Math.exp(-12*dt));
+    const p=poseBlend.current;
+
+    if(poseLocked){
+      const set=(name,x=0,y=0,z=0)=>{
+        const b=bones[name],r=restBones[name];
+        if(!b||!r)return;
+        b.rotation.x=r.x+x*p;b.rotation.y=r.y+y*p;b.rotation.z=r.z+z*p;
+      };
+      if(sleeping){
+        // Bed: reclined posture rather than the upright chair/sofa pose.
+        set("thighL",-0.18);set("thighR",-0.18);
+        set("shinL",0.22);set("shinR",0.22);
+        set("footL",-0.08);set("footR",-0.08);
+        set("spine",-1.12);
+        set("upperArmL",-0.22,0.02,-0.06);set("upperArmR",-0.22,-0.02,0.06);
+        set("forearmL",-0.42);set("forearmR",-0.42);
+      }else if(poseType==="chair"){
+        // Dining chair: more upright hips/knees and arms relaxed beside the torso.
+        set("thighL",-1.38);set("thighR",-1.38);
+        set("shinL",1.60);set("shinR",1.60);
+        set("footL",-0.18);set("footR",-0.18);
+        set("spine",0.015);
+        set("upperArmL",-0.07,0.02,-0.02);set("upperArmR",-0.07,-0.02,0.02);
+        set("forearmL",-0.18);set("forearmR",-0.18);
+      }else{
+        // Sofa/armchair: deeper, relaxed sit with knees raised to the cushion.
+        set("thighL",-1.58);set("thighR",-1.58);
+        set("shinL",1.88);set("shinR",1.88);
+        set("footL",-0.30);set("footR",-0.30);
+        set("spine",0.035);
+        set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
+        set("forearmL",-0.28);set("forearmR",-0.28);
+      }
+      wasSeated.current=true;    }else if(wasSeated.current){
+      for(const [name,r] of Object.entries(restBones)){
+        const b=bones[name];
+        if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
+      }
+      wasSeated.current=false;poseBlend.current=0;
+    }
+
+    const active=clipRef.current?actions[clipRef.current]:null;
+    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.88,1.12);
+    else if(active)active.timeScale=1;
+
+    const moving=!movementLocked&&tspeed>.08;
+    if(moving&&!/walk|run/i.test(clipRef.current||"")){
+      const swing=Math.sin(performance.now()/110*Math.min(1.6,Math.max(.8,tspeed/2.1)));
+      const setFallback=(name,x=0,y=0,z=0)=>{
+        const b=bones[name],r=restBones[name];
+        if(!b||!r)return;
+        b.rotation.x=r.x+x;b.rotation.y=r.y+y;b.rotation.z=r.z+z;
+      };
+      setFallback("thighL",swing*.38);setFallback("thighR",-swing*.38);
+      setFallback("shinL",-Math.max(0,swing)*.16);setFallback("shinR",Math.max(0,swing)*.16);
+      setFallback("upperArmL",-swing*.22);setFallback("upperArmR",swing*.22);
+    }
+    if(!poseLocked&&player.emote&&!emoteClipRef.current){
+      fallbackEmoteActive.current=true;
+      const t=performance.now()/1000;
+      const setEmote=(name,x=0,y=0,z=0)=>{
+        const b=bones[name],r=restBones[name];
+        if(!b||!r)return;
+        b.rotation.x=r.x+x;b.rotation.y=r.y+y;b.rotation.z=r.z+z;
+      };
+      if(player.emote==="wave"){
+        setEmote("upperArmR",-1.0,0,-.12);setEmote("forearmR",-.45+Math.sin(t*9)*.35);
+      }else if(player.emote==="clap"){
+        setEmote("upperArmL",-1.0,0,-.32);setEmote("upperArmR",-1.0,0,.32);
+        setEmote("forearmL",-1.15+Math.sin(t*8)*.18);setEmote("forearmR",-1.15-Math.sin(t*8)*.18);
+      }else if(player.emote==="laugh"){
+        setEmote("spine",Math.sin(t*7)*.08);setEmote("upperArmL",-1.05,0,-.28);setEmote("upperArmR",-1.05,0,.28);
+      }else{
+        setEmote("spine",Math.sin(t*4)*.12);setEmote("upperArmL",-.45+Math.sin(t*5)*.28,0,-.25);setEmote("upperArmR",-.45-Math.sin(t*5)*.28,0,.25);
+      }
+    }else if(fallbackEmoteActive.current){
+      for(const [name,r] of Object.entries(restBones)){
+        const b=bones[name];
+        if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
+      }
+      fallbackEmoteActive.current=false;
     }
   });
-  const skin=["#8d5524","#c68642","#e0ac69","#f1c27d","#ffdbac"][Number(player.avatarIndex)||0];
-  const shirt=["#5146a8","#d45a7a","#2d8a76","#c98a40","#4d6b9a"][Number(player.avatarIndex)||0];
-  return <group ref={ref} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
-    <group ref={g=>{if(!g)return;ref.current.userData.torso=g}}>
-      <RoundedBox castShadow args={[.52,.72,.34]} radius={.08} smoothness={5} position={[0,1.05,0]}><meshStandardMaterial color={shirt} roughness={.82}/></RoundedBox>
+
+  const seatedBackX=locked?-Math.sin(targetRot)*.08:0;
+  const seatedBackZ=locked?-Math.cos(targetRot)*.08:0;
+  return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
+    <group position={[seatedBackX,0,seatedBackZ]}>      <primitive object={model} dispose={null}/>
+      <Text position={[0,2.05,0]} fontSize={.14} color={me?"#bbaeff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#11131a">{player.name}{me?" • you":""}</Text>
+      {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}{player.hit&&<Text position={[0,2.32,0]} fontSize={.18} color="#ff8797" anchorX="center">OUCH!</Text>}
+      {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
     </group>
-    <mesh castShadow position={[0,1.68,0]}><sphereGeometry args={[.29,24,18]}/><meshStandardMaterial color={skin} roughness={.9}/></mesh>
-    <mesh castShadow position={[0,1.88,-.01]}><sphereGeometry args={[.30,20,14]}/><meshStandardMaterial color="#241b18" roughness={1}/></mesh>
-    <mesh castShadow position={[-.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
-    <mesh castShadow position={[.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
-    <mesh castShadow position={[-.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
-    <mesh castShadow position={[.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
-    <group ref={g=>{if(g)ref.current.userData.leftArm=g}} position={[-.38,1.15,0]}><mesh castShadow rotation={[0,0,.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
-    <group ref={g=>{if(g)ref.current.userData.rightArm=g}} position={[.38,1.15,0]}><mesh castShadow rotation={[0,0,-.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
-    <group ref={g=>{if(g)ref.current.userData.leftLeg=g}} position={[-.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
-    <group ref={g=>{if(g)ref.current.userData.rightLeg=g}} position={[.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
-    <Text position={[0,2.08,0]} fontSize={.14} color={me?"#bbaeff":"#fff"} anchorX="center" outlineWidth={.01}>{player.name}{me?" • you":""}</Text>
-  </group>;
+  </group>
 }
+function FallbackHuman({player,me}) {
+  const ref=useRef();
+  useFrame((_,dt)=>{
+    if(!ref.current)return;
+    ref.current.position.x+=(player.x-ref.current.position.x)*Math.min(1,10*dt);
+    ref.current.position.z+=(player.z-ref.current.position.z)*Math.min(1,10*dt);
+  });
+  return <group ref={ref} position={[player.x||0,0,player.z||0]}>
+    <mesh castShadow position={[0,.72,0]}><capsuleGeometry args={[.24,.55,8,16]}/><meshStandardMaterial color="#5967b8"/></mesh>
+    <mesh castShadow position={[0,1.34,0]}><sphereGeometry args={[.28,20,14]}/><meshStandardMaterial color="#c78e69"/></mesh>
+    <Text position={[0,1.8,0]} fontSize={.13} color={me?"#bbaeff":"#fff"} anchorX="center">{player.name}{me?" • you":""}</Text>
+  </group>
+}
+
 function Football({players,localId,ballState,onBallState}) {
   const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
   const gltf=useGLTF(FOOTBALL_URL);
@@ -750,7 +878,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
-            <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RestoredHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
+            <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
           </Suspense>
         )}
       </Physics>
