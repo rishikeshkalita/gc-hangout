@@ -844,7 +844,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <label className="musicUpload" title="Add a custom song">＋ Song<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
-      <button type="button" className={voiceEnabled&&!voiceMuted?"active":""} onClick={async()=>{if(!voiceEnabled){await onToggleVoice();setVoiceOpen(true)}else setVoiceOpen(v=>!v)}}>{voiceEnabled?(voiceMuted?"🔇":"🎙️"):"🎤"} {voiceEnabled?(voiceMuted?"Muted":"Voice"):"Voice"}</button>
+      <button type="button" className={voiceEnabled&&!voiceMuted?"active":""} onClick={async()=>{if(!voiceEnabled){const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}else setVoiceOpen(v=>!v)}}>{voiceEnabled?(voiceMuted?"🔇":"🎙️"):"🎤"} {voiceEnabled?(voiceMuted?"Muted":"Voice"):"Voice"}</button>
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
     </div>
     {voiceOpen&&voiceEnabled&&(
@@ -1146,10 +1146,12 @@ export default function Home(){
         await channelRef.current.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current.enabled});
         voiceRef.current.syncPeers(Object.keys(channelRef.current.presenceState()).filter(key=>key!==id)).catch(()=>{});
       }
+      return voiceRef.current.enabled;
     }catch(e){
       console.error("Voice chat failed",e);
       setVoiceError(e?.message||"Microphone access failed.");
       setVoiceEnabled(false);
+      return false;
     }
   };
 
