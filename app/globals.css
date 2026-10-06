@@ -63,3 +63,14 @@ button { border: 0; cursor: pointer; }
   .settings { right: 10px; top: 10px; }
   .settings-panel { right: 10px; top: 60px; }
 }
+
+
+.interaction-hint {
+  position: fixed; left: 50%; bottom: 22px; z-index: 11; transform: translateX(-50%);
+  display: grid; gap: 2px; min-width: 132px; padding: 9px 13px; text-align: center;
+  border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+  background: rgba(10,13,20,.72); backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.2); pointer-events: none;
+}
+.interaction-hint strong { color: #fff; font-size: 12px; }
+.interaction-hint span { color: #9299a8; font-size: 10px; }
