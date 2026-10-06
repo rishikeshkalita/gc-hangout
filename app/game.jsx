@@ -33,16 +33,7 @@ const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
 const RUNTIME_DIAGNOSTICS=process.env.NODE_ENV!=="production";
-const runtimeDiag=(event,data={})=>{if(RUNTIME_DIAGNOSTICS)console.info("[GC runtime]",event,data)};
-const PLANT_ASSETS={
-  palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
-  treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
-  banana:"https://cdn.3dassets.dev/assets/38579/v1/model.glb",
-  cycad:"https://cdn.3dassets.dev/assets/38581/v1/model.glb"
-};
-
-
-
+const runtimeDiag=(event,data={})=>{if(RUNTIME_DIAGNOSTICS)console.info("[GC runtime]",event,data};
 
 const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
@@ -111,20 +102,20 @@ function Chair({position=[0,0,0],rotation=0}) {
   return <group position={position} rotation={[0,rotation,0]}>
     <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
     <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
-    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
+    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>}
   </group>;
 }
 function CoffeeTable({x,z}) {
   return <group position={[x,0,z]}>
     <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
-    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
+    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>}
   </group>;
 }
 function DiningTable() {
   return <group position={[10,0,5.8]}>
     <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
-    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
-    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>)}
+    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>}
+    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>}
     <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
   </group>;
 }
@@ -194,7 +185,7 @@ class ErrorBoundary extends React.Component {
   constructor(p){super(p);this.state={failed:false}}
   static getDerivedStateFromError(){return{failed:true}}
   componentDidCatch(e){
-    runtimeDiag("asset-failed",{asset:this.props.label||"3D asset",url:this.props.url||"unknown",error:e?.message||String(e)});
+    runtimeDiag("asset-failed",{asset:this.props.label||"3D asset",url:this.props.url||"unknown",error:e?.message||String(e});
   }
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
@@ -211,20 +202,20 @@ function Chair({position=[0,0,0],rotation=0}) {
   return <group position={position} rotation={[0,rotation,0]}>
     <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
     <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
-    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
+    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>}
   </group>;
 }
 function CoffeeTable({x,z}) {
   return <group position={[x,0,z]}>
     <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
-    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
+    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>}
   </group>;
 }
 function DiningTable() {
   return <group position={[10,0,5.8]}>
     <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
-    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
-    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>)}
+    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>}
+    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>}
     <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
   </group>;
 }
@@ -249,7 +240,7 @@ function Kitchen() {
     </mesh>
     {[[-.48,1.42,-2.3],[.48,1.42,-2.3],[-.48,1.42,2.25],[.48,1.42,2.25]].map((p,i)=>
       <mesh key={i} position={p}><cylinderGeometry args={[.11,.11,.08,20]}/><meshStandardMaterial color={i%2?"#d0a55d":"#8fc5d8"} roughness={.4}/></mesh>
-    )}
+    }
     <Text position={[-.78,1.72,0]} rotation={[0,Math.PI/2,0]} fontSize={.22} color="#c6c0b8">FOOD</Text>
   </group>
 }
@@ -259,7 +250,7 @@ function FloorLamp({x,z}){return <group position={[x,0,z]}><mesh castShadow posi
 function Plant({x,z,s=1,rotation=0}) {
   return <group position={[x,0,z]} rotation={[0,rotation,0]} scale={s}>
     <mesh castShadow position={[0,.3,0]}><cylinderGeometry args={[.28,.34,.6,20]}/><meshStandardMaterial color="#5b3d2e" roughness={1}/></mesh>
-    {[[-.18,.85,0],[.18,.9,.02],[-.28,.7,.08],[.28,.76,-.06],[0,1.04,.03]].map((p,i)=><mesh key={i} castShadow position={p} scale={[1,.8,1]}><sphereGeometry args={[.23,16,12]}/><meshStandardMaterial color={i%2?"#2f7f59":"#3f9869"} roughness={1}/></mesh>)}
+    {[[-.18,.85,0],[.18,.9,.02],[-.28,.7,.08],[.28,.76,-.06],[0,1.04,.03]].map((p,i)=><mesh key={i} castShadow position={p} scale={[1,.8,1]}><sphereGeometry args={[.23,16,12]}/><meshStandardMaterial color={i%2?"#2f7f59":"#3f9869"} roughness={1}/></mesh>}
   </group>;
 }
 function Rug({x,z,w,d}) {
@@ -284,7 +275,7 @@ function TV({playing,track}) {
     <Text position={[-3.65,1.45,.23]} fontSize={.26} color="#a99bff" anchorX="left">GC RADIO</Text>
     <Text position={[-3.65,.78,.23]} fontSize={.42} color="#ffffff" anchorX="left">{playing?(track?.title||"GC RADIO"):"HANGOUT DISPLAY"}</Text>
     <Text position={[-3.65,.30,.23]} fontSize={.2} color="#aaa5b9" anchorX="left">{playing?(track?.artist||"Jamendo"):"Select a track to start the room mix"}</Text>
-    <group position={[-3.62,-1.15,.23]}>{Array.from({length:18},(_,i)=><mesh ref={el=>{bars.current[i]=el}} key={i} position={[i*.34,0,0]} scale={[1,.12,1]}><boxGeometry args={[.18,.18,.02]}/><meshStandardMaterial color={playing?"#7e6bff":"#343341"} emissive={playing?"#4f40b0":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>)}</group>
+    <group position={[-3.62,-1.15,.23]}>{Array.from({length:18},(_,i)=><mesh ref={el=>{bars.current[i]=el}} key={i} position={[i*.34,0,0]} scale={[1,.12,1]}><boxGeometry args={[.18,.18,.02]}/><meshStandardMaterial color={playing?"#7e6bff":"#343341"} emissive={playing?"#4f40b0":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>}</group>
     <mesh position={[2.55,.95,.24]}><circleGeometry args={[.72,32]}/><meshStandardMaterial color={playing?"#715bff":"#272b36"} emissive={playing?"#5b48c7":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>
     <Text position={[2.55,.95,.28]} fontSize={.32} color="#ffffff" anchorX="center" anchorY="middle">{playing?"▶":"Ⅱ"}</Text>
   </group>
@@ -312,11 +303,11 @@ function Speaker({playing,x,index}) {
         <circleGeometry args={[.17-j*.035,24]}/>
         <meshStandardMaterial color="#252934" emissive={playing?"#6655d0":"#11131a"} emissiveIntensity={playing?1.6:.15}/>
       </mesh>
-    )}
+    }
   </group>
 }
 function Speakers({playing}) {
-  return <>{[-4.7,4.7].map((x,i)=><Speaker key={i} playing={playing} x={x} index={i}/>)}</>;
+  return <>{[-4.7,4.7].map((x,i)=><Speaker key={i} playing={playing} x={x} index={i}/>}</>;
 }
 function OpenFloorMark() {
   return <group position={[0,.035,0]}>    <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[4.9,5.02,64]}/><meshBasicMaterial color="#4f5364" transparent opacity={.42}/></mesh>
@@ -326,7 +317,7 @@ function OpenFloorMark() {
 
 function Hall({musicPlaying,musicTrack,players,snackStates}) {
   const [showDecor,setShowDecor]=useState(false);
-  useEffect(()=>{const timer=setTimeout(()=>setShowDecor(true),1200);return()=>clearTimeout(timer)},[]);
+  useEffect(()=>{const timer=setTimeout(()=>setShowDecor(true),1200);return()=>clearTimeout(timer},[]);
   return <group>
     <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
     <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
@@ -335,8 +326,8 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <mesh receiveShadow position={[-15,3.75,0]}><boxGeometry args={[.24,7.5,20.4]}/><meshStandardMaterial color="#303641" roughness={.82}/></mesh>
     <mesh receiveShadow position={[15,3.75,0]}><boxGeometry args={[.24,7.5,20.4]}/><meshStandardMaterial color="#303641" roughness={.82}/></mesh>
 
-    {[[-10,6.85],[0,6.85],[10,6.85]].map((p,i)=><mesh key={i} position={[p[0],6.85,0]}><boxGeometry args={[.22,.32,19.5]}/><meshStandardMaterial color="#4a515d" roughness={.6}/></mesh>)}
-    {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
+    {[[-10,6.85],[0,6.85],[10,6.85]].map((p,i)=><mesh key={i} position={[p[0],6.85,0]}><boxGeometry args={[.22,.32,19.5]}/><meshStandardMaterial color="#4a515d" roughness={.6}/></mesh>}
+    {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>}
 
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
     <Sofa position={[-10,0,-7.28]} rotation={0}/>
@@ -345,7 +336,7 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
     <FloorLamp x={-13.8} z={-7.7}/>
-    <Plant x={-13.9} z={-3.0} s={1.0} rotation={0.25}/>)}
+    <Plant x={-13.9} z={-3.0} s={1.0} rotation={0.25}/>}
 
     <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
@@ -360,13 +351,13 @@ function Hall({musicPlaying,musicTrack,players,snackStates}) {
     <Bed x={12.2} z={-6.2} rotation={Math.PI/2}/>
     <Text position={[10.5,1.75,-8.45]} rotation={[0,0,0]} fontSize={.28} color="#b6afc6">REST / RESET</Text>
 
-    <Plant x={-13.7} z={8.3} s={1.0} rotation={-0.2}/>)}
-    <Plant x={13.7} z={8.3} s={0.9} rotation={0.35}/>)}
-    <Plant x={-3.0} z={9.0} s={0.9} rotation={-0.35}/>)}
-    <Plant x={6.4} z={8.55} s={0.95} rotation={-0.2}/>)}
-    <Plant x={-6.4} z={8.55} s={0.95} rotation={0.15}/>)}
-    <Plant x={5.8} z={-8.15} s={0.9} rotation={0.35}/>)}
-    <Plant x={-14.0} z={0.2} s={0.85} rotation={-0.25}/>)}
+    <Plant x={-13.7} z={8.3} s={1.0} rotation={-0.2}/>}
+    <Plant x={13.7} z={8.3} s={0.9} rotation={0.35}/>}
+    <Plant x={-3.0} z={9.0} s={0.9} rotation={-0.35}/>}
+    <Plant x={6.4} z={8.55} s={0.95} rotation={-0.2}/>}
+    <Plant x={-6.4} z={8.55} s={0.95} rotation={0.15}/>}
+    <Plant x={5.8} z={-8.15} s={0.9} rotation={0.35}/>}
+    <Plant x={-14.0} z={0.2} s={0.85} rotation={-0.25}/>}
     <DigitalSignage/>
     <OpenFloorMark/>
     {showDecor&&<Snacks players={players} snackStates={snackStates}/>}
@@ -489,13 +480,13 @@ function Football({players,localId,ballState,onBallState}) {
       }
     }
     const v=b.linvel();
-    if(p.x<-14.4||p.x>14.4){b.setTranslation({x:clamp(p.x,-14.4,14.4),y:Math.max(.23,p.y),z:p.z},true);b.setLinvel({x:-v.x*.65,y:v.y,z:v.z},true)}
-    if(p.z<-9.4||p.z>9.4){b.setTranslation({x:p.x,y:Math.max(.23,p.y),z:clamp(p.z,-9.4,9.4)},true);b.setLinvel({x:v.x,y:v.y,z:-v.z*.65},true)}
-    if(p.y<.2){b.setTranslation({x:p.x,y:.28,z:p.z},true);b.setLinvel({x:v.x*.92,y:Math.abs(v.y)*.55,z:v.z*.92},true)}
+    if(p.x<-14.4||p.x>14.4){b.setTranslation({x:clamp(p.x,-14.4,14.4),y:Math.max(.23,p.y),z:p.z},true);b.setLinvel({x:-v.x*.65,y:v.y,z:v.z},true}
+    if(p.z<-9.4||p.z>9.4){b.setTranslation({x:p.x,y:Math.max(.23,p.y),z:clamp(p.z,-9.4,9.4},true);b.setLinvel({x:v.x,y:v.y,z:-v.z*.65},true}
+    if(p.y<.2){b.setTranslation({x:p.x,y:.28,z:p.z},true);b.setLinvel({x:v.x*.92,y:Math.abs(v.y)*.55,z:v.z*.92},true}
     if(now-lastBroadcast.current>50){
       lastBroadcast.current=now;
       const q=b.translation(),vel=b.linvel();
-      onBallState?.({x:q.x,y:q.y,z:q.z,vx:vel.x,vy:vel.y,vz:vel.z,ts:Date.now()});
+      onBallState?.({x:q.x,y:q.y,z:q.z,vx:vel.x,vy:vel.y,vz:vel.z,ts:Date.now(});
     }
   });
   const start=ballState||{x:2,y:.35,z:0};
@@ -512,7 +503,7 @@ function WorldColliders(){
     </RigidBody>
     {OBSTACLES.map((b,i)=><RigidBody key={b.name||i} type="fixed" colliders={false} userData={{ecctrl:{excludeCharacterRay:true}}}>
       <CuboidCollider args={[b.rx,.7,b.rz]} position={[b.x,.7,b.z]}/>
-    </RigidBody>)}
+    </RigidBody>}
   </>;
 }
 
@@ -533,7 +524,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
         c.body.setTranslation({x:nx,y:1,z:nz},true);
         const next={...p,x:nx,z:nz,rot:target.rotation,moving:true,speed:step/Math.max(d,.001),action:"moving",poseRotation:target.rotation};
         posRef.current=next;
-        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
+        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next}
       }else{
         const finalPosition=target.position;
         c.body.setTranslation({x:finalPosition[0],y:1,z:finalPosition[2]},true);
@@ -548,7 +539,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       const speed=c.moveSpeed||0;
       const next={...p,x:pos.x,z:pos.z,rot:yaw,moving:speed>.06,speed,poseRotation:yaw};
       posRef.current=next;
-      const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
+      const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next}
     }else{
       c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0},jump:false});
       if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
@@ -568,7 +559,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     const timer=setInterval(update,250);
     audio.addEventListener("timeupdate",update);
     audio.addEventListener("loadedmetadata",update);
-    return()=>{clearInterval(timer);audio.removeEventListener("timeupdate",update);audio.removeEventListener("loadedmetadata",update)};
+    return()=>{clearInterval(timer);audio.removeEventListener("timeupdate",update);audio.removeEventListener("loadedmetadata",update};
   },[musicTrack?.id]);
   const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
@@ -578,7 +569,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
   const chatSeenRef=useRef(new Set());
   const [audioProgress,setAudioProgress]=useState({current:0,duration:0});
   const moveRef=useRef(move);moveRef.current=move;
-  const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
+  const setMoveImmediate=v=>{moveRef.current=v;setMove(v};
   const posRef=useRef({...local});
   const lastPropStateRef=useRef({...local});
   const interactionRef=useRef(null);
@@ -682,7 +673,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       const next={x:(k==="a"||k==="arrowleft"||k==="d"||k==="arrowright")?0:moveRef.current.x,z:(k==="w"||k==="arrowup"||k==="s"||k==="arrowdown")?0:moveRef.current.z};setMoveImmediate(next);
     };
     window.addEventListener("keydown",down);window.addEventListener("keyup",up);
-    return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)};
+    return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up};
   },[onInteract,candidate]);
   const standUp=()=>{
     const p=posRef.current;
@@ -720,10 +711,10 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
     const len=Math.hypot(dx,dz),max=42,k=len>max?max/len:1;
     const px=dx*k,pz=dz*k;
-    setMoveImmediate({x:clamp(px/42,-1,1),z:clamp(pz/42,-1,1)});
+    setMoveImmediate({x:clamp(px/42,-1,1),z:clamp(pz/42,-1,1});
     el.style.setProperty("--jx",px+"px");el.style.setProperty("--jz",pz+"px");
   };
-  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
+  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY};
   const stop=e=>{
     e?.preventDefault?.();
     setMoveImmediate({x:0,z:0});
@@ -734,7 +725,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     window.addEventListener("pointerup",release);
     window.addEventListener("pointercancel",release);
     window.addEventListener("blur",release);
-    return()=>{window.removeEventListener("pointerup",release);window.removeEventListener("pointercancel",release);window.removeEventListener("blur",release)};
+    return()=>{window.removeEventListener("pointerup",release);window.removeEventListener("pointercancel",release);window.removeEventListener("blur",release};
   },[]);
 
   useEffect(()=>{
@@ -763,18 +754,18 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
           <Suspense key={p.id} fallback={null}>
             <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RestoredHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
           </Suspense>
-        )}
+        }
       </Physics>
     </Canvas>
 
 
-    <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} onError={()=>onMusicAutoplayBlocked?.(new Error("Audio playback failed."))} aria-hidden="true" />
-    <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
+    <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.(} onError={()=>onMusicAutoplayBlocked?.(new Error("Audio playback failed.")} aria-hidden="true" />
+    <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div><div className="cameraHint">🖱 Drag to look • wheel/pinch to zoom • WASD / joystick to move</div>
     <div className="chatNotices" role="log" aria-live="polite" aria-relevant="additions">
-      {chatNotices.map(m=><div className="chatNotice" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}
+      {chatNotices.map(m=><div className="chatNotice" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>}
     </div>
-    <div className="chatComposer" onPointerDown={e=>e.stopPropagation()}>
+    <div className="chatComposer" onPointerDown={e=>e.stopPropagation(}>
       <form className="chatForm" onSubmit={async e=>{
         e.preventDefault();
         const input=e.currentTarget.elements.namedItem("message");
@@ -788,10 +779,10 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       </form>
       {chatError&&<div className="chatError" role="status">{chatError}</div>}
     </div>
-    {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
-    <div className="musicStatus" aria-live="polite">{musicTrack&&musicStatus==="AVAILABLE"?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1)}/></>:<span>{musicStatus==="LOADING"?"Loading music…":musicStatus==="NOT_CONFIGURED"?"Music API not configured":musicStatus==="API_ERROR"?"Music API error":musicStatus==="PLAYBACK_ERROR"?"Playback error — tap Music to retry":"No music available"}</span>}</div>
-    <div className="controls" onPointerDown={e=>e.stopPropagation()}>
-      <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
+    {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation(} onClick={()=>requestInteraction(candidate}><span>↗</span>{candidate.label}</button>}
+    <div className="musicStatus" aria-live="polite">{musicTrack&&musicStatus==="AVAILABLE"?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1}/></>:<span>{musicStatus==="LOADING"?"Loading music…":musicStatus==="NOT_CONFIGURED"?"Music API not configured":musicStatus==="API_ERROR"?"Music API error":musicStatus==="PLAYBACK_ERROR"?"Playback error — tap Music to retry":"No music available"}</span>}</div>
+    <div className="controls" onPointerDown={e=>e.stopPropagation(}>
+      <button type="button" onClick={()=>candidate&&requestInteraction(candidate}>✦ Interact</button>
       <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
         const audio=audioRef.current;
         if(audio&&musicTrack?.audio&&!musicPlaying){
@@ -824,45 +815,45 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
           }catch(error){onMusicAutoplayBlocked?.(error);}
         }
         onSelectMusic?.(e.target.value);
-      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
+      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>}</select>}
       <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
-      <button type="button" aria-pressed={voiceState===VOICE_STATES.LIVE} className={`voiceState ${voiceState===VOICE_STATES.LIVE?"active":voiceState===VOICE_STATES.MUTED?"muted":voiceState===VOICE_STATES.ERROR?"error":voiceState===VOICE_STATES.DISCONNECTED?"disconnected":""}`} onClick={async()=>{if(voiceState===VOICE_STATES.LIVE||voiceState===VOICE_STATES.MUTED){onToggleMute?.();return} const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}}>{voiceState===VOICE_STATES.REQUESTING_PERMISSION?"🎤 REQUESTING…":voiceState===VOICE_STATES.LIVE?"🎙️ LIVE / UNMUTED":voiceState===VOICE_STATES.MUTED?"🔇 MUTED":voiceState===VOICE_STATES.ERROR?"🎤 MIC ERROR":voiceState===VOICE_STATES.DISCONNECTED?"🔌 DISCONNECTED":"🎤 MIC OFF"}</button>
-      <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
+      <button type="button" aria-pressed={voiceState===VOICE_STATES.LIVE} className={`voiceState ${voiceState===VOICE_STATES.LIVE?"active":voiceState===VOICE_STATES.MUTED?"muted":voiceState===VOICE_STATES.ERROR?"error":voiceState===VOICE_STATES.DISCONNECTED?"disconnected":""}`} onClick={async()=>{if(voiceState===VOICE_STATES.LIVE||voiceState===VOICE_STATES.MUTED){onToggleMute?.();return} const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true}}>{voiceState===VOICE_STATES.REQUESTING_PERMISSION?"🎤 REQUESTING…":voiceState===VOICE_STATES.LIVE?"🎙️ LIVE / UNMUTED":voiceState===VOICE_STATES.MUTED?"🔇 MUTED":voiceState===VOICE_STATES.ERROR?"🎤 MIC ERROR":voiceState===VOICE_STATES.DISCONNECTED?"🔌 DISCONNECTED":"🎤 MIC OFF"}</button>
+      <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v}>💃 Emote</button>
     </div>
     {voiceOpen&&voiceEnabled&&(
-      <div className="voicePanel" onPointerDown={e=>e.stopPropagation()}>
-        <div className="voicePanelTitle"><b>🎙️ Voice</b><button type="button" onClick={()=>setVoiceOpen(false)}>×</button></div>
+      <div className="voicePanel" onPointerDown={e=>e.stopPropagation(}>
+        <div className="voicePanelTitle"><b>🎙️ Voice</b><button type="button" onClick={()=>setVoiceOpen(false}>×</button></div>
         <button type="button" className="voiceMute" onClick={onToggleMute}>{voiceMuted?"🎙️ Unmute":"🔇 Mute microphone"}</button>
-        <label className="voiceSetting">Microphone<select value={voiceDevice} onChange={e=>onVoiceDeviceChange(e.target.value)}><option value="">Default microphone</option>{voiceDevices.map((d,i)=><option key={d.deviceId} value={d.deviceId}>{d.label||("Microphone "+(i+1))}</option>)}</select></label>
+        <label className="voiceSetting">Microphone<select value={voiceDevice} onChange={e=>onVoiceDeviceChange(e.target.value}><option value="">Default microphone</option>{voiceDevices.map((d,i)=><option key={d.deviceId} value={d.deviceId}>{d.label||("Microphone "+(i+1)}</option>}</select></label>
         <label className="voiceSetting">Speaker volume<input type="range" min="0" max="1" step=".05" value={voiceVolume} onChange={onVoiceVolumeChange}/></label>
       </div>
-    )}
+    }
     {emoteOpen&&(
-      <div className="emoteMenu" onPointerDown={e=>e.stopPropagation()}>
-        <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false)}}>💃 dance</button>
-        <button type="button" onClick={()=>{onEmote?.("wave");setEmoteOpen(false)}}>👋 wave</button>
-        <button type="button" onClick={()=>{onEmote?.("clap");setEmoteOpen(false)}}>👏 clap</button>
-        <button type="button" onClick={()=>{onEmote?.("laugh");setEmoteOpen(false)}}>😂 laugh</button>
+      <div className="emoteMenu" onPointerDown={e=>e.stopPropagation(}>
+        <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false}}>💃 dance</button>
+        <button type="button" onClick={()=>{onEmote?.("wave");setEmoteOpen(false}}>👋 wave</button>
+        <button type="button" onClick={()=>{onEmote?.("clap");setEmoteOpen(false}}>👏 clap</button>
+        <button type="button" onClick={()=>{onEmote?.("laugh");setEmoteOpen(false}}>😂 laugh</button>
       </div>
-    )}
-    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onPointerDown={e=>e.stopPropagation()} onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
+    }
+    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
+    <button className="mobileAction" onPointerDown={e=>e.stopPropagation(} onClick={()=>candidate&&requestInteraction(candidate}>✦</button>
     {voiceError&&<div className="voiceError">{voiceError}</div>}
-    <button className="fight" onPointerDown={e=>e.stopPropagation()} onClick={onAttack}>🥊</button>
+    <button className="fight" onPointerDown={e=>e.stopPropagation(} onClick={onAttack}>🥊</button>
   </div>
 }
 
 export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
-  const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
+  const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now(}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const [chatMessages,setChatMessages]=useState([]),[chatError,setChatError]=useState(""),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceState,setVoiceState]=useState(VOICE_STATES.OFF),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
   const [musicError,setMusicError]=useState(""),[musicStatus,setMusicStatus]=useState("LOADING");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
-  const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
+  const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now(}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
   const attackCooldownRef=useRef(0);
   const chatMessagesRef=useRef([]);
   const playersRef=useRef({});
@@ -882,7 +873,7 @@ export default function Home(){
     try{
         const supabase=await getSupabase();
       if(!supabase)throw new Error("Supabase is not configured.");
-      const session=await ensureAnonymousSession(supabase,{display_name:name.trim()});
+      const session=await ensureAnonymousSession(supabase,{display_name:name.trim(});
       if(!session?.user?.id)throw new Error("Supabase did not return a player identity.");
       const playerId=session.user.id;
       const {error:resetError}=await supabase.rpc("gc_reset_combat_state");
@@ -918,7 +909,7 @@ export default function Home(){
         await supabase.realtime.setAuth(session.access_token);
       const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
-    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now(}});
     const reconcilePresence=()=>{
       const state=channel.presenceState();
       const online=new Set(Object.keys(state));
@@ -974,7 +965,7 @@ export default function Home(){
       if(!message)return;
       setChatMessages(prev=>mergeChatMessages(prev,message));
     });
-    channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}})});
+    channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}}});
     channel.on("broadcast",{event:"request_chat"},()=>{
       if(chatMessagesRef.current.length)channel.send({type:"broadcast",event:"chat_history",payload:{messages:chatMessagesRef.current}});
     });
@@ -1101,7 +1092,7 @@ export default function Home(){
         }
       }
     })();
-    return()=>{disposed=true;cleanup()};
+    return()=>{disposed=true;cleanup(};
   },[joined,id,avatarId]);
   const combatPositionRef=useRef({ts:0});
   const onBallState=s=>{ballStateRef.current=s;setBallState(s);channelRef.current?.send({type:"broadcast",event:"ball_state",payload:s});};
@@ -1110,11 +1101,11 @@ export default function Home(){
     if(!id)return;
     const transient={emote:p.emote??localRef.current?.emote??null,attacking:p.attacking??localRef.current?.attacking??false,hit:p.hit??localRef.current?.hit??false};
     const next={...p,...transient};
-    const stamped={...next,netTs:Date.now()};
+    const stamped={...next,netTs:Date.now(};
     const combatNow=performance.now();
     if(combatNow-combatPositionRef.current.ts>=120){
       combatPositionRef.current={ts:combatNow};
-      getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0)})).catch(error=>console.warn("combat position sync failed",error));
+      getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0})).catch(error=>console.warn("combat position sync failed",error));
     }
     localRef.current=next;
     const now=performance.now();
@@ -1153,7 +1144,7 @@ export default function Home(){
   };
 
   const refreshVoiceDevices=async()=>{
-    try{if(!navigator.mediaDevices?.enumerateDevices)return;const devices=await navigator.mediaDevices.enumerateDevices();setVoiceDevices(devices.filter(d=>d.kind==="audioinput"&&d.deviceId));}catch(error){console.warn("Could not enumerate microphones",error)}};
+    try{if(!navigator.mediaDevices?.enumerateDevices)return;const devices=await navigator.mediaDevices.enumerateDevices();setVoiceDevices(devices.filter(d=>d.kind==="audioinput"&&d.deviceId));}catch(error){console.warn("Could not enumerate microphones",error}};
 
   const onToggleVoice=async()=>{
     if(!voiceRef.current)return;
@@ -1178,9 +1169,9 @@ export default function Home(){
     }
   };
 
-  const onToggleMute=()=>{if(!voiceRef.current?.enabled)return;const muted=voiceRef.current.setMuted(!voiceRef.current.muted);setVoiceMuted(muted)};
-  const onVoiceDeviceChange=async(deviceId)=>{try{setVoiceError("");await voiceRef.current?.setInputDevice(deviceId);setVoiceDevice(deviceId)}catch(error){setVoiceError(error?.message||"Could not change microphone.")}};
-  const onVoiceVolumeChange=e=>{const value=Number(e.target.value);setVoiceVolume(value);voiceRef.current?.setRemoteVolume(value)};
+  const onToggleMute=()=>{if(!voiceRef.current?.enabled)return;const muted=voiceRef.current.setMuted(!voiceRef.current.muted);setVoiceMuted(muted};
+  const onVoiceDeviceChange=async(deviceId)=>{try{setVoiceError("");await voiceRef.current?.setInputDevice(deviceId);setVoiceDevice(deviceId}catch(error){setVoiceError(error?.message||"Could not change microphone."}};
+  const onVoiceVolumeChange=e=>{const value=Number(e.target.value);setVoiceVolume(value);voiceRef.current?.setRemoteVolume(value};
 
   const claimInteraction=async(candidate,action)=>{
     const supabase=await getSupabase();
@@ -1275,7 +1266,7 @@ export default function Home(){
       .catch(e=>{
         console.warn("music catalog unavailable",e);
         setMusicError(e?.message||"Music API request failed.");
-      })},[joined]);
+      }},[joined]);
 
   const onAttack=()=>{
     if(!canAttack(localRef.current))return;
@@ -1300,7 +1291,7 @@ export default function Home(){
         targetX:target?.x??me.x,targetZ:target?.z??me.z
       }
     });
-    setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
+    setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current})}},350);
   };
 
   const onEmote=emote=>{
@@ -1313,12 +1304,12 @@ export default function Home(){
     const p=startEmote(localRef.current,value);
     if(!p)return;
     localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now(}});
     setTimeout(()=>{
       if(localRef.current?.emote===value){
         const clear=finishEmote(localRef.current);
         localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-        channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...clear,netTs:Date.now()}});
+        channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...clear,netTs:Date.now(}});
       }
     },2600);
   };
@@ -1351,7 +1342,7 @@ export default function Home(){
       // TV is a shared social activity: multiple players can watch simultaneously.
       const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:candidate.rotation??0,moving:false,speed:0};
       localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now(}});
       setAction("watch");
       return true;
     }
@@ -1405,25 +1396,25 @@ export default function Home(){
     const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
     const payload=arriveInteraction(localRef.current,candidate);
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now(}});
     setAction(finalAction);
     // Stay seated/asleep until the user explicitly presses Stand up or moves
     // the joystick/keyboard. The old 7s timer was making the interaction state
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} musicStatus={musicStatus} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} voiceState={voiceState} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>{setMusicStatus(error?"PLAYBACK_ERROR":"AVAILABLE");setMusicError(error?"Tap Music to start audio on this device.":"")}}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} musicStatus={musicStatus} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} voiceState={voiceState} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>{setMusicStatus(error?"PLAYBACK_ERROR":"AVAILABLE");setMusicError(error?"Tap Music to start audio on this device.":""}}/>;
 
   return <main className="join">
     <div className="card">
       <div className="logo">🌙</div><h1>GC Hangout Hall</h1>
       <p>One large shared hall built around movement, camera space and multiplayer interaction.</p>
-      <label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18))} placeholder="e.g. Rishi"/></label>
+      <label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18)} placeholder="e.g. Rishi"/></label>
       <div className="label">Choose your human</div>      <div className="avatars">{PRESETS.map((p,i)=>
-        <button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id)} key={p.id}>
+        <button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id} key={p.id}>
           <span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small>
         </button>
-      )}</div>
+      }</div>
       <button className="enter" onClick={join} disabled={!name.trim()||joining}>{joining?"Connecting…":"Enter the hall →"}</button>
       {connectionError&&<div className="joinError" role="alert">{connectionError}</div>}
       <div className="note">Open-plan hall • smooth movement • shared music • multiplayer</div>
