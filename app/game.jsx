@@ -259,13 +259,34 @@ function TV({playing,track}) {
   </group>
 }
 
+function Speaker({playing,x,index}) {
+  const coneRefs=useRef([]);
+  useFrame(({clock})=>{
+    const t=clock.getElapsedTime();
+    const bass=playing?(0.5+0.5*Math.sin(t*(7.5+index*.7))):0;
+    const mid=playing?(0.5+0.5*Math.sin(t*(11+index*.9)+1.4)):0;
+    for(const [j,ref] of coneRefs.current.entries()){
+      if(!ref)continue;
+      const pulse=j===0?bass:mid;
+      const s=1+pulse*.10;
+      ref.scale.set(s,s,1);
+      ref.position.z=.29+pulse*.025;
+    }
+  });
+  return <group position={[x,1.2,-8.65]}>
+    <RoundedBox castShadow args={[.8,2.3,.55]} radius={.08} smoothness={4}>
+      <meshStandardMaterial color="#15171c" roughness={.72}/>
+    </RoundedBox>
+    {[.35,-.45].map((y,j)=>
+      <mesh key={j} ref={node=>{coneRefs.current[j]=node}} position={[0,y,.29]}>
+        <circleGeometry args={[.17-j*.035,24]}/>
+        <meshStandardMaterial color="#252934" emissive={playing?"#6655d0":"#11131a"} emissiveIntensity={playing?1.6:.15}/>
+      </mesh>
+    )}
+  </group>
+}
 function Speakers({playing}) {
-  return <>
-    {[-4.7,4.7].map((x,i)=><group key={i} position={[x,1.2,-8.65]}>
-      <RoundedBox castShadow args={[.8,2.3,.55]} radius={.08} smoothness={4}><meshStandardMaterial color="#15171c" roughness={.72}/></RoundedBox>
-      {[.35,-.45].map((y,j)=><mesh key={j} position={[0,y,.29]}><circleGeometry args={[.17-j*.035,24]}/><meshStandardMaterial color="#252934" emissive={playing?"#6655d0":"#11131a"} emissiveIntensity={playing?1.6:.15}/></mesh>)}
-    </group>)}
-  </>
+  return <>{[-4.7,4.7].map((x,i)=><Speaker key={i} playing={playing} x={x} index={i}/>)}</>;
 }
 function OpenFloorMark() {
   return <group position={[0,.035,0]}>    <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[4.9,5.02,64]}/><meshBasicMaterial color="#4f5364" transparent opacity={.42}/></mesh>
