@@ -209,11 +209,16 @@ function Kitchen() {
 function FloorLamp({x,z}){return <RealFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
 
 function Plant({x,z,s=1}) {
+  const leaves=[
+    [0,.98,0,.95,.18,.42,.2],[.28,1.08,.03,.72,.16,.34,.55],[-.28,1.12,.03,.72,.16,.34,-.55],
+    [.18,1.42,.02,.62,.14,.30,.35],[-.18,1.48,.02,.62,.14,.30,-.35],[0,1.72,.02,.55,.12,.28,0]
+  ];
   return <group position={[x,0,z]} scale={s}>
-    <mesh castShadow position={[0,.3,0]}><cylinderGeometry args={[.3,.38,.6,24]}/><meshStandardMaterial color="#554035" roughness={.9}/></mesh>
-    {[[0,.92,0],[-.3,1.0,.08],[.3,1.05,-.05],[-.18,1.3,0],[.18,1.28,.05]].map((p,i)=>
-      <mesh key={i} castShadow position={p} scale={[1,.75,1]}><sphereGeometry args={[.28,14,10]}/><meshStandardMaterial color={i%2?"#2d7654":"#3c9466"} roughness={1}/></mesh>
-    )}
+    <mesh castShadow position={[0,.38,0]}><cylinderGeometry args={[.34,.42,.76,24]}/><meshStandardMaterial color="#554035" roughness={.92}/></mesh>
+    <mesh castShadow position={[0,.92,0]} rotation={[0,0,.18]}><cylinderGeometry args={[.055,.075,.9,8]}/><meshStandardMaterial color="#5b493b" roughness={1}/></mesh>
+    {leaves.map(([px,py,pz,sx,sy,sz,rz],i)=><mesh key={i} castShadow position={[px,py,pz]} rotation={[.25,rz,.12]} scale={[sx,sy,sz]}>
+      <sphereGeometry args={[.42,16,10]}/><meshStandardMaterial color={i%2?"#2e7b57":"#3d9a69"} roughness={.95}/>
+    </mesh>)}
   </group>
 }
 
@@ -372,9 +377,10 @@ function RealHuman({player,me,liveRef}) {
     if(!actions)return;
     const names=Object.keys(actions);
     const idle=names.find(n=>/idle/i.test(n))||names[0];
-    const walk=names.find(n=>/walk/i.test(n))||idle;
-    const grasp=names.find(n=>/grasp/i.test(n))||idle;
-    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:((player.speed||0)>.08?walk:idle));
+    const walk=names.find(n=>/walk/i.test(n)&&!/run/i.test(n))||names.find(n=>/walk/i.test(n))||idle;
+    const run=names.find(n=>/run|jog|sprint/i.test(n))||walk;
+    const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||idle;
+    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle)));
     if(desired===clipRef.current)return;
     const previous=clipRef.current?actions[clipRef.current]:null;
     if(previous)previous.fadeOut(.16);
@@ -475,7 +481,7 @@ function WorldColliders(){
     </RigidBody>)}
   </>;
 }
-function EcctrlLocalController({posRef,moveRef,onMove,interactionRef,onInteractionArrive}){
+function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onInteractionArrive}){
   const ctrl=useRef(null),lastSend=useRef(0);
   useFrame(({camera},dt)=>{
     const d=Math.min(dt,.05),m=moveRef.current,c=ctrl.current;
@@ -499,7 +505,7 @@ function EcctrlLocalController({posRef,moveRef,onMove,interactionRef,onInteracti
         posRef.current=next;interactionRef.current=null;onMove(next);onInteractionArrive?.(target);
       }
     }else if(!locked){
-      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:m.x,y:-m.z},run:false,jump:false});
+      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:m.x,y:-m.z},run:!!runRef.current,jump:false});
       if(Math.abs(m.x)<0.001&&Math.abs(m.z)<0.001){const lv=c.body.linvel();c.body.setLinvel({x:0,y:lv.y,z:0},true);}
       const q=c.currQuat,pos=c.currPos;
       const yaw=Math.atan2(2*(q.w*q.y+q.x*q.z),1-2*(q.y*q.y+q.z*q.z));
@@ -515,7 +521,7 @@ function EcctrlLocalController({posRef,moveRef,onMove,interactionRef,onInteracti
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
 function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,onTouchInteraction,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
-  const [move,setMove]=useState({x:0,z:0});
+  const [move,setMove]=useState({x:0,z:0});\n  const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
@@ -571,6 +577,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     };
     const up=e=>{
       const k=e.key.toLowerCase();
+      if(k==="shift"){runRef.current=false;return}
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       const next={x:(k==="a"||k==="arrowleft"||k==="d"||k==="arrowright")?0:moveRef.current.x,z:(k==="w"||k==="arrowup"||k==="s"||k==="arrowdown")?0:moveRef.current.z};setMoveImmediate(next);
     };
@@ -643,7 +650,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     >
       <Physics gravity={[0,-9.81,0]}>
         <WorldColliders/>
-        <EcctrlLocalController posRef={posRef} moveRef={moveRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
+        <EcctrlLocalController posRef={posRef} moveRef={moveRef} runRef={runRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
       <ambientLight intensity={.78}/>
@@ -651,8 +658,6 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <directionalLight position={[-8,5,-6]} intensity={.55} color="#9aa9ff"/>
       <Environment preset="warehouse" environmentIntensity={.35}/>
       <Hall musicPlaying={musicPlaying} players={players} snackStates={snackStates}/>
-      <TV playing={musicPlaying}/>
-      <Speakers playing={musicPlaying}/>
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
