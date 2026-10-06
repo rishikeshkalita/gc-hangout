@@ -844,8 +844,16 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <label className="musicUpload" title="Add a custom song">＋ Song<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
-      <button type="button" className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
+      <button type="button" className={voiceEnabled&&!voiceMuted?"active":""} onClick={async()=>{if(!voiceEnabled){await onToggleVoice();setVoiceOpen(true)}else setVoiceOpen(v=>!v)}}>{voiceEnabled?(voiceMuted?"🔇":"🎙️"):"🎤"} {voiceEnabled?(voiceMuted?"Muted":"Voice"):"Voice"}</button>
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
+    {voiceOpen&&voiceEnabled&&(
+      <div className="voicePanel" onPointerDown={e=>e.stopPropagation()}>
+        <div className="voicePanelTitle"><b>🎙️ Voice</b><button type="button" onClick={()=>setVoiceOpen(false)}>×</button></div>
+        <button type="button" className="voiceMute" onClick={onToggleMute}>{voiceMuted?"🎙️ Unmute":"🔇 Mute microphone"}</button>
+        <label className="voiceSetting">Microphone<select value={voiceDevice} onChange={e=>onVoiceDeviceChange(e.target.value)}><option value="">Default microphone</option>{voiceDevices.map((d,i)=><option key={d.deviceId} value={d.deviceId}>{d.label||("Microphone "+(i+1))}</option>)}</select></label>
+        <label className="voiceSetting">Speaker volume<input type="range" min="0" max="1" step=".05" value={voiceVolume} onChange={onVoiceVolumeChange}/></label>
+      </div>
+    )}
     </div>
     {emoteOpen&&(
       <div className="emoteMenu" onPointerDown={e=>e.stopPropagation()}>
@@ -867,7 +875,7 @@ export default function Home(){
   const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
-  const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
+  const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
   const [musicError,setMusicError]=useState("");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
   const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
@@ -1123,11 +1131,15 @@ export default function Home(){
     channelRef.current?.send({type:"broadcast",event:"chat_message",payload:message});
   };
 
+  const refreshVoiceDevices=async()=>{
+    try{if(!navigator.mediaDevices?.enumerateDevices)return;const devices=await navigator.mediaDevices.enumerateDevices();setVoiceDevices(devices.filter(d=>d.kind==="audioinput"&&d.deviceId));}catch(error){console.warn("Could not enumerate microphones",error)}};
+
   const onToggleVoice=async()=>{
     if(!voiceRef.current)return;
     try{
       setVoiceError("");
       await voiceRef.current.setEnabled(!voiceRef.current.enabled);
+      if(voiceRef.current.enabled){await refreshVoiceDevices();setVoiceMuted(!!voiceRef.current.muted);setVoiceVolume(voiceRef.current.remoteVolume??.9);}
       if(channelRef.current&&localRef.current){
         localRef.current={...localRef.current,voiceEnabled:voiceRef.current.enabled};
         setPlayers(prev=>({...prev,[id]:localRef.current}));
@@ -1140,6 +1152,10 @@ export default function Home(){
       setVoiceEnabled(false);
     }
   };
+
+  const onToggleMute=()=>{if(!voiceRef.current?.enabled)return;const muted=voiceRef.current.setMuted(!voiceRef.current.muted);setVoiceMuted(muted)};
+  const onVoiceDeviceChange=async(deviceId)=>{try{setVoiceError("");await voiceRef.current?.setInputDevice(deviceId);setVoiceDevice(deviceId)}catch(error){setVoiceError(error?.message||"Could not change microphone.")}};
+  const onVoiceVolumeChange=e=>{const value=Number(e.target.value);setVoiceVolume(value);voiceRef.current?.setRemoteVolume(value)};
 
   const claimInteraction=async(candidate,action)=>{
     const supabase=await getSupabase();
@@ -1355,7 +1371,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError} onMusicAutoplayBlocked={error=>setMusicError(error?"Tap Music to start audio on this device.":"")}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>setMusicError(error?"Tap Music to start audio on this device.":"")}/>;
 
   return <main className="join">
     <div className="card">
