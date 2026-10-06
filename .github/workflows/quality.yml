@@ -3,7 +3,7 @@ name: GC Hangout Quality
 on:
   pull_request:
   push:
-    branches: [main, gc-quality-hardening, gc-mobile-ux-hardening]
+    branches: [main, gc-quality-hardening, gc-mobile-ux-hardening, qa/strict-bug-fix-2026-10-06]
 
 jobs:
   build:

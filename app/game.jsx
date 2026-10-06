@@ -2,7 +2,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Physics, RigidBody, CuboidCollider, BallCollider } from "@react-three/rapier";
 import { Ecctrl } from "ecctrl";
-import { EcctrlCameraControls } from "ecctrl/camera";
 import React from "react";
 import {
   PerspectiveCamera,
@@ -388,7 +387,8 @@ function RealHuman({player,me,liveRef}) {
   const poseBlend=useRef(0);
   const seated=player.action==="sit";
   const sleeping=player.action==="sleep";
-  const locked=seated||sleeping;
+  const poseLocked=seated||sleeping;
+  const movementLocked=poseLocked||player.action==="emote";
   const targetRot=player.poseRotation??player.rot??0;
   const poseType=player.poseType??(sleeping?"bed":"sofa");
 
@@ -430,15 +430,16 @@ function RealHuman({player,me,liveRef}) {
     const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||idle;
     const hit=names.find(n=>/hit|hurt|shove|pain|reaction/i.test(n))||null;
     const attack=names.find(n=>/punch|jab|kick|attack|fight|combo/i.test(n))||null;
-    const emote=player.emote?names.find(n=>new RegExp(player.emote,"i").test(n)):null;
+    const emoteMatchers={dance:/dance|danc|celebrat|groove|party/i,wave:/wave|greet|hello|salute/i,clap:/clap|applause|cheer/i,laugh:/laugh|joy|happy/i};
+    const emote=player.emote?names.find(n=>(emoteMatchers[player.emote]||new RegExp(player.emote,"i")).test(n)):null;
     emoteClipRef.current=emote||null;
-    const desired=locked?null:(player.hit&&hit?hit:(player.attacking&&attack?attack:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle))))));
+    const desired=poseLocked?null:(player.hit&&hit?hit:(player.attacking&&attack?attack:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle))))));
     if(desired===clipRef.current)return;
     const previous=clipRef.current?actions[clipRef.current]:null;
     if(previous)previous.fadeOut(.16);
     if(desired&&actions[desired]){actions[desired].reset().fadeIn(.16).play();clipRef.current=desired;}
     else clipRef.current=null;
-  },[actions,locked,player.action,player.speed,player.hit,player.attacking,player.emote]);
+  },[actions,poseLocked,player.action,player.speed,player.hit,player.attacking,player.emote]);
 
   useFrame((_,dt)=>{
     if(!root.current)return;
@@ -455,7 +456,7 @@ function RealHuman({player,me,liveRef}) {
     poseBlend.current+=(targetPose-poseBlend.current)*(1-Math.exp(-12*dt));
     const p=poseBlend.current;
 
-    if(locked){
+    if(poseLocked){
       const set=(name,x=0,y=0,z=0)=>{
         const b=bones[name],r=restBones[name];
         if(!b||!r)return;
@@ -495,10 +496,10 @@ function RealHuman({player,me,liveRef}) {
     }
 
     const active=clipRef.current?actions[clipRef.current]:null;
-    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.72,1.32);
+    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.88,1.12);
     else if(active)active.timeScale=1;
 
-    const moving=!locked&&tspeed>.08;
+    const moving=!movementLocked&&tspeed>.08;
     if(moving&&!/walk|run/i.test(clipRef.current||"")){
       const swing=Math.sin(performance.now()/110*Math.min(1.6,Math.max(.8,tspeed/2.1)));
       const setFallback=(name,x=0,y=0,z=0)=>{
@@ -510,7 +511,7 @@ function RealHuman({player,me,liveRef}) {
       setFallback("shinL",-Math.max(0,swing)*.16);setFallback("shinR",Math.max(0,swing)*.16);
       setFallback("upperArmL",-swing*.22);setFallback("upperArmR",swing*.22);
     }
-    if(!locked&&player.emote&&!emoteClipRef.current){
+    if(!poseLocked&&player.emote&&!emoteClipRef.current){
       fallbackEmoteActive.current=true;
       const t=performance.now()/1000;
       const setEmote=(name,x=0,y=0,z=0)=>{
@@ -625,19 +626,6 @@ function WorldColliders(){
     </RigidBody>)}
   </>;
 }
-function FollowCamera({posRef}) {
-  const controls=useRef(null);
-  const initialized=useRef(false);
-  useFrame(()=>{
-    const p=posRef.current;
-    if(!controls.current)return;
-    if(!initialized.current){
-      controls.current.setLookAt(p.x,p.y+2.2,p.z+6.8,p.x,p.y+1,p.z,false);
-      initialized.current=true;
-    }else controls.current.setTarget(p.x,p.y+1,p.z,true);
-  });
-  return <EcctrlCameraControls ref={controls} makeDefault smoothTime={.12} draggingSmoothTime={.12} minDistance={4.2} maxDistance={9.2} minPolarAngle={.55} maxPolarAngle={1.42}/>;
-}
 
 function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onInteractionArrive}){
   const ctrl=useRef(null),lastSend=useRef(0);
@@ -645,13 +633,14 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
     const d=Math.min(dt,.05),m=moveRef.current,c=ctrl.current;
     if(!c)return;
     const p=posRef.current;
-    const locked=p.action==="sit"||p.action==="sleep"||p.action==="watch"||p.action==="moving"||!!interactionRef.current;
+    const locked=p.action==="sit"||p.action==="sleep"||p.action==="watch"||p.action==="moving"||p.action==="emote"||!!interactionRef.current;
     if(interactionRef.current){
       c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0}});
       const target=interactionRef.current,movePosition=target.movePosition||target.approachPosition||target.position;
       const dx=movePosition[0]-p.x,dz=movePosition[2]-p.z,dist=Math.hypot(dx,dz);
       if(dist>.055){
-        const speed=4.6,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
+        c.body.setLinvel({x:0,y:c.body.linvel().y,z:0},true);
+        const speed=4.2,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
         c.body.setTranslation({x:nx,y:1,z:nz},true);
         const next={...p,x:nx,z:nz,rot:target.rotation,moving:true,speed:step/Math.max(d,.001),action:"moving",poseRotation:target.rotation};
         posRef.current=next;
@@ -676,21 +665,46 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.10} decDeltaTime={.075} maxVelLimit={4.6} rejectVelFactor={1.2} />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="domElement" />;
 }
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const musicPlayBlockedRef=useRef(false);
+  useEffect(()=>{
+    const audio=audioRef.current;
+    if(!audio)return;
+    const update=()=>setAudioProgress({current:Number(audio.currentTime)||0,duration:Number(audio.duration)||Number(musicTrack?.duration)||0});
+    update();
+    const timer=setInterval(update,250);
+    audio.addEventListener("timeupdate",update);
+    audio.addEventListener("loadedmetadata",update);
+    return()=>{clearInterval(timer);audio.removeEventListener("timeupdate",update);audio.removeEventListener("loadedmetadata",update)};
+  },[musicTrack?.id]);
   const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
-  const [chatOpen,setChatOpen]=useState(false);
   const [emoteOpen,setEmoteOpen]=useState(false);
+  const [chatNotices,setChatNotices]=useState([]);
+  const chatInitializedRef=useRef(false);
+  const chatSeenRef=useRef(new Set());
+  const [audioProgress,setAudioProgress]=useState({current:0,duration:0});
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
   const lastPropStateRef=useRef({...local});
   const interactionRef=useRef(null);
+  useEffect(()=>{
+    if(!chatInitializedRef.current){
+      for(const m of chatMessages)chatSeenRef.current.add(m.id);
+      chatInitializedRef.current=true;
+      return;
+    }
+    const fresh=chatMessages.filter(m=>!chatSeenRef.current.has(m.id));
+    if(!fresh.length)return;
+    fresh.forEach(m=>chatSeenRef.current.add(m.id));
+    setChatNotices(prev=>[...fresh,...prev].slice(0,4));
+    fresh.forEach(m=>window.setTimeout(()=>setChatNotices(prev=>prev.filter(item=>item.id!==m.id)),4500));
+  },[chatMessages]);
   useEffect(()=>{
     const previous=lastPropStateRef.current;
     const distance=Math.hypot((local?.x??0)-(previous?.x??0),(local?.z??0)-(previous?.z??0));
@@ -728,19 +742,15 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
 
 
   const requestInteraction=(item)=>{
-    // Stand is handled by Room so its authoritative controller state is
-    // cleared at the same time as the UI/local player state. This keeps the
-    // on-screen Stand up prompt/button and joystick behavior in sync.
-    if(item?.type==="stand"){
-      standUp();
-      return;
+    if(item?.type==="stand"){standUp();return;}
+    if(!item)return;
+    runRef.current=false;
+    setMoveImmediate({x:0,z:0});
+    if(item.type==="seat"||item.type==="bed"){
+      if(interactionRef.current||posRef.current.action==="moving"||posRef.current.action==="emote")return;
+      interactionRef.current={...item,phase:"approach",movePosition:item.approachPosition||item.position};
     }
-    if((item?.type==="seat"||item?.type==="bed")&&!interactionRef.current){
-      interactionRef.current={...item,movePosition:item.approachPosition||item.position};
-    }
-    Promise.resolve(onInteract(item)).then(ok=>{
-      if(ok===false)interactionRef.current=null;
-    });
+    Promise.resolve(onInteract(item)).then(ok=>{if(ok===false&&item.type!=="music"&&item.type!=="tv")interactionRef.current=null;});
   };
 
   useEffect(()=>{
@@ -801,7 +811,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       }
     }
     const safe=candidates.find(q=>!blocked(q[0],q[2],.34))||[clamp(p.x,-HALL_HALF_X+.5,HALL_HALF_X-.5),0,clamp(p.z,-HALL_HALF_Z+.5,HALL_HALF_Z-.5)];
-    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null};
+    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null,emote:null};
     interactionRef.current=null;
     posRef.current=clear;
     setCandidate(null);
@@ -849,7 +859,6 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
     >
       <Physics gravity={[0,-9.81,0]}>
-        <FollowCamera posRef={posRef}/>
         <WorldColliders/>
         <EcctrlLocalController posRef={posRef} moveRef={moveRef} runRef={runRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
@@ -872,17 +881,25 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div><div className="cameraHint">🖱 Drag to look • wheel/pinch to zoom • WASD / joystick to move</div>
-    <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onPointerDown={e=>e.stopPropagation()} onClick={()=>setChatOpen(v=>!v)}>💬</button>
-    <div className={`chat${chatOpen?" open":""}`} onPointerDown={e=>e.stopPropagation()}>
-      <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span><button className="chatClose" type="button" onClick={()=>setChatOpen(false)}>×</button></div>
-      <div className="chatList" role="log" aria-live="polite" aria-relevant="additions">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
-      {chatError&&<div className="chatError" role="status">{chatError}</div>}
-      <form className="chatForm" onSubmit={async e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){const sent=await onSendChat?.(input.value);if(sent!==false)input.value=""}}}>
-        <input name="message" maxLength={240} autoComplete="off" placeholder="Message the room…"/>
-        <button type="submit">Send</button>
+    <div className="chatNotices" role="log" aria-live="polite" aria-relevant="additions">
+      {chatNotices.map(m=><div className="chatNotice" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}
+    </div>
+    <div className="chatComposer" onPointerDown={e=>e.stopPropagation()}>
+      <form className="chatForm" onSubmit={async e=>{
+        e.preventDefault();
+        const input=e.currentTarget.elements.namedItem("message");
+        if(input?.value.trim()){
+          const sent=await onSendChat?.(input.value);
+          if(sent!==false){input.value="";input.blur();}
+        }
+      }}>
+        <input name="message" maxLength={240} autoComplete="off" inputMode="text" enterKeyHint="send" aria-label="Chat message" placeholder="Message…"/>
+        <button type="submit" aria-label="Send message">➤</button>
       </form>
+      {chatError&&<div className="chatError" role="status">{chatError}</div>}
     </div>
     {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
+    <div className="musicStatus" aria-live="polite">{musicTrack?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1)}/></>:<span>No song selected</span>}</div>
     <div className="controls" onPointerDown={e=>e.stopPropagation()}>
       <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
       <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
@@ -906,8 +923,19 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
         }
         onToggleMusic?.();
       }} disabled={!musicTracks.length}>🎵 Music</button>
-      {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
-      <label className="musicUpload" title="Add a custom song">🎵＋ Add<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
+      {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={async e=>{
+        const selected=musicTracks.find(t=>t.id===e.target.value);
+        if(selected?.audio&&audioRef.current){
+          try{
+            audioRef.current.src=selected.audio;
+            audioRef.current.load();
+            await audioRef.current.play();
+            onMusicAutoplayBlocked?.(null);
+          }catch(error){onMusicAutoplayBlocked?.(error);}
+        }
+        onSelectMusic?.(e.target.value);
+      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
+      <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
       <button type="button" className={voiceEnabled&&!voiceMuted?"active":""} onClick={async()=>{if(!voiceEnabled){const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}else setVoiceOpen(v=>!v)}}>{voiceEnabled?(voiceMuted?"🔇":"🎙️"):"🎤"} {voiceEnabled?(voiceMuted?"Muted":"Voice"):"Voice"}</button>
@@ -1361,15 +1389,18 @@ export default function Home(){
   };
 
   const onEmote=emote=>{
-    if(!localRef.current||localRef.current.action==="sit"||localRef.current.action==="sleep")return;
+    if(!localRef.current)return;
+    if(localRef.current.action==="sit"||localRef.current.action==="sleep"||localRef.current.action==="emote")return;
     const allowed={dance:"dance",wave:"wave",clap:"clap",laugh:"laugh"};
     const value=allowed[emote]||"dance";
-    const p={...localRef.current,emote:value};
+    runRef.current=false;
+    setMoveImmediate({x:0,z:0});
+    const p={...localRef.current,action:"emote",emote:value,moving:false,speed:0};
     localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
     setTimeout(()=>{
       if(localRef.current?.emote===value){
-        const clear={...localRef.current,emote:null};
+        const clear={...localRef.current,emote:null,action:null,moving:false,speed:0};
         localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
         channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...clear,netTs:Date.now()}});
       }
