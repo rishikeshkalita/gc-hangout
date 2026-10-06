@@ -39,30 +39,30 @@ const FURNITURE={
 const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-6.88],standPosition:[-10+x,0,-6.28],approachPosition:[-10+x,0,-6.28],
-   rotation:0,seatY:-.30
+   position:[-10+x,0,-6.88],standPosition:[-10+x,0,-6.40],approachPosition:[-10+x,0,-6.40],
+   rotation:0,seatY:-.48
  })),
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-s-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-4.02],standPosition:[-10+x,0,-4.62],approachPosition:[-10+x,0,-4.62],
-   rotation:Math.PI,seatY:-.30
+   position:[-10+x,0,-4.02],standPosition:[-10+x,0,-4.92],approachPosition:[-10+x,0,-4.92],
+   rotation:Math.PI,seatY:-.48
  })),
  ...[[-.62],[0],[.62]].map(([z],i)=>({
    id:"sofa-w-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-12.55,0,-5.45+z],standPosition:[-11.95,0,-5.45+z],approachPosition:[-11.95,0,-5.45+z],
-   rotation:-Math.PI/2,seatY:-.30
+   position:[-12.55,0,-5.45+z],standPosition:[-11.70,0,-5.45+z],approachPosition:[-11.70,0,-5.45+z],
+   rotation:-Math.PI/2,seatY:-.48
  })),
  ...[[-.62],[0],[.62]].map(([z],i)=>({
    id:"sofa-e-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-7.45,0,-5.45+z],standPosition:[-8.05,0,-5.45+z],approachPosition:[-8.05,0,-5.45+z],
-   rotation:Math.PI/2,seatY:-.30
+   position:[-7.45,0,-5.45+z],standPosition:[-8.30,0,-5.45+z],approachPosition:[-8.30,0,-5.45+z],
+   rotation:Math.PI/2,seatY:-.48
  })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.82:1.82)],
    standPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
    approachPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
-   rotation:side<0?0:Math.PI,seatY:-.30
+   rotation:side<0?0:Math.PI,seatY:-.48
  }))
 ];
 const BEDS=[
@@ -541,7 +541,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const timer=setInterval(()=>{
       const p=posRef.current;
       if(p.action&&p.interactionId){setCandidate({id:p.interactionId,label:"Stand up",type:"stand",position:[p.x,0,p.z],rotation:p.poseRotation||p.rot});return}
-      let best=null,dist=2.15;
+      let best=null,dist=2.35;
       const list=[...INTERACTABLES,...SNACKS];
       for(const item of list){
         if(item.type==="bed"&&!item.position)continue;
