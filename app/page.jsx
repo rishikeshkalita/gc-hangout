@@ -723,8 +723,12 @@ export default function Home(){
 
   useEffect(()=>{
     if(!joined)return;
-    const supabase=getSupabase();
-    if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
+    let disposed=false;
+    let cleanup=()=>{};
+    (async()=>{
+      const supabase=await getSupabase();
+      if(disposed)return;
+if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
     const channel=supabase.channel("gc-hangout-main",{config:{broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
     const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
@@ -814,15 +818,15 @@ export default function Home(){
         setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
       }
     });
-    return()=>{
+    cleanup=()=>{
       const active=localRef.current?.interactionId;
       if(active)supabase.rpc("gc_release_interaction",{p_object_id:active,p_holder_id:id}).catch(()=>{});
       voiceRef.current?.destroy();voiceRef.current=null;
       channel.unsubscribe();channelRef.current=null;
     };
-  },[joined,id,avatarId]);
-
-  const onMove=p=>{
+    })();
+    return()=>{disposed=true;cleanup()};
+  },[joined,id,avatarId]); const onMove=p=>{
     localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
   };
