@@ -1140,6 +1140,7 @@ export default function Home(){
       setVoiceError("");
       await voiceRef.current.setEnabled(!voiceRef.current.enabled);
       if(voiceRef.current.enabled){await refreshVoiceDevices();setVoiceMuted(!!voiceRef.current.muted);setVoiceVolume(voiceRef.current.remoteVolume??.9);}
+      if(!voiceRef.current.enabled){setVoiceOpen(false);setVoiceMuted(false);}
       if(channelRef.current&&localRef.current){
         localRef.current={...localRef.current,voiceEnabled:voiceRef.current.enabled};
         setPlayers(prev=>({...prev,[id]:localRef.current}));
