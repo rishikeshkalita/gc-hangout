@@ -70,15 +70,16 @@ test("nearest interaction anchor is deterministic", async () => {
 test("interaction lifecycle is explicit and deterministic", () => {
   const anchor = createInteractionAnchor({ id: "seat", type: "SIT", x: 1, z: 2, rot: 0 });
   const reserved = createInteractionState(anchor, "player-1");
-  expect(reserved.phase).toBe("reserve");
-  expect(advanceInteraction(reserved, "align").phase).toBe("align");
-  expect(advanceInteraction(reserved, "sync").status).toBe("active");
-  expect(advanceInteraction(reserved, "release").status).toBe("released");
+  assert.equal(reserved.phase, "reserve");
+  assert.equal(advanceInteraction(reserved, "align").phase, "align");
+  assert.equal(advanceInteraction(reserved, "sync").status, "active");
+  assert.equal(advanceInteraction(reserved, "release").status, "released");
 });
 
 
 test("interaction anchors include DRINK and generic INTERACT types", () => {
-  assert.ok(INTERACTION_TYPES.includes("DRINK"));\n  assert.ok(INTERACTION_TYPES.includes("INTERACT"));
-  expect(createInteractionAnchor({ id: "drink", type: "DRINK", x: 1, z: 2, rot: 0 }).type).toBe("DRINK");
-  expect(createInteractionAnchor({ id: "generic", type: "INTERACT", x: 2, z: 3, rot: 0 }).type).toBe("INTERACT");
+  assert.ok(INTERACTION_TYPES.includes("DRINK"));
+  assert.ok(INTERACTION_TYPES.includes("INTERACT"));
+  assert.equal(createInteractionAnchor({ id: "drink", type: "DRINK", x: 1, z: 2, rot: 0 }).type, "DRINK");
+  assert.equal(createInteractionAnchor({ id: "generic", type: "INTERACT", x: 2, z: 3, rot: 0 }).type, "INTERACT");
 });
