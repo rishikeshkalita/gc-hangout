@@ -38,3 +38,25 @@ test("room position clamps to the playable boundary", () => {
   assert.deepEqual(clampRoomPosition({ x: 99, z: -99 }), { x: 14.66, z: -9.66 });
   assert.deepEqual(clampRoomPosition({ x: 2, z: 3 }), { x: 2, z: 3 });
 });
+
+
+test("interaction anchors accept only supported shared interaction types", async () => {
+  const { createInteractionAnchor, INTERACTION_TYPES } = await import("../lib/game-state.mjs");
+  assert.ok(INTERACTION_TYPES.includes("SIT"));
+  assert.deepEqual(createInteractionAnchor({ id: "sofa-1", type: "SIT", x: 2, z: 3, rot: 1.5 }), {
+    id: "sofa-1", type: "SIT", x: 2, z: 3, rot: 1.5, radius: 1,
+  });
+  assert.equal(createInteractionAnchor({ id: "bad", type: "DANCE" }), null);
+});
+
+test("nearest interaction anchor is deterministic", async () => {
+  const { findNearestInteractionAnchor } = await import("../lib/game-state.mjs");
+  const anchor = findNearestInteractionAnchor(
+    { x: 1.2, z: 1.1 },
+    [
+      { id: "far", type: "SIT", x: 3, z: 3, radius: 2 },
+      { id: "near", type: "SIT", x: 1, z: 1, radius: 2 },
+    ],
+  );
+  assert.equal(anchor.id, "near");
+});
