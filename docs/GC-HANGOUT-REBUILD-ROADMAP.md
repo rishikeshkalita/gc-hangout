@@ -728,21 +728,30 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | `0160d87a9dcfce728f58dc7a7059bd39b9232f49` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
+| 2 | World + player + camera + interaction foundation | `057f4f23c2877b37f77c3977243b14ea939bf2ca` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
 | 6 | Mobile UX + performance + full QA | TBD | TBD | TBD | 0 | NOT STARTED |
 | 7 | Release + iPhone acceptance | TBD | TBD | TBD | 0 / 1 | NOT STARTED |
 
+### Wave 2 runtime regression correction
+
+- **Observed on real device:** iOS Safari deployment displayed React error #306.
+- **Root cause:** the deployed Wave 2 `app/game.jsx` ended after `LocalPlayer`; `Game`, `Room`, and furniture/rendering code had been unintentionally removed. `next/dynamic()` consequently resolved to a module namespace rather than a valid React component.
+- **Correction:** restored the complete last-known-good game source and reapplied Wave 2 changes explicitly.
+- **Correction commit:** `057f4f23c2877b37f77c3977243b14ea939bf2ca`.
+- **Automated verification:** GitHub Actions run `37499910608` PASS.
+- **Browser verification:** still requires a fresh deployment and real-device reload.
+
 ### Wave 2 completion record
 
-- **Commit:** `0160d87a9dcfce728f58dc7a7059bd39b9232f49`.
+- **Commit:** `057f4f23c2877b37f77c3977243b14ea939bf2ca`.
 - **What changed:** completed the world/interaction foundation with explicit DRINK and INTERACT anchors, deterministic lifecycle state, local reserve/stop/align/animate/sync/release flow, interaction poses, bounded camera zoom/boundaries, responsive touch joystick movement, mobile-safe controls, and non-blocking procedural room assets.
 - **Tests:** GitHub Actions run `37497866574`: `npm test` PASS; `npm run build` PASS; dependency audit PASS.
 - **Browser result:** NOT AVAILABLE from the current local tool environment.
 - **Deployment count:** 0.
-- **Known failures:** none in the final automated run. Earlier Wave 2 checkpoints failed due to test-fixture/import mistakes and were corrected before the final green run.
+- **Known failures:** a Wave 2 runtime regression was discovered on the deployed Vercel build: `app/game.jsx` had been truncated before its `Game` default export, causing React error #306 (`dynamic()` received a module namespace instead of a component). The complete game component was restored and Wave 2 changes reapplied explicitly in commit `057f4f23c2877b37f77c3977243b14ea939bf2ca`. GitHub Actions then passed.
 - **What is actually verified:** the final Wave 2 commit is on `main`; automated tests, production build, and dependency audit pass.
 - **Next wave:** Wave 3 — all core interactions.
 
