@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
+import { Physics, RigidBody, CuboidCollider, BallCollider } from "@react-three/rapier";
 import { Ecctrl } from "ecctrl";
 import React from "react";
 import {
@@ -527,15 +527,9 @@ function Football({players,localId,ballState,onBallState}) {
   });
   const start=ballState||{x:2,y:.35,z:0};
   return <RigidBody ref={body} type="dynamic" colliders="ball" mass={.45} restitution={.68} friction={.55} linearDamping={.22} angularDamping={.12} position={[start.x,start.y,start.z]}>
-    <ballCollider/>
+    <BallCollider args={[.205]} />
     <primitive object={scene} scale={1.85}/>
   </RigidBody>;
-}
-function ballCollider(){
-  return <ballColliderImpl />;
-}
-function ballColliderImpl(){
-  return <sphereCollider args={[.205]} />;
 }
 
 function WorldColliders(){
@@ -805,7 +799,8 @@ export default function Home(){
   const attackCooldownRef=useRef(0);
   const chatMessagesRef=useRef([]);
   const playersRef=useRef({});
-  ballStateRef.current=ballState;\n  musicRef.current=musicPlaying;musicTrackRef.current=musicTrack;musicStartedAtRef.current=musicStartedAt;musicPositionRef.current=musicPosition;
+  ballStateRef.current=ballState;
+  musicRef.current=musicPlaying;musicTrackRef.current=musicTrack;musicStartedAtRef.current=musicStartedAt;musicPositionRef.current=musicPosition;
   chatMessagesRef.current=chatMessages;
   playersRef.current=players;
   const locksRef=useRef({}),snackStatesRef=useRef({});
