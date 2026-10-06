@@ -3,7 +3,7 @@ name: GC Hangout Quality
 on:
   pull_request:
   push:
-    branches: [main, gc-quality-hardening, gc-mobile-ux-hardening, qa/strict-bug-fix-2026-10-06]
+    branches: [main, gc-quality-hardening, gc-mobile-ux-hardening, qa/strict-bug-fix-2026-10-06, runtime-recovery-2026-10-06]
 
 jobs:
   build:
@@ -17,4 +17,5 @@ jobs:
       - run: npm install
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high || true
+      - run: npm test
       - run: npm run build

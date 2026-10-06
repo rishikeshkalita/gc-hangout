@@ -101,7 +101,7 @@ input,textarea{ -webkit-user-select:text; user-select:text }
 @keyframes chatNoticeOut{to{opacity:0;transform:translateY(-4px)}}
 @media(max-width:700px){
   .chatNotices{top:108px;width:min(330px,calc(100vw - 20px));left:50%}
-  .chatComposer{top:58px;right:10px;width:min(180px,calc(100vw - 20px))}
+  .chatComposer{top:58px;right:10px;width:min(150px,calc(100vw - 20px))}
   .chatForm{padding:3px;border-radius:12px}
   .chatForm input{height:38px;line-height:38px!important;font-size:16px!important}
   .chatForm button{width:38px;height:38px;min-height:38px}
@@ -112,3 +112,10 @@ input,textarea{ -webkit-user-select:text; user-select:text }
   .chatNotices{top:92px}.chatComposer{top:48px}
   .musicStatus{bottom:60px}
 }
+
+.controls button.voiceState{font-size:11px;min-width:110px;width:auto;padding:0 10px;line-height:1.1;font-weight:700;letter-spacing:.01em}
+.controls button.voiceState.muted{background:#4a2630;color:#fff}
+@media (max-width:720px){.controls button.voiceState{font-size:10px;min-width:104px;width:104px;padding:0 7px}}
+
+.controls button.voiceState.error{background:#4b2229;color:#ffd8df}
+.controls button.voiceState.disconnected{background:#3b3130;color:#ffe1c2}
