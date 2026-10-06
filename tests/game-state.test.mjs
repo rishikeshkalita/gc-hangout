@@ -60,3 +60,13 @@ test("nearest interaction anchor is deterministic", async () => {
   );
   assert.equal(anchor.id, "near");
 });
+
+
+test("interaction lifecycle is explicit and deterministic", () => {
+  const anchor = createInteractionAnchor("seat", "SIT", 1, 2, 0);
+  const reserved = createInteractionState(anchor, "player-1");
+  expect(reserved.phase).toBe("reserve");
+  expect(advanceInteraction(reserved, "align").phase).toBe("align");
+  expect(advanceInteraction(reserved, "sync").status).toBe("active");
+  expect(advanceInteraction(reserved, "release").status).toBe("released");
+});
