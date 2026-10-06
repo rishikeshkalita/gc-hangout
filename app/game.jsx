@@ -203,7 +203,7 @@ function Kitchen() {
   </group>
 }
 
-function FloorLamp({x,z}){return <RealFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
+function FloorLamp({x,z}){return <SafeFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
 
 function Plant({x,z,s=1}) {
   const leaves=[
@@ -889,7 +889,7 @@ export default function Home(){
     let reconnectTimer=null;
     let reconnecting=false;
     const subscribe=()=>{
-      channel.subscribe(async(status,err)=>{
+      channel.subscribe(async(status,err)=>{\n        try{
         if(status==="SUBSCRIBED"&&localRef.current){
           reconnecting=false;
           if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
@@ -915,8 +915,7 @@ export default function Home(){
             subscribe();
           },1500);
         }
-      });
-    };
+        } catch(e) {\n          if(!disposed){\n            console.error("Realtime callback failed",e);\n            setConnectionError(e?.message||"Realtime connection failed. Reconnecting…");\n          }\n        }\n      });\n    };
     subscribe();
     cleanup=()=>{
       const active=localRef.current?.interactionId;
