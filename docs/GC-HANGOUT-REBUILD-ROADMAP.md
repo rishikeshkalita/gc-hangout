@@ -772,6 +772,18 @@ Examples:
 - [ ] Re-entry: after exiting one interaction, immediately enter a different furniture interaction and then exit again.
 - [ ] Boundary recovery: walk from each furniture zone back into the central floor; no invisible movement lock or snapping.
 
+### Latest Wave 2 interaction-state correction — 2026-10-07
+
+- **User evidence reviewed:** six fresh iPhone Safari screenshots from the correction deployment.
+- **Findings:** avatar no longer rotated during touch movement; sofa exit could strand the player between the sofa and coffee table; Eat showed only a hand-held food prop; dining Sit/Eat discovery still collided; Sleep made the avatar visually disappear on the bed.
+- **Correction PR:** #10 — fix/wave2-interaction-state-20261007.
+- **Merged implementation commit:** `5729eb2298da1a515699a0db037937f4ddac3c4e`.
+- **Changes:** movement-facing rotation restored while keeping joystick input camera-relative; sofa exits moved to clear floor; interaction discovery is now type-aware with separate actionable buttons for concurrent Sit/Eat/Drink/etc. candidates; dining Sit radii tightened and Eat zone expanded; Eat gesture/prop refined; Sleep avatar vertical placement corrected so the lying avatar remains visible; post-exit facing made deterministic.
+- **Automated verification:** GitHub Actions run `37518009063` completed PASS for dependency audit, `npm test`, and `npm run build`.
+- **Browser result:** **NOT VERIFIED** for this correction. Fresh iPhone testing is still required.
+- **Deployment:** no new Vercel deployment attempted; quota remains exhausted.
+- **Current gate:** Wave 2 remains **NOT VERIFIED** until the corrected deployment passes the sofa-exit, multi-action dining, Eat, Sleep, and joystick regression matrix.
+
 ### Latest Wave 2 iPhone screenshot regression — 2026-10-07
 
 - **User evidence reviewed:** six fresh iPhone Safari screenshots covering sofa seating, dining seating/eating/drinking, bed, TV, graffiti, and mobile movement.
