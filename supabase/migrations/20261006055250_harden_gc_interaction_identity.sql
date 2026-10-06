@@ -77,16 +77,3 @@ grant execute on function public.gc_claim_interaction(text,text,text,integer) to
 grant execute on function public.gc_release_interaction(text,text) to authenticated;
 grant execute on function public.gc_touch_interaction(text,text,integer) to authenticated;
 revoke all on table public.gc_room_interactions from anon,authenticated;
-
-drop policy if exists "gc hangout realtime read" on realtime.messages;
-drop policy if exists "gc hangout realtime write" on realtime.messages;
-
-create policy "gc hangout realtime read"
-on realtime.messages
-for select to authenticated
-using (realtime.topic()='gc-hangout-main' and extension in ('broadcast','presence'));
-
-create policy "gc hangout realtime write"
-on realtime.messages
-for insert to authenticated
-with check (realtime.topic()='gc-hangout-main' and extension in ('broadcast','presence'));
