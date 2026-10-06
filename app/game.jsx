@@ -16,7 +16,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ensureAnonymousSession, getSupabase } from "../lib/supabase";
 import { VoiceMesh } from "../lib/voice";
-import { applyPlayerState, arriveInteraction, beginInteraction, classifyMusicResponse, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, upsertPlayer, VOICE_STATES } from "../lib/game-state.mjs";
+import { applyPlayerState, arriveInteraction, beginInteraction, classifyMusicResponse, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, VOICE_STATES } from "../lib/game-state.mjs";
 
 const PRESETS = [
   {id:"maya",label:"Maya"}, {id:"noah",label:"Noah"}, {id:"riya",label:"Riya"},
