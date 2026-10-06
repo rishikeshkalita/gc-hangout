@@ -30,7 +30,7 @@ test("player join/leave/reconnect are idempotent", () => {
 test("stale movement state cannot overwrite newer player state", () => {
   const current = {id:"p1", x:5, netTs:200};
   const stale = {id:"p1", x:1, netTs:100};
-  assert.equal(applyPlayerState({p1:current}, stale), {p1:current});
+  assert.deepEqual(applyPlayerState({p1:current}, stale), {p1:current});
 });
 
 test("seat interaction blocks conflicting local states", () => {
