@@ -6,6 +6,11 @@ import {
   createLocalPlayer,
   isMoving,
   updatePlayer,
+  INTERACTION_TYPES,
+  createInteractionAnchor,
+  findNearestInteractionAnchor,
+  createInteractionState,
+  advanceInteraction,
 } from "../lib/game-state.mjs";
 
 test("local player is created immediately as a human-avatar identity", () => {
@@ -73,7 +78,7 @@ test("interaction lifecycle is explicit and deterministic", () => {
 
 
 test("interaction anchors include DRINK and generic INTERACT types", () => {
-  expect(INTERACTION_TYPES).toEqual(expect.arrayContaining(["DRINK", "INTERACT"]));
+  assert.ok(INTERACTION_TYPES.includes("DRINK"));\n  assert.ok(INTERACTION_TYPES.includes("INTERACT"));
   expect(createInteractionAnchor("drink", "DRINK", 1, 2, 0).type).toBe("DRINK");
   expect(createInteractionAnchor("generic", "INTERACT", 2, 3, 0).type).toBe("INTERACT");
 });
