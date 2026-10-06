@@ -138,8 +138,8 @@ const OBSTACLES=[
   {x:9.5,z:-6.7,rx:2.6,rz:1.15,vault:true,name:"rest"},
   {x:10.3,z:5.9,rx:1.25,rz:1.0,vault:true,name:"dining"},
   {x:13.15,z:1.0,rx:1.0,rz:3.0,vault:false,name:"kitchen"},
-  {x:-12.8,z:4.9,rx:1.3,rz:1.5,vault:true,name:"social"},
-  {x:0,z:7.9,rx:4.5,rz:.65,vault:false,name:"backDecor"}
+  // Plants and perimeter signage are decorative; keep them non-blocking so there are no invisible walls.
+
 ];
 
 const blocked=(x,z,r=PLAYER_RADIUS)=>{
