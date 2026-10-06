@@ -525,7 +525,8 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
 }
 function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
   const [move,setMove]=useState({x:0,z:0});
-  const audioRef=useRef(null);\n  const runRef=useRef(false);
+  const audioRef=useRef(null);
+  const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
@@ -754,7 +755,8 @@ export default function Home(){
       if(!payload?.id||!payload?.text)return;
       setChatMessages(prev=>prev.some(m=>m.id===payload.id)?prev:[...prev,payload].slice(-80));
     });
-    channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}})});\n    channel.on("broadcast",{event:"request_chat"},()=>{
+    channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}})});
+    channel.on("broadcast",{event:"request_chat"},()=>{
       if(chatMessagesRef.current.length)channel.send({type:"broadcast",event:"chat_history",payload:{messages:chatMessagesRef.current}});
     });
     channel.on("broadcast",{event:"chat_history"},({payload})=>{
