@@ -409,53 +409,69 @@ function DigitalSignage() {
 function LocalHuman({player,me,liveRef}) {
   const ref=useRef();
   const phase=useRef(Math.random()*Math.PI*2);
+  const walkWeight=useRef(0);
   useFrame((_,dt)=>{
     if(!ref.current)return;
     const live=liveRef?.current||player;
-    const seated=player.action==="sit";
-    const sleeping=player.action==="sleep";
-    const emote=player.emote||null;
+    const action=live.action??player.action;
+    const seated=action==="sit";
+    const sleeping=action==="sleep";
+    const emote=live.emote??player.emote??null;
     const tx=live.x??player.x??0,tz=live.z??player.z??0,rot=live.rot??player.rot??0;
-    const targetY=seated?(player.seatY??-.34):(sleeping?.02:0);
+    const targetY=seated?(live.seatY??player.seatY??-.34):(sleeping?.02:0);
     const a=1-Math.exp(-18*dt);
     ref.current.position.x+=(tx-ref.current.position.x)*a;
     ref.current.position.z+=(tz-ref.current.position.z)*a;
     ref.current.position.y+=(targetY-ref.current.position.y)*a;
     ref.current.rotation.y+=Math.atan2(Math.sin(rot-ref.current.rotation.y),Math.cos(rot-ref.current.rotation.y))*a;
 
-    const t=performance.now()/1000+phase.current;
-    const moving=!seated&&!sleeping&&!emote&&(live.speed??player.speed??0)>.08;
+    const speed=Math.max(0,Number(live.speed??player.speed??0));
+    const moving=!seated&&!sleeping&&!emote&&speed>.08;
+    const walkRatio=clamp(speed/2.55,0,1);
+    const runRatio=clamp((speed-2.9)/1.7,0,1);
+    const targetWalkWeight=moving?Math.max(.12,walkRatio):0;
+    walkWeight.current+=(targetWalkWeight-walkWeight.current)*(1-Math.exp(-10*dt));
+    if(moving){
+      const cadence=7.0+runRatio*2.4;
+      phase.current+=dt*cadence*(.72+.28*walkRatio);
+    }
+    const t=phase.current;
+    const walkBlend=walkWeight.current;
     let leftLeg=0,rightLeg=0,leftArm=0,rightArm=0,torso=0;
     if(sleeping){
       leftLeg=rightLeg=-.18;
       torso=-1.12;
       leftArm=rightArm=-.22;
     }else if(seated){
-      const chair=player.poseType==="chair";
+      const chair=live.poseType??player.poseType==="chair";
       leftLeg=rightLeg=chair?-1.38:-1.58;
       torso=chair?.015:.035;
       leftArm=rightArm=-.07;
     }else if(emote){
       if(emote==="wave"){
-        rightArm=-1.0+Math.sin(t*9)*.35;
+        rightArm=-1.0+Math.sin(performance.now()/1000*9)*.35;
       }else if(emote==="clap"){
-        leftArm=-1.0+Math.sin(t*8)*.18;
-        rightArm=-1.0-Math.sin(t*8)*.18;
+        const clapT=performance.now()/1000;
+        leftArm=-1.0+Math.sin(clapT*8)*.18;
+        rightArm=-1.0-Math.sin(clapT*8)*.18;
       }else if(emote==="laugh"){
-        torso=Math.sin(t*7)*.08;
+        const laughT=performance.now()/1000;
+        torso=Math.sin(laughT*7)*.08;
         leftArm=-1.05;
         rightArm=-1.05;
       }else{
-        torso=Math.sin(t*4)*.12;
-        leftArm=-.45+Math.sin(t*5)*.28;
-        rightArm=-.45-Math.sin(t*5)*.28;
+        const danceT=performance.now()/1000;
+        torso=Math.sin(danceT*4)*.12;
+        leftArm=-.45+Math.sin(danceT*5)*.28;
+        rightArm=-.45-Math.sin(danceT*5)*.28;
       }
-    }else if(moving){
-      const swing=Math.sin(t*8)*.55;
+    }else{
+      const swing=Math.sin(t)*.55*walkBlend;
       leftLeg=swing;
       rightLeg=-swing;
       leftArm=-swing*.58;
       rightArm=swing*.58;
+      torso=Math.sin(t*2)*.035*walkBlend;
     }
 
     if(ref.current.userData){
@@ -596,7 +612,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="document" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camMoveSpeed={1.8} camZoomSpeed={1} camListenerTarget="domElement" />;
 }
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,voiceState,musicStatus,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
