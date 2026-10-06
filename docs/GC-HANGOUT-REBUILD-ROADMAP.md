@@ -821,6 +821,18 @@ Examples:
 - **Known failures:** none in automated checks; browser/runtime visual behavior remains unverified.
 - **What is actually verified:** repository changes are present on `main`; automated tests and production build pass.
 - **Next wave:** Wave 2 — world + player + camera + interaction foundation.
+### Latest Wave 2 iPhone recording regression — 2026-10-07
+
+- **User evidence reviewed:** full 85-second iPhone Safari screen recording, plus frame-by-frame inspection.
+- **Confirmed failures:** avatar did not rotate at all during touch movement; sofa Sit was not available reliably across the sofa; sofa exit could trap the avatar between furniture; the two sofas faced the same direction and were too close together; movement through the sofa/coffee-table area was blocked; Eat/Drink presentation remained incomplete; bed Sleep still made the avatar disappear; walking speed remained too slow; joystick direction still felt unreliable; room lighting/visual density remained weak.
+- **Root causes found in source:** touch movement explicitly skipped updating current.rot; both sofas were instantiated with the same rotation and only ~2.7 world units apart; sofa interaction anchors were based on the old layout; collision blockers represented the old sofa arrangement and omitted the coffee table; Sleep rotated the entire avatar around the floor-origin root instead of a dedicated visual pivot.
+- **Correction commit:** d519c253ba7d40645d224d4a12f472131a35b86c on fix/wave2-final-interaction-pass-20261007.
+- **Changes:** rebuilt the lounge as two opposing sofas with a substantially wider central gap; moved the coffee table to the middle with explicit collision; remapped all six sofa seat anchors to the new geometry; moved sofa exits into open routes; restored touch-driven avatar facing from the computed movement vector; raised mobile movement speed to 5.2; separated the Sleep visual pose from the player/world transform so lying down cannot rotate the player root out of the visible space; kept Eat on its own table-edge trigger separate from dining-chair Sit.
+- **Automated verification:** no new GitHub Actions workflow run was returned yet for this branch commit.
+- **Browser result:** **NOT VERIFIED**. This correction has not been deployed to a fresh iPhone build.
+- **Deployment:** 0 new deployments attempted; Vercel daily deployment quota remains exhausted.
+- **Current gate:** **NOT VERIFIED**. Do not merge this correction to main and do not start Wave 3 until the fresh build passes the complete interaction/movement regression matrix.
+- **Required device checks:** verify both sofas face each other; verify a person can walk through the central sofa gap and around the coffee table; test every sofa seat; test all six dining chairs; test dedicated Eat/Drink; test Sleep visibility and exit; test joystick in all four directions after rotating the camera; verify avatar turns toward movement; verify faster walking speed.
 ### Wave update format
 
 For every wave, record:
