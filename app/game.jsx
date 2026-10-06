@@ -14,6 +14,33 @@ const AVATARS = [
 ];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const INTERACTION_ANCHORS = Object.freeze([
+  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -12.0, z: -6.2, rot: Math.PI / 2, radius: 1.35 },
+  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -7.6, z: -6.2, rot: -Math.PI / 2, radius: 1.35 },
+  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -12.0, z: -3.5, rot: Math.PI / 2, radius: 1.35 },
+  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -7.6, z: -3.5, rot: -Math.PI / 2, radius: 1.35 },
+  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, radius: 1.15 },
+  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, radius: 1.15 },
+  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, radius: 1.15 },
+  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, radius: 1.15 },
+  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, radius: 1.65 },
+  { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, radius: 2.2 },
+  { id: "food-table", type: "EAT", label: "Food", x: 8.0, z: 5.8, rot: Math.PI, radius: 2.6 },
+]);
+
+function findNearestAnchor(x, z) {
+  let nearest = null;
+  let distance = Infinity;
+  for (const anchor of INTERACTION_ANCHORS) {
+    const next = Math.hypot(x - anchor.x, z - anchor.z);
+    if (next < anchor.radius && next < distance) {
+      nearest = anchor;
+      distance = next;
+    }
+  }
+  return nearest;
+}
+
 const OBSTACLES = [
   { x: -9.8, z: -6.2, rx: 2.8, rz: 1.0 },
   { x: -9.8, z: -3.5, rx: 2.8, rz: 1.0 },
@@ -100,7 +127,7 @@ function HumanAvatar({ avatar, moving, local }) {
   );
 }
 
-function LocalPlayer({ state, onMove }) {
+function LocalPlayer({ state, onMove, onNearby }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const drag = useRef(null);
@@ -165,6 +192,7 @@ function LocalPlayer({ state, onMove }) {
       next = { ...state, moving: false, speed: 0 };
     }
     if (next !== state) onMove(next);
+    onNearby(findNearestAnchor(next.x, next.z));
 
     const cameraDistance = 5.8;
     const desired = cameraTarget.current.set(
@@ -303,7 +331,7 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove }) {
+function Room({ player, onMove, onNearby }) {
   return (
     <>
       <ambientLight intensity={1.15} />
@@ -330,7 +358,7 @@ function Room({ player, onMove }) {
         OPEN SOCIAL FLOOR
       </Text>
 
-      <LocalPlayer state={player} onMove={onMove} />
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} />
     </>
   );
 }
@@ -349,6 +377,7 @@ export default function Game() {
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [nearby, setNearby] = useState(null);
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
   useEffect(() => {
@@ -358,12 +387,13 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 3, 7], fov: 58, near: 0.1, far: 60 }}>
-        <Room player={player} onMove={setPlayer} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} />
       </Canvas>
       <div className="hud">
         <div className="hud-title">GC HANGOUT</div>
         <div className="hud-subtitle">Shared home foundation</div>
-        <div className="hud-controls"><span>WASD / arrows</span><span>Drag to look</span><span>Shift: run</span></div>
+        <div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div>
+      {nearby && <div className="interaction-hint"><strong>{nearby.label}</strong><span>{nearby.type === "SLEEP" ? "Bed area" : nearby.type === "WATCH_TV" ? "TV area" : "Interaction anchor"}</span></div>}
       </div>
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
