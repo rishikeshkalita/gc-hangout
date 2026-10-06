@@ -526,7 +526,7 @@ function Football({players,localId,ballState,onBallState}) {
     }
   });
   const start=ballState||{x:2,y:.35,z:0};
-  return <RigidBody ref={body} type="dynamic" colliders="ball" mass={.45} restitution={.68} friction={.55} linearDamping={.22} angularDamping={.12} position={[start.x,start.y,start.z]}>
+  return <RigidBody ref={body} type="dynamic" colliders={false} mass={.45} restitution={.68} friction={.55} linearDamping={.22} angularDamping={.12} position={[start.x,start.y,start.z]}>
     <BallCollider args={[.205]} />
     <primitive object={scene} scale={1.85}/>
   </RigidBody>;
@@ -848,7 +848,7 @@ export default function Home(){
         await supabase.realtime.setAuth(session.access_token);
       const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
-    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});\n    const sendBall=s=>channel.send({type:"broadcast",event:"ball_state",payload:s});
+    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
     const reconcilePresence=()=>{
       const state=channel.presenceState();
       const online=new Set(Object.keys(state));
@@ -876,7 +876,9 @@ export default function Home(){
     channel.on("presence",{event:"sync"},reconcilePresence);
     channel.on("presence",{event:"join"},reconcilePresence);
     channel.on("presence",{event:"leave"},reconcilePresence);
-    channel.on("broadcast",{event:"ball_state"},({payload})=>{if(payload?.ts)setBallState(payload);});\n    channel.on("broadcast",{event:"player_state"},({payload})=>{
+    channel.on("broadcast",{event:"ball_state"},({payload})=>{if(payload?.ts)setBallState(payload);});
+    channel.on("broadcast",{event:"request_ball_state"},()=>{const ids=Object.keys(playersRef.current).filter(Boolean).sort();if(ids[0]===id)channel.send({type:"broadcast",event:"ball_state",payload:ballStateRef.current});});
+    channel.on("broadcast",{event:"player_state"},({payload})=>{
       if(!payload?.id)return;
       setPlayers(prev=>{
         const current=prev[payload.id];
@@ -968,7 +970,8 @@ export default function Home(){
           setPlayers(prev=>({...prev,[id]:localRef.current}));
           await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
           send(localRef.current);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);\n          setTimeout(()=>channel.send({type:"broadcast",event:"ball_state",payload:ballStateRef.current}),300);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
+          setTimeout(()=>channel.send({type:"broadcast",event:"request_ball_state",payload:{id}}),300);
           setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
           setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
           setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
@@ -1012,7 +1015,9 @@ export default function Home(){
     return()=>{disposed=true;cleanup()};
   },[joined,id,avatarId]);
   const combatPositionRef=useRef({ts:0});
-  const onBallState=s=>{ballStateRef.current=s;setBallState(s);channelRef.current?.send({type:"broadcast",event:"ball_state",payload:s});};\n\n  const onMove=p=>{
+  const onBallState=s=>{ballStateRef.current=s;setBallState(s);channelRef.current?.send({type:"broadcast",event:"ball_state",payload:s});};
+
+  const onMove=p=>{
     if(!id)return;
     const stamped={...p,netTs:Date.now()};
     const combatNow=performance.now();
