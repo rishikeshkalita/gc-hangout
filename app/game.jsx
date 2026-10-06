@@ -612,7 +612,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camListenerTarget="document" />;
 }
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
