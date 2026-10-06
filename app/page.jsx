@@ -39,13 +39,23 @@ const FURNITURE={
 const SEATS=[
  ...[[-.48],[.48]].map(([x],i)=>({
    id:"sofa-a-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-6.92],standPosition:[-10+x,0,-6.30],approachPosition:[-10+x,0,-6.30],
-   rotation:0,seatY:-.34
+   position:[-10+x,0,-6.98],standPosition:[-10+x,0,-6.30],approachPosition:[-10+x,0,-6.30],
+   rotation:0,seatY:-.30
  })),
  ...[[-.48],[.48]].map(([x],i)=>({
    id:"sofa-b-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-3.98],standPosition:[-10+x,0,-4.60],approachPosition:[-10+x,0,-4.60],
-   rotation:Math.PI,seatY:-.34
+   position:[-10+x,0,-3.92],standPosition:[-10+x,0,-4.60],approachPosition:[-10+x,0,-4.60],
+   rotation:Math.PI,seatY:-.30
+ })),
+ ...[[-.48],[.48]].map(([z],i)=>({
+   id:"sofa-c-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-12.55,0,-5.55+z],standPosition:[-12.05,0,-5.55+z],approachPosition:[-12.05,0,-5.55+z],
+   rotation:-Math.PI/2,seatY:-.30
+ })),
+ ...[[-.48],[.48]].map(([z],i)=>({
+   id:"sofa-d-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
+   position:[-7.45,0,-5.55+z],standPosition:[-7.95,0,-5.55+z],approachPosition:[-7.95,0,-5.55+z],
+   rotation:Math.PI/2,seatY:-.30
  })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
@@ -89,11 +99,11 @@ function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
 
 
 const OBSTACLES=[
-  {x:-10,z:-7.2,rx:1.00,rz:.52,vault:false,name:"livingSofaA"},
-  {x:-10,z:-3.7,rx:1.00,rz:.52,vault:false,name:"livingSofaB"},
+  {x:-10,z:-7.2,rx:1.00,rz:.62,vault:false,name:"livingSofaA"},
+  {x:-10,z:-3.7,rx:1.00,rz:.62,vault:false,name:"livingSofaB"},
   {x:-10,z:-5.45,rx:.62,rz:.38,vault:true,name:"livingTable"},
-  {x:-13.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairL"},
-  {x:-7.0,z:-5.55,rx:.55,rz:.55,vault:true,name:"livingChairR"},
+  {x:-13.0,z:-5.55,rx:.62,rz:.88,vault:false,name:"livingSofaC"},
+  {x:-7.0,z:-5.55,rx:.62,rz:.88,vault:false,name:"livingSofaD"},
   {x:0,z:-8.95,rx:5.2,rz:.72,vault:false,name:"tv"},
   {x:9.5,z:-6.7,rx:2.6,rz:1.15,vault:true,name:"rest"},
   {x:10.3,z:5.9,rx:1.25,rz:1.0,vault:true,name:"dining"},
@@ -255,9 +265,9 @@ function Hall({musicPlaying,players,snackStates}) {
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
     <Sofa position={[-10,0,-7.2]} rotation={0}/>
     <Sofa position={[-10,0,-3.7]} rotation={Math.PI}/>
+    <Sofa position={[-13.0,0,-5.55]} rotation={-Math.PI/2}/>
+    <Sofa position={[-7.0,0,-5.55]} rotation={Math.PI/2}/>
     <CoffeeTable x={-10} z={-5.45}/>
-    <Chair position={[-13.0,0,-5.55]} rotation={Math.PI/2}/>
-    <Chair position={[-7.0,0,-5.55]} rotation={-Math.PI/2}/>
     <FloorLamp x={-13.8} z={-7.7}/>
     <Plant x={-13.9} z={-3.0} s={1.1}/>
 
