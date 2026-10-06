@@ -1,1515 +1,384 @@
 "use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Physics, RigidBody, CuboidCollider, BallCollider } from "@react-three/rapier";
-import { Ecctrl } from "ecctrl";
-import React from "react";
-import {
-   Text,
-  RoundedBox,
-  Environment,
-  ContactShadows,
-} from "@react-three/drei";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ensureAnonymousSession, getSupabase } from "../lib/supabase";
-import { VoiceMesh } from "../lib/voice";
-import { applyPlayerState, arriveInteraction, beginInteraction, canAttack, classifyMusicResponse, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, VOICE_STATES } from "../lib/game-state.mjs";
+import { Text, RoundedBox } from "@react-three/drei";
+import * as THREE from "three";
 
-const PRESETS = [
-  {id:"maya",label:"Maya"}, {id:"noah",label:"Noah"}, {id:"riya",label:"Riya"},
-  {id:"aarav",label:"Aarav"}, {id:"zoe",label:"Zoe"}, {id:"sam",label:"Sam"},
-  {id:"kai",label:"Kai"}, {id:"rihan",label:"Rihan"}
+const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
+const AVATARS = [
+  { id: "maya", label: "Maya", skin: "#b86f4b", shirt: "#6c63d9", pants: "#26354d", hair: "#241b18" },
+  { id: "noah", label: "Noah", skin: "#8d5524", shirt: "#2e8b78", pants: "#24313c", hair: "#171513" },
+  { id: "riya", label: "Riya", skin: "#d99a6c", shirt: "#d45d7d", pants: "#3d3150", hair: "#3a211c" },
+  { id: "aarav", label: "Aarav", skin: "#c68642", shirt: "#d08a3e", pants: "#29394b", hair: "#201915" },
 ];
 
-
-
-
-const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
-const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
-const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
-const RUNTIME_DIAGNOSTICS=process.env.NODE_ENV!=="production";
-const runtimeDiag=(event,data={})=>{if(RUNTIME_DIAGNOSTICS)console.info("[GC runtime]",event,data)};
-
-
-
-
-const SEATS=[
- ...[[-.62],[0],[.62]].map(([x],i)=>({
-   id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-6.88],standPosition:[-10+x,0,-6.40],approachPosition:[-10+x,0,-6.40],
-   rotation:0,seatY:-.48,poseType:"sofa"
- })),
- ...[[-.62],[0],[.62]].map(([x],i)=>({
-   id:"sofa-s-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-10+x,0,-4.02],standPosition:[-10+x,0,-4.92],approachPosition:[-10+x,0,-4.92],
-   rotation:Math.PI,seatY:-.48,poseType:"sofa"
- })),
- ...[[-.62],[0],[.62]].map(([z],i)=>({
-   id:"sofa-w-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-12.55,0,-5.45+z],standPosition:[-11.70,0,-5.45+z],approachPosition:[-11.70,0,-5.45+z],
-   rotation:-Math.PI/2,seatY:-.48,poseType:"sofa"
- })),
- ...[[-.62],[0],[.62]].map(([z],i)=>({
-   id:"sofa-e-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
-   position:[-7.45,0,-5.45+z],standPosition:[-8.30,0,-5.45+z],approachPosition:[-8.30,0,-5.45+z],
-   rotation:Math.PI/2,seatY:-.48,poseType:"sofa"
- })),
- ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
-   id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
-   position:[10+x,0,5.8+(side<0?-1.82:1.82)],
-   standPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
-   approachPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
-   rotation:side<0?0:Math.PI,seatY:-.08,poseType:"chair"
- }))
-];
-const BEDS=[
- {id:"bed-a",label:"Sleep",type:"bed",finalAction:"sleep",position:[8.7,0,-6.2],rotation:Math.PI/2,seatY:.02,poseType:"bed"},
- {id:"bed-b",label:"Sleep",type:"bed",finalAction:"sleep",position:[12.2,0,-6.2],rotation:Math.PI/2,seatY:.02,poseType:"bed"}
-];
-const SNACKS=[
- {id:"burger-tray",name:"Burger & chips",kind:"burgerTray",position:[9.35,1.55,5.8],action:"eat",label:"Eat burger & chips"},
- {id:"snack-basket",name:"Fries",kind:"snackBasket",position:[10.65,1.52,5.8],action:"eat",label:"Eat fries"},
- {id:"soda",name:"Soda",kind:"sodaCan",position:[9.0,1.50,5.55],action:"drink",label:"Drink soda"},
- {id:"water",name:"Water",kind:"waterBottle",position:[11.0,1.52,5.55],action:"drink",label:"Drink water"},
- {id:"chocolate",name:"Chocolate",kind:"chocolate",position:[-9.65,.72,-5.55],action:"eat",label:"Eat chocolate"},
- {id:"fries-2",name:"Fries",kind:"snackBasket",position:[-10.35,.82,-5.55],action:"eat",label:"Eat fries"},
- {id:"soda-2",name:"Soda",kind:"sodaCan",position:[-9.05,.82,-5.55],action:"drink",label:"Drink soda"},
- {id:"water-2",name:"Water",kind:"waterBottle",position:[-10.95,.84,-5.55],action:"drink",label:"Drink water"}
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const OBSTACLES = [
+  { x: -9.8, z: -6.2, rx: 2.8, rz: 1.0 },
+  { x: -9.8, z: -3.5, rx: 2.8, rz: 1.0 },
+  { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
+  { x: 9.7, z: 5.8, rx: 2.4, rz: 1.35 },
+  { x: 13.25, z: 0.7, rx: 0.8, rz: 3.2 },
+  { x: 8.7, z: -6.5, rx: 1.8, rz: 1.8 },
 ];
 
-const INTERACTABLES=[ ...SEATS, ...BEDS,
- {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
- {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
-];
-const OBSTACLES=[
-  {x:-10,z:-7.28,rx:1.14,rz:.62,vault:false,name:"livingSofaNorth"},
-  {x:-10,z:-3.62,rx:1.14,rz:.62,vault:false,name:"livingSofaSouth"},
-  {x:-12.58,z:-5.45,rx:.62,rz:1.14,vault:false,name:"livingSofaWest"},
-  {x:-7.42,z:-5.45,rx:.62,rz:1.14,vault:false,name:"livingSofaEast"},
-  {x:-10,z:-5.45,rx:.62,rz:.38,vault:true,name:"livingTable"},
-  {x:0,z:-8.95,rx:5.2,rz:.72,vault:false,name:"tv"},
-  {x:9.5,z:-6.7,rx:2.6,rz:1.15,vault:true,name:"rest"},
-  {x:10.3,z:5.9,rx:1.25,rz:1.0,vault:true,name:"dining"},
-  {x:13.15,z:1.0,rx:1.0,rz:3.0,vault:false,name:"kitchen"},
-  // Plants and perimeter signage are decorative; keep them non-blocking so there are no invisible walls.
-
-];
-
-const blocked=(x,z,r=PLAYER_RADIUS)=>{
-  if(x<-HALL_HALF_X+r||x>HALL_HALF_X-r||z<-HALL_HALF_Z+r||z>HALL_HALF_Z-r)return true;
-  return OBSTACLES.some(b=>{
-    const qx=clamp(x,b.x-b.rx,b.x+b.rx),qz=clamp(z,b.z-b.rz,b.z+b.rz);
-    return Math.hypot(x-qx,z-qz)<r;
+function blocked(x, z) {
+  const r = WORLD.playerRadius;
+  if (x < -WORLD.halfX + r || x > WORLD.halfX - r || z < -WORLD.halfZ + r || z > WORLD.halfZ - r) return true;
+  return OBSTACLES.some((b) => {
+    const qx = clamp(x, b.x - b.rx, b.x + b.rx);
+    const qz = clamp(z, b.z - b.rz, b.z + b.rz);
+    return Math.hypot(x - qx, z - qz) < r;
   });
-};
-const lineClear=(ax,az,bx,bz)=>{
-  const steps=10;
-  for(let i=1;i<steps;i++){
-    const t=i/steps,x=ax+(bx-ax)*t,z=az+(bz-az)*t;
-    if(blocked(x,z,.12))return false;
-  }
-  return true;
-};
-const tryMove=(x,z,dx,dz)=>{
-  const nx=x+dx,nz=z+dz;
-  if(!blocked(nx,nz))return{x:nx,z:nz,hop:false};
-  if(Math.abs(dx)>.0001&&!blocked(x+dx,z))return{x:x+dx,z,hop:false};
-  if(Math.abs(dz)>.0001&&!blocked(x,z+dz))return{x,z:z+dz,hop:false};
-  for(const side of [[-.12,0],[.12,0],[0,-.12],[0,.12]]){
-    if(!blocked(x+side[0],z+side[1]))return{x:x+side[0],z:z+side[1],hop:false};
-  }
-  return{x,z,hop:false};
-};
-
-function AssetFailureMarker({url,label="3D asset"}) {
-  return <group>
-    <mesh position={[0,.28,0]} castShadow>
-      <boxGeometry args={[.5,.5,.5]}/>
-      <meshStandardMaterial color="#6b2737" emissive="#2b1018" emissiveIntensity={.35}/>
-    </mesh>
-    <Text position={[0,.72,0]} fontSize={.09} color="#ffb5c4" anchorX="center" maxWidth={1.8}>
-      {label} failed
-    </Text>
-  </group>;
-}
-function AssetBoundary({children,fallback,url,label}) {
-  return <ErrorBoundary fallback={fallback} url={url} label={label}>{children}</ErrorBoundary>;
-}
-class ErrorBoundary extends React.Component {
-  constructor(p){super(p);this.state={failed:false}}
-  static getDerivedStateFromError(){return{failed:true}}
-  componentDidCatch(e){
-    runtimeDiag("asset-failed",{asset:this.props.label||"3D asset",url:this.props.url||"unknown",error:e?.message||String(e)});
-  }
-  render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function Sofa({position=[0,0,0],rotation=0,width=3.4}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[width,.48,1.0]} radius={.16} smoothness={6} position={[0,.48,0]}><meshStandardMaterial color="#3e4859" roughness={.82}/></RoundedBox>
-    <RoundedBox castShadow args={[width,1.05,.28]} radius={.12} smoothness={5} position={[0,1.02,-.36]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[-width/2+.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[width/2-.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
-  </group>;
-}
-function Chair({position=[0,0,0],rotation=0}) {
-  return <group position={position} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
-    <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
-    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
-  </group>;
-}
-function CoffeeTable({x,z}) {
-  return <group position={[x,0,z]}>
-    <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
-    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
-  </group>;
-}
-function DiningTable() {
-  return <group position={[10,0,5.8]}>
-    <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
-    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
-    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>)}
-    <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
-  </group>;
-}
-function Bed({x,z,rotation=0}) {
-  return <group position={[x,0,z]} rotation={[0,rotation,0]}>
-    <RoundedBox castShadow args={[2.6,.35,4.2]} radius={.1} smoothness={5} position={[0,.42,0]}><meshStandardMaterial color="#313847" roughness={.8}/></RoundedBox>
-    <RoundedBox castShadow args={[2.45,.28,2.6]} radius={.1} smoothness={5} position={[0,.72,.45]}><meshStandardMaterial color="#d6d1c8" roughness={.95}/></RoundedBox>
-    <RoundedBox castShadow args={[2.3,.42,.55]} radius={.12} smoothness={5} position={[0,.86,-1.55]}><meshStandardMaterial color="#ebe7df" roughness={.9}/></RoundedBox>
-    <RoundedBox castShadow args={[2.8,1.5,.16]} radius={.05} smoothness={4} position={[0,1.0,-2.0]}><meshStandardMaterial color="#3a4250" roughness={.7}/></RoundedBox>
-  </group>;
+function tryMove(x, z, dx, dz) {
+  const nx = x + dx;
+  const nz = z + dz;
+  if (!blocked(nx, nz)) return { x: nx, z: nz };
+  if (!blocked(x + dx, z)) return { x: x + dx, z };
+  if (!blocked(x, z + dz)) return { x, z: z + dz };
+  return { x, z };
 }
 
-function SnackUnsafe({item,state,players}){
-  const ref=useRef();
-  const holder=state?.heldBy?players[state.heldBy]:null;
-  const consumed=!!state?.consumed;
-  useFrame((_,dt)=>{
-    if(!ref.current)return;
-    const target=holder?[holder.x,.98,holder.z]:item.position;
-    const a=1-Math.exp(-16*dt);
-    ref.current.position.x+=(target[0]-ref.current.position.x)*a;
-    ref.current.position.y+=(target[1]-ref.current.position.y)*a;
-    ref.current.position.z+=(target[2]-ref.current.position.z)*a;
-    if(holder)ref.current.rotation.y+=dt*3.2;
+function HumanAvatar({ avatar, moving, local }) {
+  const group = useRef();
+  const arms = useRef([]);
+  const legs = useRef([]);
+  const { skin, shirt, pants, hair } = avatar;
+
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    const t = clock.getElapsedTime();
+    const stride = moving ? Math.sin(t * 11) * 0.48 : Math.sin(t * 2.2) * 0.025;
+    group.current.position.y = moving ? Math.abs(Math.sin(t * 11)) * 0.018 : 0;
+    group.current.rotation.z = moving ? Math.sin(t * 11) * 0.012 : 0;
+    if (arms.current[0]) arms.current[0].rotation.x = moving ? stride : 0.02 * Math.sin(t * 2.2);
+    if (arms.current[1]) arms.current[1].rotation.x = moving ? -stride : -0.02 * Math.sin(t * 2.2);
+    if (legs.current[0]) legs.current[0].rotation.x = moving ? -stride : 0;
+    if (legs.current[1]) legs.current[1].rotation.x = moving ? stride : 0;
   });
-  if(consumed)return null;
-  const colors={burgerTray:"#b86b3c",snackBasket:"#d49a42",sodaCan:"#5d7fd4",waterBottle:"#79b7cf",chocolate:"#5a3b2c"};
-  const color=colors[item.kind]||"#c48a54";
-  const scale=item.kind==="burgerTray"?1:item.kind==="snackBasket"?1:item.kind==="waterBottle"?.85:item.kind==="sodaCan"?.7:.75;
-  return <group ref={ref} position={item.position} scale={scale}>
-    {item.kind==="burgerTray"&&<><mesh castShadow position={[0,.16,0]}><boxGeometry args={[1.05,.12,.72]}/><meshStandardMaterial color="#2c241f" roughness={.7}/></mesh><mesh castShadow position={[-.22,.3,0]}><sphereGeometry args={[.18,16,12]}/><meshStandardMaterial color={color}/></mesh><mesh castShadow position={[.22,.3,0]}><sphereGeometry args={[.16,16,12]}/><meshStandardMaterial color="#e0c06a"/></mesh></>}
-    {item.kind==="snackBasket"&&<><mesh castShadow position={[0,.2,0]}><cylinderGeometry args={[.34,.26,.28,16]}/><meshStandardMaterial color="#9b663c"/></mesh>{[-.13,0,.13].map((x,i)=><mesh key={i} castShadow position={[x,.42,0]}><boxGeometry args={[.07,.28,.07]}/><meshStandardMaterial color="#e5b64f"/></mesh>)}</>}
-    {(item.kind==="sodaCan"||item.kind==="waterBottle")&&<><mesh castShadow position={[0,.28,0]}><cylinderGeometry args={[.12,.12,.52,18]}/><meshStandardMaterial color={color} metalness={.35} roughness={.35}/></mesh><mesh castShadow position={[0,.56,0]}><cylinderGeometry args={[.08,.08,.04,16]}/><meshStandardMaterial color="#d5d8dc" metalness={.5}/></mesh></>}
-    {item.kind==="chocolate"&&<mesh castShadow position={[0,.18,0]}><boxGeometry args={[.5,.16,.28]}/><meshStandardMaterial color={color} roughness={.45}/></mesh>}
-  </group>;
-}
-function Snack({item,state,players}){return <SnackUnsafe item={item} state={state} players={players}/>}
-function Snacks({players,snackStates}){
-  return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
-}
 
-function Kitchen() {
-  return <group position={[13.0,0,1.0]}>
-    <RoundedBox castShadow args={[1.5,1.15,6.0]} radius={.12} smoothness={5} position={[0,.65,0]}>
-      <meshStandardMaterial color="#343941" roughness={.7}/>
-    </RoundedBox>
-    <RoundedBox castShadow args={[1.62,.16,6.12]} radius={.06} smoothness={5} position={[0,1.26,0]}>
-      <meshStandardMaterial color="#b2aaa0" roughness={.36} metalness={.18}/>
-    </RoundedBox>
-    <mesh position={[-.01,1.37,-1.35]} rotation={[0,0,0]}>
-      <boxGeometry args={[.9,.035,1.2]}/><meshStandardMaterial color="#17191d" roughness={.25}/>
-    </mesh>
-    {[[-.48,1.42,-2.3],[.48,1.42,-2.3],[-.48,1.42,2.25],[.48,1.42,2.25]].map((p,i)=>
-      <mesh key={i} position={p}><cylinderGeometry args={[.11,.11,.08,20]}/><meshStandardMaterial color={i%2?"#d0a55d":"#8fc5d8"} roughness={.4}/></mesh>
-    )}
-    <Text position={[-.78,1.72,0]} rotation={[0,Math.PI/2,0]} fontSize={.22} color="#c6c0b8">FOOD</Text>
-  </group>
-}
-
-function FloorLamp({x,z}) {
-  return <group position={[x,0,z]}>
-    <mesh castShadow position={[0,1.65,0]}><cylinderGeometry args={[.035,.035,3.3,12]}/><meshStandardMaterial color="#252932" metalness={.65} roughness={.32}/></mesh>
-    <mesh castShadow position={[0,3.25,0]}><coneGeometry args={[.42,.5,24]}/><meshStandardMaterial color="#e5d7bd" emissive="#fff1cf" emissiveIntensity={.22}/></mesh>
-    <pointLight position={[0,3,0]} intensity={1.2} distance={5.5} color="#ffe7be"/>
-  </group>;
-}
-
-function Plant({x,z,s=1,variant="palm",rotation=0}) {
-  const count=variant==="cycad"?5:variant==="banana"?4:variant==="treeFern"?6:5;
-  return <group position={[x,0,z]} rotation={[0,rotation,0]} scale={s}>
-    <mesh castShadow position={[0,.18,0]}><cylinderGeometry args={[.24,.30,.36,16]}/><meshStandardMaterial color="#5b4636" roughness={.9}/></mesh>
-    <mesh castShadow position={[0,1.35,0]}><cylinderGeometry args={[.06,.10,2.2,10]}/><meshStandardMaterial color="#315d3d" roughness={.9}/></mesh>
-    {Array.from({length:count},(_,i)=>{
-      const a=(i/count)*Math.PI*2;
-      const y=variant==="banana"?1.25+(i%2)*.25:1.55;
-      const r=variant==="cycad"?(.7+.08*(i%2)):.85;
-      return <group key={i} rotation={[0,a,variant==="banana"?.28:variant==="treeFern"?.12:.32]} position={[0,y,0]}>
-        <mesh castShadow position={[r*.5,0,0]} scale={[r, .06, .22]}><sphereGeometry args={[.5,12,8]}/><meshStandardMaterial color={variant==="palm"?"#4c8a4a":variant==="banana"?"#6e9f3e":"#3d7442"} roughness={.9}/></mesh>
-      </group>;
-    })}
-  </group>;
-}
-
-function Rug({x,z,w,d}) {
-  return <mesh receiveShadow position={[x,.025,z]} rotation={[-Math.PI/2,0,0]}>
-    <planeGeometry args={[w,d]}/><meshStandardMaterial color="#252b38" roughness={1}/>
-  </mesh>
-}
-
-function TV({playing,track}) {
-  const bars=useRef([]);
-  useFrame((_,dt)=>{
-    const t=performance.now()/1000;
-    bars.current.forEach((mesh,i)=>{
-      if(!mesh)return;
-      const target=playing?.22+(0.14+((i*7)%5)*.025)*(.5+.5*Math.sin(t*(6+i*.25)+i)):.12;
-      mesh.scale.y+=(target-mesh.scale.y)*(1-Math.exp(-12*dt));
-    });
-  });
-  return <group position={[0,4.05,-9.2]}>
-    <RoundedBox castShadow args={[9.2,4.6,.28]} radius={.22} smoothness={6}><meshStandardMaterial color="#171a22" roughness={.28} metalness={.45}/></RoundedBox>
-    <mesh position={[0,0,.18]}><planeGeometry args={[8.65,4.05]}/><meshStandardMaterial color={playing?"#17162e":"#090c12"} emissive={playing?"#4a3b99":"#0b0e15"} emissiveIntensity={playing?1.3:.25}/></mesh>
-    <Text position={[-3.65,1.45,.23]} fontSize={.26} color="#a99bff" anchorX="left">GC RADIO</Text>
-    <Text position={[-3.65,.78,.23]} fontSize={.42} color="#ffffff" anchorX="left">{playing?(track?.title||"GC RADIO"):"HANGOUT DISPLAY"}</Text>
-    <Text position={[-3.65,.30,.23]} fontSize={.2} color="#aaa5b9" anchorX="left">{playing?(track?.artist||"Jamendo"):"Select a track to start the room mix"}</Text>
-    <group position={[-3.62,-1.15,.23]}>{Array.from({length:18},(_,i)=><mesh ref={el=>{bars.current[i]=el}} key={i} position={[i*.34,0,0]} scale={[1,.12,1]}><boxGeometry args={[.18,.18,.02]}/><meshStandardMaterial color={playing?"#7e6bff":"#343341"} emissive={playing?"#4f40b0":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>)}</group>
-    <mesh position={[2.55,.95,.24]}><circleGeometry args={[.72,32]}/><meshStandardMaterial color={playing?"#715bff":"#272b36"} emissive={playing?"#5b48c7":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>
-    <Text position={[2.55,.95,.28]} fontSize={.32} color="#ffffff" anchorX="center" anchorY="middle">{playing?"▶":"Ⅱ"}</Text>
-  </group>
-}
-function Speaker({playing,x,index}) {
-  const coneRefs=useRef([]);
-  useFrame(({clock})=>{
-    const t=clock.getElapsedTime();
-    const bass=playing?(0.5+0.5*Math.sin(t*(7.5+index*.7))):0;
-    const mid=playing?(0.5+0.5*Math.sin(t*(11+index*.9)+1.4)):0;
-    for(const [j,ref] of coneRefs.current.entries()){
-      if(!ref)continue;
-      const pulse=j===0?bass:mid;
-      const s=1+pulse*.10;
-      ref.scale.set(s,s,1);
-      ref.position.z=.29+pulse*.025;
-    }
-  });
-  return <group position={[x,1.2,-8.65]}>
-    <RoundedBox castShadow args={[.8,2.3,.55]} radius={.08} smoothness={4}>
-      <meshStandardMaterial color="#15171c" roughness={.72}/>
-    </RoundedBox>
-    {[.35,-.45].map((y,j)=>
-      <mesh key={j} ref={node=>{coneRefs.current[j]=node}} position={[0,y,.29]}>
-        <circleGeometry args={[.17-j*.035,24]}/>
-        <meshStandardMaterial color="#252934" emissive={playing?"#6655d0":"#11131a"} emissiveIntensity={playing?1.6:.15}/>
+  return (
+    <group ref={group}>
+      <mesh position={[0, 1.62, 0]} castShadow>
+        <sphereGeometry args={[0.31, 20, 16]} />
+        <meshStandardMaterial color={skin} roughness={0.72} />
       </mesh>
-    )}
-  </group>
-}
-function Speakers({playing}) {
-  return <>{[-4.7,4.7].map((x,i)=><Speaker key={i} playing={playing} x={x} index={i}/>)}</>;
-}
-function OpenFloorMark() {
-  return <group position={[0,.035,0]}>    <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[4.9,5.02,64]}/><meshBasicMaterial color="#4f5364" transparent opacity={.42}/></mesh>
-    <Text position={[0,.03,-.2]} rotation={[-Math.PI/2,0,0]} fontSize={.34} color="#5c6170">OPEN SOCIAL FLOOR</Text>
-  </group>
-}
-
-function Hall({musicPlaying,musicTrack,players,snackStates}) {
-  const [showDecor,setShowDecor]=useState(false);
-  useEffect(()=>{const timer=setTimeout(()=>setShowDecor(true),1200);return()=>clearTimeout(timer)},[]);
-  return <group>
-    <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
-    <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
-    <mesh receiveShadow position={[0,3.75,-10]}><boxGeometry args={[30.4,7.5,.24]}/><meshStandardMaterial color="#303641" roughness={.82}/></mesh>
-    <mesh receiveShadow position={[0,3.75,10]}><boxGeometry args={[30.4,7.5,.24]}/><meshStandardMaterial color="#303641" roughness={.82}/></mesh>
-    <mesh receiveShadow position={[-15,3.75,0]}><boxGeometry args={[.24,7.5,20.4]}/><meshStandardMaterial color="#303641" roughness={.82}/></mesh>
-    <mesh receiveShadow position={[15,3.75,0]}><boxGeometry args={[.24,7.5,20.4]}/><meshStandardMaterial color="#303641" roughness={.82}/></mesh>
-
-    {[[-10,6.85],[0,6.85],[10,6.85]].map((p,i)=><mesh key={i} position={[p[0],6.85,0]}><boxGeometry args={[.22,.32,19.5]}/><meshStandardMaterial color="#4a515d" roughness={.6}/></mesh>)}
-    {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
-
-    <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
-    <Sofa position={[-10,0,-7.28]} rotation={0}/>
-    <Sofa position={[-10,0,-3.62]} rotation={Math.PI}/>
-    <Sofa position={[-12.58,0,-5.45]} rotation={-Math.PI/2}/>
-    <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
-    <CoffeeTable x={-10} z={-5.45}/>
-    <FloorLamp x={-13.8} z={-7.7}/>
-    {showDecor&&(<Plant x={-13.9} z={-3.0} s={1.0} variant="treeFern" rotation={0.25}/>)}
-
-    <TV playing={musicPlaying} track={musicTrack}/>
-    <Speakers playing={musicPlaying}/>
-
-    <Rug x={10} z={5.8} w={7.2} d={5.8}/>
-    <DiningTable/>
-    <Kitchen/>
-    <FloorLamp x={13.9} z={7.9}/>
-
-    <Rug x={10} z={-6.1} w={6.4} d={6.4}/>
-    <Bed x={8.7} z={-6.2} rotation={Math.PI/2}/>
-    <Bed x={12.2} z={-6.2} rotation={Math.PI/2}/>
-    <Text position={[10.5,1.75,-8.45]} rotation={[0,0,0]} fontSize={.28} color="#b6afc6">REST / RESET</Text>
-
-    {showDecor&&(<Plant x={-13.7} z={8.3} s={1.0} variant="banana" rotation={-0.2}/>)}
-    {showDecor&&(<Plant x={13.7} z={8.3} s={0.9} variant="palm" rotation={0.35}/>)}
-    {showDecor&&(<Plant x={-3.0} z={9.0} s={0.9} variant="cycad" rotation={-0.35}/>)}
-    {showDecor&&(<Plant x={6.4} z={8.55} s={0.95} variant="palm" rotation={-0.2}/>)}
-    {showDecor&&(<Plant x={-6.4} z={8.55} s={0.95} variant="treeFern" rotation={0.15}/>)}
-    {showDecor&&(<Plant x={5.8} z={-8.15} s={0.9} variant="banana" rotation={0.35}/>)}
-    {showDecor&&(<Plant x={-14.0} z={0.2} s={0.85} variant="cycad" rotation={-0.25}/>)}
-    <DigitalSignage/>
-    <OpenFloorMark/>
-    {showDecor&&<Snacks players={players} snackStates={snackStates}/>}
-  </group>
-}
-
-function DigitalSignage() {
-  const [index,setIndex]=useState(0);
-  const colors=["#5cf2ff","#8b7dff","#ff4fd8","#55ff9a","#ffd35c","#ff6b6b"];
-  useEffect(()=>{
-    const id=setInterval(()=>setIndex(i=>(i+1)%colors.length),850);
-    return()=>clearInterval(id);
-  },[]);
-  const color=colors[index];
-  return <group position={[0,6.78,-9.72]}>
-    <RoundedBox castShadow args={[9.2,.82,.12]} radius={.16} smoothness={6}>
-      <meshStandardMaterial color="#090c13" roughness={.22} metalness={.7} emissive={color} emissiveIntensity={.16}/>
-    </RoundedBox>
-    <RoundedBox args={[8.82,.58,.035]} radius={.09} smoothness={5} position={[0,0,.08]}>
-      <meshStandardMaterial color="#020409" roughness={.16} metalness={.35}/>
-    </RoundedBox>
-    <Text position={[0,0,.12]} fontSize={.43} color={color} anchorX="center" anchorY="middle" letterSpacing={.055} outlineWidth={.018} outlineColor={color}>
-      XOPADHORA GC
-    </Text>
-    <Text position={[0,0,.105]} fontSize={.50} color={color} fillOpacity={.10} anchorX="center" anchorY="middle">
-      XOPADHORA GC
-    </Text>
-    <mesh position={[-4.28,0,.13]}>
-      <circleGeometry args={[.035,20]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4}/>
-    </mesh>
-    <mesh position={[4.28,0,.13]}>
-      <circleGeometry args={[.035,20]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4}/>
-    </mesh>
-  </group>
-}
-
-function LocalHuman({player,me,liveRef}) {
-  const ref=useRef();
-  const phase=useRef(Math.random()*Math.PI*2);
-  const walkWeight=useRef(0);
-  useFrame((_,dt)=>{
-    if(!ref.current)return;
-    const live=liveRef?.current||player;
-    const action=live.action??player.action;
-    const seated=action==="sit";
-    const sleeping=action==="sleep";
-    const emote=live.emote??player.emote??null;
-    const tx=live.x??player.x??0,tz=live.z??player.z??0,rot=live.rot??player.rot??0;
-    const targetY=seated?(live.seatY??player.seatY??-.34):(sleeping?.02:0);
-    const a=1-Math.exp(-18*dt);
-    ref.current.position.x+=(tx-ref.current.position.x)*a;
-    ref.current.position.z+=(tz-ref.current.position.z)*a;
-    ref.current.position.y+=(targetY-ref.current.position.y)*a;
-    ref.current.rotation.y+=Math.atan2(Math.sin(rot-ref.current.rotation.y),Math.cos(rot-ref.current.rotation.y))*a;
-
-    const speed=Math.max(0,Number(live.speed??player.speed??0));
-    const moving=!seated&&!sleeping&&!emote&&speed>.08;
-    const walkRatio=clamp(speed/2.55,0,1);
-    const runRatio=clamp((speed-2.9)/1.7,0,1);
-    const targetWalkWeight=moving?Math.max(.12,walkRatio):0;
-    walkWeight.current+=(targetWalkWeight-walkWeight.current)*(1-Math.exp(-10*dt));
-    if(moving){
-      const cadence=7.0+runRatio*2.4;
-      phase.current+=dt*cadence*(.72+.28*walkRatio);
-    }
-    const t=phase.current;
-    const walkBlend=walkWeight.current;
-    let leftLeg=0,rightLeg=0,leftArm=0,rightArm=0,torso=0;
-    if(sleeping){
-      leftLeg=rightLeg=-.18;
-      torso=-1.12;
-      leftArm=rightArm=-.22;
-    }else if(seated){
-      const chair=(live.poseType??player.poseType)==="chair";
-      leftLeg=rightLeg=chair?-1.38:-1.58;
-      torso=chair?.015:.035;
-      leftArm=rightArm=-.07;
-    }else if(emote){
-      if(emote==="wave"){
-        rightArm=-1.0+Math.sin(performance.now()/1000*9)*.35;
-      }else if(emote==="clap"){
-        const clapT=performance.now()/1000;
-        leftArm=-1.0+Math.sin(clapT*8)*.18;
-        rightArm=-1.0-Math.sin(clapT*8)*.18;
-      }else if(emote==="laugh"){
-        const laughT=performance.now()/1000;
-        torso=Math.sin(laughT*7)*.08;
-        leftArm=-1.05;
-        rightArm=-1.05;
-      }else{
-        const danceT=performance.now()/1000;
-        torso=Math.sin(danceT*4)*.12;
-        leftArm=-.45+Math.sin(danceT*5)*.28;
-        rightArm=-.45-Math.sin(danceT*5)*.28;
-      }
-    }else{
-      const swing=Math.sin(t)*.55*walkBlend;
-      leftLeg=swing;
-      rightLeg=-swing;
-      leftArm=-swing*.58;
-      rightArm=swing*.58;
-      torso=Math.sin(t*2)*.035*walkBlend;
-    }
-
-    if(ref.current.userData){
-      const smooth=1-Math.exp(-16*dt);
-      const lerpRotation=(node,target)=>{if(node)node.rotation.x+=(target-node.rotation.x)*smooth};
-      lerpRotation(ref.current.userData.leftLeg,leftLeg);
-      lerpRotation(ref.current.userData.rightLeg,rightLeg);
-      lerpRotation(ref.current.userData.leftArm,leftArm);
-      lerpRotation(ref.current.userData.rightArm,rightArm);
-      lerpRotation(ref.current.userData.torso,torso);
-    }
-  });
-  const skin=["#8d5524","#c68642","#e0ac69","#f1c27d","#ffdbac"][Number(player.avatarIndex)||0];
-  const shirt=["#5146a8","#d45a7a","#2d8a76","#c98a40","#4d6b9a"][Number(player.avatarIndex)||0];
-  return <group ref={ref} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
-    <group ref={g=>{if(g&&ref.current)ref.current.userData.torso=g}}>
-      <RoundedBox castShadow args={[.52,.72,.34]} radius={.08} smoothness={5} position={[0,1.05,0]}><meshStandardMaterial color={shirt} roughness={.82}/></RoundedBox>
+      <mesh position={[0, 1.82, 0]} castShadow scale={[1.05, 0.62, 1.05]}>
+        <sphereGeometry args={[0.31, 20, 16]} />
+        <meshStandardMaterial color={hair} roughness={0.9} />
+      </mesh>
+      <RoundedBox position={[0, 1.02, 0]} args={[0.66, 0.78, 0.38]} radius={0.1} smoothness={4} castShadow>
+        <meshStandardMaterial color={shirt} roughness={0.82} />
+      </RoundedBox>
+      <mesh position={[0, 1.38, 0.02]} castShadow>
+        <sphereGeometry args={[0.16, 16, 12]} />
+        <meshStandardMaterial color={skin} roughness={0.72} />
+      </mesh>
+      <mesh ref={(node) => { arms.current[0] = node; }} position={[-0.45, 1.08, 0]} castShadow>
+        <capsuleGeometry args={[0.08, 0.48, 6, 10]} />
+        <meshStandardMaterial color={skin} roughness={0.76} />
+      </mesh>
+      <mesh ref={(node) => { arms.current[1] = node; }} position={[0.45, 1.08, 0]} castShadow>
+        <capsuleGeometry args={[0.08, 0.48, 6, 10]} />
+        <meshStandardMaterial color={skin} roughness={0.76} />
+      </mesh>
+      <mesh ref={(node) => { legs.current[0] = node; }} position={[-0.18, 0.45, 0]} castShadow>
+        <capsuleGeometry args={[0.095, 0.52, 6, 10]} />
+        <meshStandardMaterial color={pants} roughness={0.84} />
+      </mesh>
+      <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow>
+        <capsuleGeometry args={[0.095, 0.52, 6, 10]} />
+        <meshStandardMaterial color={pants} roughness={0.84} />
+      </mesh>
+      <Text position={[0, 2.2, 0]} fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center">
+        {local ? "YOU" : avatar.label}
+      </Text>
     </group>
-    <mesh castShadow position={[0,1.68,0]}><sphereGeometry args={[.29,24,18]}/><meshStandardMaterial color={skin} roughness={.9}/></mesh>
-    <mesh castShadow position={[0,1.88,-.01]}><sphereGeometry args={[.30,20,14]}/><meshStandardMaterial color="#241b18" roughness={1}/></mesh>
-    <mesh castShadow position={[-.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
-    <mesh castShadow position={[.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
-    <mesh castShadow position={[-.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
-    <mesh castShadow position={[.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
-    <group ref={g=>{if(g&&ref.current)ref.current.userData.leftArm=g}} position={[-.38,1.15,0]}><mesh castShadow rotation={[0,0,.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
-    <group ref={g=>{if(g&&ref.current)ref.current.userData.rightArm=g}} position={[.38,1.15,0]}><mesh castShadow rotation={[0,0,-.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
-    <group ref={g=>{if(g&&ref.current)ref.current.userData.leftLeg=g}} position={[-.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
-    <group ref={g=>{if(g&&ref.current)ref.current.userData.rightLeg=g}} position={[.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
-    <Text position={[0,2.08,0]} fontSize={.14} color={me?"#bbaeff":"#fff"} anchorX="center" outlineWidth={.01}>{player.name}{me?" • you":""}</Text>
-    {player.attacking&&<Text position={[0,2.32,0]} fontSize={.16} color="#ffd36b" anchorX="center">POW!</Text>}
-    {player.hit&&<Text position={[0,2.32,0]} fontSize={.16} color="#ff8797" anchorX="center">OUCH!</Text>}
-  </group>;
+  );
 }
-function FootballUnsafe({players,localId,ballState,onBallState}) {
-  const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
-  const owner=localId&&Object.keys(players).filter(Boolean).sort()[0]===localId;
-  useFrame((_,dt)=>{
-    const b=body.current;
-    if(!b)return;
-    if(!owner){
-      const ss=ballState||{x:2,y:.28,z:0,vx:0,vy:0,vz:0};
-      b.setTranslation({x:ss.x,y:ss.y,z:ss.z},true);
-      b.setLinvel({x:ss.vx||0,y:ss.vy||0,z:ss.vz||0},true);
-      return;
+
+function LocalPlayer({ state, onMove }) {
+  const keys = useRef(new Set());
+  const yaw = useRef(0.2);
+  const drag = useRef(null);
+  const cameraTarget = useRef(new THREE.Vector3());
+  const cameraPosition = useRef(new THREE.Vector3(0, 3, 7));
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    const down = (event) => keys.current.add(event.key.toLowerCase());
+    const up = (event) => keys.current.delete(event.key.toLowerCase());
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
+
+  useEffect(() => {
+    const element = gl.domElement;
+    const begin = (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      drag.current = { x: event.clientX, y: event.clientY };
+      element.setPointerCapture?.(event.pointerId);
+    };
+    const move = (event) => {
+      if (!drag.current) return;
+      const dx = event.clientX - drag.current.x;
+      drag.current.x = event.clientX;
+      yaw.current -= dx * 0.006;
+    };
+    const end = () => { drag.current = null; };
+    element.addEventListener("pointerdown", begin);
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", end);
+    element.addEventListener("pointercancel", end);
+    return () => {
+      element.removeEventListener("pointerdown", begin);
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", end);
+      element.removeEventListener("pointercancel", end);
+    };
+  }, [gl]);
+
+  useFrame((_, dt) => {
+    const forward = Number(keys.current.has("w") || keys.current.has("arrowup")) - Number(keys.current.has("s") || keys.current.has("arrowdown"));
+    const strafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
+    const magnitude = Math.hypot(strafe, forward);
+    const safeDt = Math.min(dt, 0.05);
+
+    let next = state;
+    if (magnitude) {
+      const speed = keys.current.has("shift") ? 4.0 : 2.6;
+      const f = forward / magnitude;
+      const s = strafe / magnitude;
+      const dirX = Math.sin(yaw.current) * f + Math.cos(yaw.current) * s;
+      const dirZ = Math.cos(yaw.current) * f - Math.sin(yaw.current) * s;
+      const distance = speed * safeDt;
+      const moved = tryMove(state.x, state.z, dirX * distance, dirZ * distance);
+      next = { ...state, ...moved, rot: Math.atan2(dirX, dirZ), moving: true, speed };
+    } else if (state.moving || state.speed !== 0) {
+      next = { ...state, moving: false, speed: 0 };
     }
-    const p=b.translation(),now=performance.now();
-    for(const player of Object.values(players)){
-      if(!player?.id)continue;
-      const dx=p.x-player.x,dz=p.z-player.z,d=Math.hypot(dx,dz);
-      if(d<.72&&Math.abs(p.y-.45)<.75&&(now-(lastHit.current[player.id]||0)>180)){
-        const speed=Math.max(1.4,Math.min(4.8,Number(player.speed)||1.8));
-        const nx=d>.001?dx/d:Math.sin(player.rot||0),nz=d>.001?dz/d:Math.cos(player.rot||0);
-        b.applyImpulse({x:nx*speed,y:.22,z:nz*speed},true);
-        b.applyTorqueImpulse({x:nz*speed*.45,y:0,z:-nx*speed*.45},true);
-        lastHit.current[player.id]=now;
-      }
-    }
-    const v=b.linvel();
-    if(p.x<-14.4||p.x>14.4){b.setTranslation({x:clamp(p.x,-14.4,14.4),y:Math.max(.23,p.y),z:p.z},true);b.setLinvel({x:-v.x*.65,y:v.y,z:v.z},true)}
-    if(p.z<-9.4||p.z>9.4){b.setTranslation({x:p.x,y:Math.max(.23,p.y),z:clamp(p.z,-9.4,9.4)},true);b.setLinvel({x:v.x,y:v.y,z:-v.z*.65},true)}
-    if(p.y<.2){b.setTranslation({x:p.x,y:.28,z:p.z},true);b.setLinvel({x:v.x*.92,y:Math.abs(v.y)*.55,z:v.z*.92},true)}
-    if(now-lastBroadcast.current>50){
-      lastBroadcast.current=now;
-      const q=b.translation(),vel=b.linvel();
-      onBallState?.({x:q.x,y:q.y,z:q.z,vx:vel.x,vy:vel.y,vz:vel.z,ts:Date.now()});
-    }
+    if (next !== state) onMove(next);
+
+    const cameraDistance = 5.8;
+    const desired = cameraTarget.current.set(
+      state.x - Math.sin(yaw.current) * cameraDistance,
+      3.0,
+      state.z - Math.cos(yaw.current) * cameraDistance
+    );
+    cameraPosition.current.lerp(desired, 1 - Math.exp(-8 * safeDt));
+    camera.position.copy(cameraPosition.current);
+    camera.lookAt(state.x, 1.15, state.z);
   });
-  const start=ballState||{x:2,y:.35,z:0};
-  return <RigidBody ref={body} type="dynamic" colliders={false} mass={.45} restitution={.68} friction={.55} linearDamping={.22} angularDamping={.12} position={[start.x,start.y,start.z]}>
-    <BallCollider args={[.205]}/>
-    <mesh castShadow receiveShadow><sphereGeometry args={[.28,24,16]}/><meshStandardMaterial color="#f0f1f5" roughness={.55}/></mesh>
-    <mesh castShadow rotation={[0,.7,.35]}><torusGeometry args={[.18,.025,8,32]}/><meshStandardMaterial color="#272a31" roughness={.5}/></mesh>
-  </RigidBody>;
-}
-function Football({players,localId,ballState,onBallState}) {
-  return <FootballUnsafe players={players} localId={localId} ballState={ballState} onBallState={onBallState}/>;
+
+  return (
+    <group position={[state.x, 0, state.z]} rotation={[0, state.rot, 0]}>
+      <HumanAvatar avatar={state.avatar} moving={state.moving} local />
+    </group>
+  );
 }
 
-function WorldColliders(){
-  return <>
-    <RigidBody type="fixed" colliders={false} userData={{ecctrl:{excludeCharacterRay:true}}}>
-      <CuboidCollider args={[15,.1,10]} position={[0,-.1,0]}/>
-    </RigidBody>
-    {OBSTACLES.map((b,i)=><RigidBody key={b.name||i} type="fixed" colliders={false} userData={{ecctrl:{excludeCharacterRay:true}}}>
-      <CuboidCollider args={[b.rx,.7,b.rz]} position={[b.x,.7,b.z]}/>
-    </RigidBody>)}
-  </>;
+function Sofa({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      <RoundedBox args={[5.4, 0.55, 1.05]} position={[0, 0.52, 0]} radius={0.14} smoothness={5} castShadow>
+        <meshStandardMaterial color="#3f4b61" roughness={0.85} />
+      </RoundedBox>
+      <RoundedBox args={[5.4, 1.0, 0.3]} position={[0, 1.0, -0.38]} radius={0.12} smoothness={5} castShadow>
+        <meshStandardMaterial color="#48556c" roughness={0.85} />
+      </RoundedBox>
+      {[-2.35, 2.35].map((x) => (
+        <RoundedBox key={x} args={[0.32, 0.85, 0.9]} position={[x, 0.9, 0]} radius={0.1} smoothness={4} castShadow>
+          <meshStandardMaterial color="#48556c" />
+        </RoundedBox>
+      ))}
+    </group>
+  );
 }
 
-function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onInteractionArrive}){
-  const ctrl=useRef(null),lastSend=useRef(0);
-  useFrame(({camera},dt)=>{
-    const d=Math.min(dt,.05),m=moveRef.current,c=ctrl.current;
-    if(!c)return;
-    const p=posRef.current;
-    const locked=p.action==="sit"||p.action==="sleep"||p.action==="watch"||p.action==="moving"||p.action==="emote"||!!interactionRef.current;
-    if(interactionRef.current){
-      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0}});
-      const target=interactionRef.current,movePosition=target.movePosition||target.approachPosition||target.position;
-      const dx=movePosition[0]-p.x,dz=movePosition[2]-p.z,dist=Math.hypot(dx,dz);
-      if(dist>.055){
-        c.body.setLinvel({x:0,y:c.body.linvel().y,z:0},true);
-        const speed=4.2,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
-        c.body.setTranslation({x:nx,y:1,z:nz},true);
-        const next={...p,x:nx,z:nz,rot:target.rotation,moving:true,speed:step/Math.max(d,.001),action:"moving",poseRotation:target.rotation};
-        posRef.current=next;
-        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
-      }else{
-        const finalPosition=target.position;
-        c.body.setTranslation({x:finalPosition[0],y:1,z:finalPosition[2]},true);
-        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id,seatY:target.seatY??null,poseType:target.poseType??target.type??null};
-        posRef.current=next;interactionRef.current=null;onMove(next);onInteractionArrive?.(target);
-      }
-    }else if(!locked){
-      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:m.x,y:-m.z},run:!!runRef.current||Math.hypot(m.x,m.z)>.88,jump:false});
-      if(Math.abs(m.x)<0.001&&Math.abs(m.z)<0.001){const lv=c.body.linvel();c.body.setLinvel({x:0,y:lv.y,z:0},true);}
-      const q=c.currQuat,pos=c.currPos;
-      const yaw=Math.atan2(2*(q.w*q.y+q.x*q.z),1-2*(q.y*q.y+q.z*q.z));
-      const speed=c.moveSpeed||0;
-      const next={...p,x:pos.x,z:pos.z,rot:yaw,moving:speed>.06,speed,poseRotation:yaw};
-      posRef.current=next;
-      const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
-    }else{
-      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0},jump:false});
-      if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
-    }
-  });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" disableFollowCam={true} />;
-}
-function FollowCamera({targetRef}) {
-  const {camera,gl}=useThree();
-  const yaw=useRef(0);
-  const pitch=useRef(.18);
-  const distance=useRef(6.8);
-  const gesture=useRef({active:false,id:null,x:0,y:0});
-  useEffect(()=>{
-    const el=gl.domElement;
-    const down=e=>{
-      if(e.pointerType==="mouse"&&e.button!==0)return;
-      gesture.current={active:true,id:e.pointerId,x:e.clientX,y:e.clientY};
-      try{el.setPointerCapture(e.pointerId)}catch{}
-    };
-    const move=e=>{
-      const g=gesture.current;
-      if(!g.active||g.id!==e.pointerId)return;
-      const dx=e.clientX-g.x,dy=e.clientY-g.y;
-      g.x=e.clientX;g.y=e.clientY;
-      yaw.current-=dx*.008;
-      pitch.current=clamp(pitch.current-dy*.006,-.55,.85);
-    };
-    const up=e=>{if(gesture.current.id===e.pointerId)gesture.current.active=false};
-    el.addEventListener("pointerdown",down,{passive:false});
-    el.addEventListener("pointermove",move,{passive:false});
-    el.addEventListener("pointerup",up,{passive:true});
-    el.addEventListener("pointercancel",up,{passive:true});
-    return()=>{el.removeEventListener("pointerdown",down);el.removeEventListener("pointermove",move);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up)};
-  },[gl]);
-  useEffect(()=>{
-    const wheel=e=>{distance.current=clamp(distance.current+e.deltaY*.006,4.2,8.6)};
-    gl.domElement.addEventListener("wheel",wheel,{passive:true});
-    return()=>gl.domElement.removeEventListener("wheel",wheel);
-  },[gl]);
-  useFrame((_,dt)=>{
-    const p=targetRef.current||{x:0,y:0,z:0};
-    const targetX=p.x||0,targetY=(p.y||0)+1.15,targetZ=p.z||0;
-    const cp=Math.cos(pitch.current),sp=Math.sin(pitch.current);
-    const desired={x:targetX+Math.sin(yaw.current)*cp*distance.current,y:targetY+sp*distance.current,z:targetZ+Math.cos(yaw.current)*cp*distance.current};
-    const a=1-Math.exp(-10*dt);
-    camera.position.x+=(desired.x-camera.position.x)*a;
-    camera.position.y+=(desired.y-camera.position.y)*a;
-    camera.position.z+=(desired.z-camera.position.z)*a;
-    camera.lookAt(targetX,targetY,targetZ);
-  });
-  return null;
+function Chair({ position = [0, 0, 0], rotation = 0 }) {
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <RoundedBox args={[0.8, 0.36, 0.8]} position={[0, 0.48, 0]} radius={0.1} smoothness={4} castShadow>
+        <meshStandardMaterial color="#556071" />
+      </RoundedBox>
+      <RoundedBox args={[0.8, 0.9, 0.22]} position={[0, 0.95, -0.3]} radius={0.08} smoothness={4} castShadow>
+        <meshStandardMaterial color="#606c7f" />
+      </RoundedBox>
+    </group>
+  );
 }
 
-function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,voiceState,musicStatus,onMusicAutoplayBlocked}) {
-  const [move,setMove]=useState({x:0,z:0});
-  const audioRef=useRef(null);
-  const musicPlayBlockedRef=useRef(false);
-  useEffect(()=>{
-    const audio=audioRef.current;
-    if(!audio)return;
-    const update=()=>setAudioProgress({current:Number(audio.currentTime)||0,duration:Number(audio.duration)||Number(musicTrack?.duration)||0});
-    update();
-    const timer=setInterval(update,250);
-    audio.addEventListener("timeupdate",update);
-    audio.addEventListener("loadedmetadata",update);
-    return()=>{clearInterval(timer);audio.removeEventListener("timeupdate",update);audio.removeEventListener("loadedmetadata",update)};
-  },[musicTrack?.id]);
-  const runRef=useRef(false);
-  const [candidate,setCandidate]=useState(null);
-  const [emoteOpen,setEmoteOpen]=useState(false);
-  const [chatNotices,setChatNotices]=useState([]);
-  const chatInitializedRef=useRef(false);
-  const chatSeenRef=useRef(new Set());
-  const [audioProgress,setAudioProgress]=useState({current:0,duration:0});
-  const moveRef=useRef(move);moveRef.current=move;
-  const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
-  const posRef=useRef({...local});
-  const lastPropStateRef=useRef({...local});
-  const interactionRef=useRef(null);
-  useEffect(()=>{
-    if(!chatInitializedRef.current){
-      for(const m of chatMessages)chatSeenRef.current.add(m.id);
-      chatInitializedRef.current=true;
-      return;
-    }
-    const fresh=chatMessages.filter(m=>!chatSeenRef.current.has(m.id));
-    if(!fresh.length)return;
-    fresh.forEach(m=>chatSeenRef.current.add(m.id));
-    setChatNotices(prev=>[...fresh,...prev].slice(0,4));
-    fresh.forEach(m=>window.setTimeout(()=>setChatNotices(prev=>prev.filter(item=>item.id!==m.id)),4500));
-  },[chatMessages]);
-  useEffect(()=>{
-    const previous=lastPropStateRef.current;
-    const distance=Math.hypot((local?.x??0)-(previous?.x??0),(local?.z??0)-(previous?.z??0));
-    const stateChanged=local?.action!==previous?.action||local?.interactionId!==previous?.interactionId;
-    if(distance>1.5||stateChanged)posRef.current={...local};
-    lastPropStateRef.current={...local};
-  },[local?.x,local?.z,local?.action,local?.interactionId,local?.rot,local?.seatY,local?.poseType]);
-  useEffect(()=>{
-    const audio=audioRef.current;
-    if(!audio)return;
-    if(!musicTrack?.audio){audio.pause();return;}
-    if(audio.src!==musicTrack.audio){audio.src=musicTrack.audio;audio.load();}
-    const sync=()=>{
-      if(!musicPlaying){audio.pause();return;}
-      const duration=Number(musicTrack.duration)||audio.duration||0;
-      let desired=musicStartedAt?Math.max(0,(Date.now()-musicStartedAt)/1000):Number(musicPosition)||0;
-      if(duration>0)desired=desired%duration;
-      if(Number.isFinite(desired)&&Math.abs((audio.currentTime||0)-desired)>.75){
-        try{audio.currentTime=desired}catch{}
-      }
-      audio.play().then(()=>{
-        musicPlayBlockedRef.current=false;
-        if(musicPlaying)onMusicAutoplayBlocked?.(null);
-      }).catch(error=>{
-        if(musicPlaying){
-          musicPlayBlockedRef.current=true;
-          onMusicAutoplayBlocked?.(error);
-        }
-      });
-    };
-    sync();
-    const timer=setInterval(sync,1000);
-    return()=>clearInterval(timer);
-  },[musicTrack?.id,musicTrack?.audio,musicTrack?.duration,musicPlaying,musicStartedAt,musicPosition]);
+function CoffeeTable({ position }) {
+  return (
+    <RoundedBox args={[2.0, 0.16, 1.0]} position={[position[0], 0.55, position[2]]} radius={0.08} smoothness={4} castShadow>
+      <meshStandardMaterial color="#7a5946" />
+    </RoundedBox>
+  );
+}
 
+function Bed({ position }) {
+  return (
+    <group position={position}>
+      <RoundedBox args={[3.0, 0.38, 4.2]} position={[0, 0.45, 0]} radius={0.1} smoothness={4} castShadow>
+        <meshStandardMaterial color="#303746" />
+      </RoundedBox>
+      <RoundedBox args={[2.8, 0.24, 3.3]} position={[0, 0.72, 0.2]} radius={0.1} smoothness={4} castShadow>
+        <meshStandardMaterial color="#d9d3c8" />
+      </RoundedBox>
+      <RoundedBox args={[2.8, 0.42, 0.35]} position={[0, 0.92, -1.65]} radius={0.1} smoothness={4} castShadow>
+        <meshStandardMaterial color="#ece7dd" />
+      </RoundedBox>
+    </group>
+  );
+}
 
-  const requestInteraction=(item)=>{
-    if(item?.type==="stand"){standUp();return;}
-    if(!item)return;
-    runRef.current=false;
-    setMoveImmediate({x:0,z:0});
-    if(item.type==="seat"||item.type==="bed"){
-      const nextInteraction=beginInteraction(posRef.current,item);
-      if(!nextInteraction||interactionRef.current)return;
-      interactionRef.current=nextInteraction;
-    }
-    Promise.resolve(onInteract(item)).then(ok=>{if(ok===false&&item.type!=="music"&&item.type!=="tv")interactionRef.current=null;});
-  };
+function Plant({ position, scale = 1 }) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[0, 0.22, 0]} castShadow><cylinderGeometry args={[0.28, 0.34, 0.44, 14]} /><meshStandardMaterial color="#5a4334" /></mesh>
+      {[0, 1.8, 3.6, 5.4].map((a) => (
+        <mesh key={a} position={[Math.cos(a) * 0.42, 1.15, Math.sin(a) * 0.42]} rotation={[0.25, a, 0.45]} castShadow>
+          <sphereGeometry args={[0.55, 10, 7]} />
+          <meshStandardMaterial color="#4b8549" roughness={0.95} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.0, 0]} castShadow><cylinderGeometry args={[0.06, 0.09, 1.6, 10]} /><meshStandardMaterial color="#315e39" /></mesh>
+    </group>
+  );
+}
 
-  useEffect(()=>{
-    const timer=setInterval(()=>{
-      const p=posRef.current;
-      if(p.action&&p.interactionId){setCandidate({id:p.interactionId,label:"Stand up",type:"stand",position:[p.x,0,p.z],rotation:p.poseRotation||p.rot});return}
-      let best=null,dist=2.35;
-      const list=[...INTERACTABLES,...SNACKS];
-      for(const item of list){
-        if(item.type==="bed"&&!item.position)continue;
-        if(item.id in locks)continue;
-        if(item.id in snackStates&&snackStates[item.id]?.consumed)continue;
-        const target=item.approachPosition||item.position;
-        const d=Math.hypot(p.x-target[0],p.z-target[2]);
-        if(d<dist&&lineClear(p.x,p.z,target[0],target[2])){dist=d;best=item}
-      }
-      setCandidate(best);
-    },100);
-    return()=>clearInterval(timer);
-  },[locks,snackStates]);
+function Lamp({ position }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 1.5, 0]}><cylinderGeometry args={[0.04, 0.04, 3, 10]} /><meshStandardMaterial color="#242832" /></mesh>
+      <mesh position={[0, 3.05, 0]}><coneGeometry args={[0.42, 0.48, 20]} /><meshStandardMaterial color="#e5d7bd" emissive="#fff0c9" emissiveIntensity={0.25} /></mesh>
+      <pointLight position={[0, 2.9, 0]} intensity={1.0} distance={5.5} color="#ffe8bd" />
+    </group>
+  );
+}
 
-  useEffect(()=>{
-    const down=e=>{
-      if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
-      const k=e.key.toLowerCase();
-      if(k===" "){e.preventDefault();requestInteraction(candidate);return}
-      if(k==="shift"){runRef.current=true;return}
-      if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep"||posRef.current.action==="watch")){        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
-      }
-      if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
-      e.preventDefault();
-      if(posRef.current.action==="sit"||posRef.current.action==="sleep")return;
-      const next={x:k==="a"||k==="arrowleft"? -1:k==="d"||k==="arrowright"?1:moveRef.current.x,z:k==="w"||k==="arrowup"?-1:k==="s"||k==="arrowdown"?1:moveRef.current.z};setMoveImmediate(next);
-    };
-    const up=e=>{
-      const k=e.key.toLowerCase();
-      if(k==="shift"){runRef.current=false;return}
-      if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
-      const next={x:(k==="a"||k==="arrowleft"||k==="d"||k==="arrowright")?0:moveRef.current.x,z:(k==="w"||k==="arrowup"||k==="s"||k==="arrowdown")?0:moveRef.current.z};setMoveImmediate(next);
-    };
-    window.addEventListener("keydown",down);window.addEventListener("keyup",up);
-    return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up)};
-  },[onInteract,candidate]);
-  const standUp=()=>{
-    const p=posRef.current;
-    if(p.action!=="sit"&&p.action!=="sleep")return false;
-    const objectId=p.interactionId;
-    if(!objectId)return false;
+function Furniture() {
+  return (
+    <group>
+      <group position={[-9.8, 0, -6.2]}>
+        <Sofa />
+        <Sofa position={[0, 0, 2.7]} />
+        <CoffeeTable position={[0, 0, 1.35]} />
+      </group>
+      <group position={[0, 0, -8.55]}>
+        <RoundedBox args={[10.2, 3.7, 0.35]} position={[0, 2.0, 0]} radius={0.16} smoothness={5}>
+          <meshStandardMaterial color="#151923" roughness={0.35} />
+        </RoundedBox>
+        <mesh position={[0, 2.0, 0.2]}>
+          <planeGeometry args={[9.7, 3.2]} />
+          <meshStandardMaterial color="#0d111a" emissive="#211b42" emissiveIntensity={0.35} />
+        </mesh>
+        <Text position={[-4.2, 3.15, 0.25]} fontSize={0.3} color="#9e92e8" anchorX="left">GC TV / MUSIC</Text>
+      </group>
+      <group position={[9.7, 5.8, 0]}>
+        <RoundedBox args={[4.8, 0.25, 2.4]} position={[0, 0.95, 0]} radius={0.12} smoothness={5} castShadow>
+          <meshStandardMaterial color="#72513f" />
+        </RoundedBox>
+        {[-1.5, 0, 1.5].map((x) => <Chair key={x} position={[x, 0, -1.85]} />)}
+        {[-1.5, 0, 1.5].map((x) => <Chair key={x} position={[x, 0, 1.85]} rotation={Math.PI} />)}
+      </group>
+      <group position={[8.7, 0, -6.5]}><Bed position={[0, 0, 0]} /></group>
+      <group position={[13.25, 0, 0.7]}>
+        <RoundedBox args={[1.4, 1.1, 6.2]} position={[0, 0.6, 0]} radius={0.12} smoothness={4}>
+          <meshStandardMaterial color="#343941" />
+        </RoundedBox>
+      </group>
+      <Plant position={[-13.1, 0, 7.5]} />
+      <Plant position={[13.0, 0, -7.7]} scale={1.15} />
+      <Lamp position={[-5.7, 0, 6.8]} />
+      <Lamp position={[5.8, 0, 6.8]} />
+    </group>
+  );
+}
 
-    const item=INTERACTABLES.find(x=>x.id===objectId);
-    const candidates=[];
-    if(item?.standPosition)candidates.push(item.standPosition);
-    const baseAngle=(p.poseRotation??p.rot??0)+Math.PI;
-    for(let radius=.72;radius<=2.1;radius+=.24){
-      for(let i=0;i<16;i++){
-        const angle=baseAngle+(Math.PI*2*i/16);
-        candidates.push([p.x+Math.sin(angle)*radius,0,p.z+Math.cos(angle)*radius]);
-      }
-    }
-    const safe=candidates.find(q=>!blocked(q[0],q[2],.34))||[clamp(p.x,-HALL_HALF_X+.5,HALL_HALF_X-.5),0,clamp(p.z,-HALL_HALF_Z+.5,HALL_HALF_Z-.5)];
-    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null,emote:null};
-    interactionRef.current=null;
-    posRef.current=clear;
-    setCandidate(null);
-    setMoveImmediate({x:0,z:0});
-    onMove(clear);
-    onInteract({id:objectId,type:"stand",position:[clear.x,0,clear.z],rotation:p.poseRotation||p.rot,label:"Stand up"});
-    return true;
-  };
+function Room({ player, onMove }) {
+  return (
+    <>
+      <ambientLight intensity={1.15} />
+      <directionalLight position={[5, 9, 4]} intensity={2.0} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <color attach="background" args={["#0e1118"]} />
+      <fog attach="fog" args={["#0e1118", 24, 46]} />
 
-  const joystickAt=(el,x,y)=>{
-    if(standUp()){
-      el.style.setProperty("--jx","0px");
-      el.style.setProperty("--jz","0px");
-      return;
-    }
-    const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
-    const len=Math.hypot(dx,dz),max=42,k=len>max?max/len:1;
-    const px=dx*k,pz=dz*k;
-    setMoveImmediate({x:clamp(px/42,-1,1),z:clamp(pz/42,-1,1)});
-    el.style.setProperty("--jx",px+"px");el.style.setProperty("--jz",pz+"px");
-  };
-  const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
-  const stop=e=>{
-    e?.preventDefault?.();
-    setMoveImmediate({x:0,z:0});
-    if(e?.currentTarget){e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px");}
-  };
-  useEffect(()=>{
-    const release=()=>setMoveImmediate({x:0,z:0});
-    window.addEventListener("pointerup",release);
-    window.addEventListener("pointercancel",release);
-    window.addEventListener("blur",release);
-    return()=>{window.removeEventListener("pointerup",release);window.removeEventListener("pointercancel",release);window.removeEventListener("blur",release)};
-  },[]);
+      <mesh receiveShadow position={[0, -0.12, 0]}>
+        <boxGeometry args={[30, 0.24, 20]} />
+        <meshStandardMaterial color="#272d36" roughness={0.96} />
+      </mesh>
 
-  useEffect(()=>{
-    if(!local?.interactionId)return;
-    const timer=setInterval(()=>onTouchInteraction?.(local.interactionId),8000);
-    return()=>clearInterval(timer);
-  },[local?.interactionId,onTouchInteraction]);
+      <mesh position={[0, 2.5, -10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#1d222b" /></mesh>
+      <mesh position={[0, 2.5, 10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#1d222b" /></mesh>
+      <mesh position={[-15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#1d222b" /></mesh>
+      <mesh position={[15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#1d222b" /></mesh>
 
-  return <div className="room">
-    <Canvas
-      shadows dpr={[1,1.25]} performance={{min:.55}}
-      camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
-    >
-      <Physics gravity={[0,-9.81,0]}>
-        <WorldColliders/>
-        <FollowCamera targetRef={posRef}/>
-        <EcctrlLocalController posRef={posRef} moveRef={moveRef} runRef={runRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
-      <color attach="background" args={["#0b0e14"]}/>
-      <fog attach="fog" args={["#0b0e14",24,55]}/>
-      <ambientLight intensity={.78}/>
-      <directionalLight position={[2,10,5]} intensity={1.35} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
-      <directionalLight position={[-8,5,-6]} intensity={.55} color="#9aa9ff"/>
-      <Environment preset="warehouse" environmentIntensity={.35}/>
-      <Hall musicPlaying={musicPlaying} musicTrack={musicTrack} players={players} snackStates={snackStates}/>
-      <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
-        {Object.values(players).map(p=>
-          <Suspense key={p.id} fallback={null}>
-      <LocalHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/>
-          </Suspense>
-        )}
-      </Physics>
-    </Canvas>
+      <Furniture />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
+        <ringGeometry args={[4.8, 4.9, 64]} />
+        <meshBasicMaterial color="#5b6170" transparent opacity={0.45} />
+      </mesh>
+      <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">
+        OPEN SOCIAL FLOOR
+      </Text>
 
+      <LocalPlayer state={player} onMove={onMove} />
+    </>
+  );
+}
 
-    <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} onError={()=>onMusicAutoplayBlocked?.(new Error("Audio playback failed."))} aria-hidden="true" />
-    <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
-    <div className="zoneHint">Large open social floor • perimeter interaction zones</div><div className="cameraHint">🖱 Drag to look • wheel/pinch to zoom • WASD / joystick to move</div>
-    <div className="chatNotices" role="log" aria-live="polite" aria-relevant="additions">
-      {chatNotices.map(m=><div className="chatNotice" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}
-    </div>
-    <div className="chatComposer" onPointerDown={e=>e.stopPropagation()}>
-      <form className="chatForm" onSubmit={async e=>{
-        e.preventDefault();
-        const input=e.currentTarget.elements.namedItem("message");
-        if(input?.value.trim()){
-          const sent=await onSendChat?.(input.value);
-          if(sent!==false){input.value="";input.blur();}
-        }
-      }}>
-        <input name="message" maxLength={240} autoComplete="off" inputMode="text" enterKeyHint="send" aria-label="Chat message" placeholder="Message…"/>
-        <button type="submit" aria-label="Send message">➤</button>
-      </form>
-      {chatError&&<div className="chatError" role="status">{chatError}</div>}
-    </div>
-    {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
-    <div className="musicStatus" aria-live="polite">{musicTrack&&musicStatus==="AVAILABLE"?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1)}/></>:<span>{musicStatus==="LOADING"?"Loading music…":musicStatus==="NOT_CONFIGURED"?"Music API not configured":musicStatus==="API_ERROR"?"Music API error":musicStatus==="PLAYBACK_ERROR"?"Playback error — tap Music to retry":"No music available"}</span>}</div>
-    <div className="controls" onPointerDown={e=>e.stopPropagation()}>
-      <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
-      <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
-        const audio=audioRef.current;
-        if(audio&&musicTrack?.audio&&!musicPlaying){
-          try{
-            if(audio.src!==musicTrack.audio){audio.src=musicTrack.audio;audio.load();}
-            await audio.play();
-            musicPlayBlockedRef.current=false;
-            onMusicAutoplayBlocked?.(null);
-            onToggleMusic?.();
-            return;
-          }catch(error){
-            musicPlayBlockedRef.current=true;
-            onMusicAutoplayBlocked?.(error);
-            return;
-          }
-        }
-        if(musicPlaying&&musicPlayBlockedRef.current&&audio){
-          try{await audio.play();musicPlayBlockedRef.current=false;onMusicAutoplayBlocked?.(null);return}catch(error){onMusicAutoplayBlocked?.(error);return}
-        }
-        onToggleMusic?.();
-      }} disabled={!musicTracks.length}>🎵 Music</button>
-      {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={async e=>{
-        const selected=musicTracks.find(t=>t.id===e.target.value);
-        if(selected?.audio&&audioRef.current){
-          try{
-            audioRef.current.src=selected.audio;
-            audioRef.current.load();
-            await audioRef.current.play();
-            onMusicAutoplayBlocked?.(null);
-          }catch(error){onMusicAutoplayBlocked?.(error);}
-        }
-        onSelectMusic?.(e.target.value);
-      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
-      <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
-      {musicError&&<span className="musicError" role="status">{musicError}</span>}
-      <button type="button" onClick={onAttack}>🥊 Fight</button>
-      <button type="button" aria-pressed={voiceState===VOICE_STATES.LIVE} className={`voiceState ${voiceState===VOICE_STATES.LIVE?"active":voiceState===VOICE_STATES.MUTED?"muted":voiceState===VOICE_STATES.ERROR?"error":voiceState===VOICE_STATES.DISCONNECTED?"disconnected":""}`} onClick={async()=>{if(voiceState===VOICE_STATES.LIVE||voiceState===VOICE_STATES.MUTED){onToggleMute?.();return} const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}}>{voiceState===VOICE_STATES.REQUESTING_PERMISSION?"🎤 REQUESTING…":voiceState===VOICE_STATES.LIVE?"🎙️ LIVE / UNMUTED":voiceState===VOICE_STATES.MUTED?"🔇 MUTED":voiceState===VOICE_STATES.ERROR?"🎤 MIC ERROR":voiceState===VOICE_STATES.DISCONNECTED?"🔌 DISCONNECTED":"🎤 MIC OFF"}</button>
-      <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)} aria-label="Open emotes">💃 Emote</button>
-    </div>
-    {voiceOpen&&voiceEnabled&&(
-      <div className="voicePanel" onPointerDown={e=>e.stopPropagation()}>
-        <div className="voicePanelTitle"><b>🎙️ Voice</b><button type="button" onClick={()=>setVoiceOpen(false)}>×</button></div>
-        <button type="button" className="voiceMute" onClick={onToggleMute}>{voiceMuted?"🎙️ Unmute":"🔇 Mute microphone"}</button>
-        <label className="voiceSetting">Microphone<select value={voiceDevice} onChange={e=>onVoiceDeviceChange(e.target.value)}><option value="">Default microphone</option>{voiceDevices.map((d,i)=><option key={d.deviceId} value={d.deviceId}>{d.label||("Microphone "+(i+1))}</option>)}</select></label>
-        <label className="voiceSetting">Speaker volume<input type="range" min="0" max="1" step=".05" value={voiceVolume} onChange={onVoiceVolumeChange}/></label>
+export default function Game() {
+  const [player, setPlayer] = useState(() => ({
+    id: "local",
+    name: "You",
+    avatar: AVATARS[0],
+    x: 0,
+    z: 1.5,
+    rot: Math.PI,
+    moving: false,
+    speed: 0,
+  }));
+  const [name, setName] = useState("You");
+  const [avatarId, setAvatarId] = useState("maya");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
+
+  useEffect(() => {
+    setPlayer((prev) => ({ ...prev, name: name.trim().slice(0, 18) || "You", avatar }));
+  }, [name, avatar]);
+
+  return (
+    <main className="game-shell">
+      <Canvas shadows dpr={[1, 1.75]} camera={{ position: [0, 3, 7], fov: 58, near: 0.1, far: 60 }}>
+        <Room player={player} onMove={setPlayer} />
+      </Canvas>
+      <div className="hud">
+        <div className="hud-title">GC HANGOUT</div>
+        <div className="hud-subtitle">Shared home foundation</div>
+        <div className="hud-controls"><span>WASD / arrows</span><span>Drag to look</span><span>Shift: run</span></div>
       </div>
-    )}
-    {emoteOpen&&(
-      <div className="emoteMenu" onPointerDown={e=>e.stopPropagation()}>
-        <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false)}}>💃 dance</button>
-        <button type="button" onClick={()=>{onEmote?.("wave");setEmoteOpen(false)}}>👋 wave</button>
-        <button type="button" onClick={()=>{onEmote?.("clap");setEmoteOpen(false)}}>👏 clap</button>
-        <button type="button" onClick={()=>{onEmote?.("laugh");setEmoteOpen(false)}}>😂 laugh</button>
-      </div>
-    )}
-    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onPointerDown={e=>e.stopPropagation()} onClick={()=>candidate&&requestInteraction(candidate)}>✦</button><button className="emoteTrigger" onPointerDown={e=>e.stopPropagation()} onClick={()=>setEmoteOpen(v=>!v)} aria-label="Open emotes">💃</button>
-    {voiceError&&<div className="voiceError">{voiceError}</div>}
-    <button className="fight" onPointerDown={e=>e.stopPropagation()} onClick={onAttack}>🥊</button>
-  </div>
-}
-
-export default function Home(){
-  const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
-  const [ballState,setBallState]=useState({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),[musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
-  const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
-  const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
-  const [chatMessages,setChatMessages]=useState([]),[chatError,setChatError]=useState(""),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceState,setVoiceState]=useState(VOICE_STATES.OFF),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
-  const [musicError,setMusicError]=useState(""),[musicStatus,setMusicStatus]=useState("LOADING");
-  const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
-  const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
-  const attackCooldownRef=useRef(0);
-  const chatMessagesRef=useRef([]);
-  const playersRef=useRef({});
-  ballStateRef.current=ballState;
-  musicRef.current=musicPlaying;musicTrackRef.current=musicTrack;musicStartedAtRef.current=musicStartedAt;musicPositionRef.current=musicPosition;
-  chatMessagesRef.current=chatMessages;
-  playersRef.current=players;
-  const locksRef=useRef({}),snackStatesRef=useRef({});
-  const chatLastSentRef=useRef(0);
-  locksRef.current=locks;snackStatesRef.current=snackStates;
-  const channelRef=useRef(null),localRef=useRef(null),voiceRef=useRef(null);
-  const uiStateAtRef=useRef(0);
-
-  const join=async()=>{
-    if(!name.trim()||joining)return;
-    setJoining(true);setConnectionError("");
-    try{
-        const supabase=await getSupabase();
-      if(!supabase)throw new Error("Supabase is not configured.");
-      const session=await ensureAnonymousSession(supabase,{display_name:name.trim()});
-      if(!session?.user?.id)throw new Error("Supabase did not return a player identity.");
-      const playerId=session.user.id;
-      const {error:resetError}=await supabase.rpc("gc_reset_combat_state");
-      if(resetError)console.warn("Combat state reset unavailable",resetError);
-      // Renderable player source of truth is `players`. localRef is only a synchronous controller snapshot;
-      // it never determines whether a player exists. This keeps spawn independent from movement callbacks.
-      const p=createLocalPlayer({id:playerId,name:name.trim(),avatarId,spawn:{x:0,y:0,z:0,rot:0}});
-      localRef.current=p;
-      const {error:positionError}=await supabase.rpc("gc_update_combat_position",{p_x:0,p_z:0,p_rot:0});
-      if(positionError)console.warn("Initial combat position sync unavailable",positionError);
-      setId(playerId);
-      setPlayers({[playerId]:p});
-      setJoined(true);
-    }catch(e){
-      console.error("Unable to join GC Hangout",e);
-      setConnectionError(e?.message||"Unable to connect to the multiplayer service.");
-    }finally{
-      setJoining(false);
-    }
-  };
-
-  useEffect(()=>{
-    if(!joined||!id)return;
-    let disposed=false;
-    let cleanup=()=>{};
-    (async()=>{
-      try{
-        const supabase=await getSupabase();
-        if(disposed)return;
-        if(!supabase){setConnectionError("Supabase is not configured.");return}
-        const {data:{session}}=await supabase.auth.getSession();
-        if(!session?.access_token){setConnectionError("Your multiplayer session is unavailable. Please reload and try again.");return}
-        await supabase.realtime.setAuth(session.access_token);
-      const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
-    channelRef.current=channel;
-    const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
-    const reconcilePresence=()=>{
-      const state=channel.presenceState();
-      const online=new Set(Object.keys(state));
-      setPlayers(prev=>{
-        const next={...prev};
-        for(const key of Object.keys(next)){if(key!==id&&!online.has(key))delete next[key];}
-        setLocks(prev=>{const cleaned={...prev};for(const [objectId,holder] of Object.entries(cleaned)){if(holder!==id&&!online.has(holder))delete cleaned[objectId];}return cleaned});
-        for(const [key,entries] of Object.entries(state)){
-          if(key===id)continue;
-          const meta=entries?.[0]||{};
-          next[key]={...(next[key]||{}),id:key,name:meta.name||next[key]?.name||"Guest",avatarId:meta.avatarId||next[key]?.avatarId||"maya",voiceEnabled:!!meta.voiceEnabled};
-          }
-        return next;
-        });
-      if(voiceRef.current?.enabled){
-        for(const key of voiceRef.current.peers.keys()){
-          if(key!==id&&!online.has(key))voiceRef.current.removePeer(key);
-        }
-        voiceRef.current.syncPeers(Object.keys(state).filter(key=>key!==id)).catch(()=>{});
-      }
-      for(const [key,entries] of Object.entries(state)){
-        if(key!==id&&entries?.[0]?.voiceEnabled&&voiceRef.current&&voiceRef.current.enabled&&id<key)voiceRef.current.offerTo(key).catch(()=>{});
-      }
-    };
-    channel.on("presence",{event:"sync"},reconcilePresence);
-    channel.on("presence",{event:"join"},reconcilePresence);
-    channel.on("presence",{event:"leave"},reconcilePresence);
-    channel.on("broadcast",{event:"ball_state"},({payload})=>{if(payload?.ts)setBallState(payload);});
-    channel.on("broadcast",{event:"request_ball_state"},()=>{const ids=Object.keys(playersRef.current).filter(Boolean).sort();if(ids[0]===id)channel.send({type:"broadcast",event:"ball_state",payload:ballStateRef.current});});
-    channel.on("broadcast",{event:"player_state"},({payload})=>{
-      if(!payload?.id)return;
-      setPlayers(prev=>{
-        const current=prev[payload.id];
-        if(current?.netTs&&payload.netTs&&payload.netTs<current.netTs)return prev;
-        return applyPlayerState(prev,payload);
-      });
-    });
-    channel.on("broadcast",{event:"request_state"},()=>localRef.current&&send(localRef.current));
-    channel.on("broadcast",{event:"room_state"},({payload})=>{
-      if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying);
-      if(payload?.musicTrack){
-        setMusicTrack(payload.musicTrack);
-        setMusicTracks(prev=>{
-          if(prev.some(t=>t.id===payload.musicTrack.id))return prev;
-          return [...prev,payload.musicTrack];
-        });
-      }
-      if(typeof payload?.musicStartedAt==="number"||payload?.musicStartedAt===null)setMusicStartedAt(payload.musicStartedAt);
-      if(typeof payload?.musicPosition==="number")setMusicPosition(payload.musicPosition);
-    });
-    channel.on("broadcast",{event:"chat_message"},({payload})=>{
-      const message=normalizeChatMessage(payload);
-      if(!message)return;
-      setChatMessages(prev=>mergeChatMessages(prev,message));
-    });
-    channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}})});
-    channel.on("broadcast",{event:"request_chat"},()=>{
-      if(chatMessagesRef.current.length)channel.send({type:"broadcast",event:"chat_history",payload:{messages:chatMessagesRef.current}});
-    });
-    channel.on("broadcast",{event:"chat_history"},({payload})=>{
-      if(Array.isArray(payload?.messages))setChatMessages(prev=>mergeChatMessages(prev,payload.messages));
-    });
-    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}}));
-    channel.on("broadcast",{event:"attack"},async({payload})=>{
-      try{
-        if(!payload?.id||payload.id===id)return;
-        setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);
-        setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
-        if(payload.targetId!==id||!localRef.current)return;
-      const supabase=await getSupabase();
-        if(!supabase)return;
-        const {data,error}=await supabase.rpc("gc_apply_attack",{
-          p_target_id:id,
-          p_attacker_x:Number(payload.attackerX),
-          p_attacker_z:Number(payload.attackerZ),
-          p_attacker_rot:Number(payload.attackerRot),
-          p_target_x:Number(localRef.current.x),
-          p_target_z:Number(localRef.current.z)
-      });
-        if(error){console.warn("combat validation failed",error);return}
-        const result=Array.isArray(data)?data[0]:data;
-        if(!result?.accepted)return;
-        const nextHealth=Number(result.target_health);
-        const next={...localRef.current,health:nextHealth,hit:true};
-        localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));
-        setTimeout(()=>{
-          if(localRef.current?.hit){
-            localRef.current={...localRef.current,hit:false};
-            setPlayers(prev=>({...prev,[id]:localRef.current}));
-        }
-        },350);
-        if(result.defeated)setTimeout(()=>{
-          const respawn={...localRef.current,x:0,z:0,health:3,attacking:false,action:null,interactionId:null,seatY:null,poseType:null};
-          localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn);
-          supabase.rpc("gc_reset_combat_state").catch(()=>{});
-        },900);
-      }catch(error){
-        console.warn("combat event handling failed",error);
-      }
-    });
-    channel.on("broadcast",{event:"player_action"},({payload})=>{
-      if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],...payload}}:prev)
-    });    channel.on("broadcast",{event:"interaction_lock"},({payload})=>{
-      if(!payload?.objectId)return;
-      if(payload.locked)setLocks(prev=>({...prev,[payload.objectId]:payload.userId}));
-      else setLocks(prev=>{const next={...prev};delete next[payload.objectId];return next});
-    });
-    channel.on("broadcast",{event:"snack_state"},({payload})=>{
-      if(payload?.id)setSnackStates(prev=>({...prev,[payload.id]:payload}));
-    });
-    channel.on("broadcast",{event:"request_interaction_state"},()=>{
-      channel.send({type:"broadcast",event:"interaction_state",payload:{locks:locksRef.current,snackStates:snackStatesRef.current}});
-    });
-    channel.on("broadcast",{event:"interaction_state"},({payload})=>{
-      if(payload?.locks)setLocks(payload.locks);
-      if(payload?.snackStates)setSnackStates(payload.snackStates);
-    });
-    voiceRef.current=new VoiceMesh({channel,localId:id,onPeerState:(state,error)=>{setVoiceState(state);const enabled=state===VOICE_STATES.LIVE||state===VOICE_STATES.MUTED;setVoiceEnabled(enabled);setVoiceError(error||"");if(!enabled)setVoiceMuted(false);}});
-    let reconnectTimer=null;
-    let reconnecting=false;
-    const subscribe=()=>{
-      channel.subscribe(async(status,err)=>{
-        try{
-        if(status==="SUBSCRIBED"&&localRef.current){
-          reconnecting=false;
-          if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
-          setConnectionError("");
-          setChatError("");
-          setPlayers(prev=>({...prev,[id]:localRef.current}));
-          await channel.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current?.enabled||false});
-          send(localRef.current);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_state",payload:{id}}),250);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_ball_state",payload:{id}}),300);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_room",payload:{id}}),350);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_interaction_state",payload:{id}}),450);
-          setTimeout(()=>channel.send({type:"broadcast",event:"request_chat",payload:{id}}),550);
-          return;
-        }
-        if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)&&!reconnecting&&!disposed){
-          reconnecting=true;
-          setConnectionError(err?.message||"Realtime connection interrupted. Reconnecting…");
-          reconnectTimer=setTimeout(async()=>{
-            reconnectTimer=null;
-            reconnecting=false;
-            if(disposed)return;
-            const {data:{session}}=await supabase.auth.getSession();
-            if(session?.access_token)await supabase.realtime.setAuth(session.access_token);
-            subscribe();
-          },1500);
-        }
-        } catch(e) {
-          if(!disposed){
-            console.error("Realtime callback failed",e);
-            setConnectionError(e?.message||"Realtime connection failed. Reconnecting…");
-          }
-        }
-      });
-    };
-    subscribe();
-    cleanup=()=>{
-      const active=localRef.current?.interactionId;
-      const heldSnack=active&&snackStatesRef.current[active]?.heldBy===id&&!snackStatesRef.current[active]?.consumed;
-      if(active)supabase.rpc("gc_release_interaction",{p_object_id:active,p_holder_id:id}).catch(()=>{});
-      // If a player disconnects while holding food, return it to the table instead
-      // of leaving every other client with a permanently floating/locked item.
-      if(heldSnack){
-        const restored={id:active,heldBy:null,consumed:false};
-        snackStatesRef.current={...snackStatesRef.current,[active]:restored};
-        channel.send({type:"broadcast",event:"snack_state",payload:restored}).catch(()=>{});
-        channel.send({type:"broadcast",event:"interaction_lock",payload:{objectId:active,userId:id,locked:false}}).catch(()=>{});
-      }
-      if(reconnectTimer)clearTimeout(reconnectTimer);
-      voiceRef.current?.destroy();voiceRef.current=null;
-      channel.unsubscribe();channelRef.current=null;
-    };
-      }catch(e){
-        if(!disposed){
-          console.error("Multiplayer bootstrap failed",e);
-          setConnectionError(e?.message||"Multiplayer connection failed. Please reload and try again.");
-        }
-      }
-    })();
-    return()=>{disposed=true;cleanup()};
-  },[joined,id,avatarId]);
-  const combatPositionRef=useRef({ts:0});
-  const onBallState=s=>{ballStateRef.current=s;setBallState(s);channelRef.current?.send({type:"broadcast",event:"ball_state",payload:s});};
-
-  const onMove=p=>{
-    if(!id)return;
-    const transient={emote:p.emote??localRef.current?.emote??null,attacking:p.attacking??localRef.current?.attacking??false,hit:p.hit??localRef.current?.hit??false};
-    const next={...p,...transient};
-    const stamped={...next,netTs:Date.now()};
-    const combatNow=performance.now();
-    if(combatNow-combatPositionRef.current.ts>=120){
-      combatPositionRef.current={ts:combatNow};
-      getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0)})).catch(error=>console.warn("combat position sync failed",error));
-    }
-    localRef.current=next;
-    const now=performance.now();
-    setPlayers(prev=>{
-      const current=prev[id];
-      const stateChanged=current?.action!==next.action||current?.interactionId!==next.interactionId||current?.emote!==next.emote||current?.attacking!==next.attacking||current?.hit!==next.hit;
-      if(!stateChanged&&now-uiStateAtRef.current<100)return prev;
-      uiStateAtRef.current=now;
-      return {...prev,[id]:{...next,uiTs:now}};
-    });
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:stamped});
-  };
-
-  const onSendChat=async textValue=>{
-    const now=Date.now();
-    if(now-chatLastSentRef.current<700)return false;
-    const clean=String(textValue||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,240);
-    if(!clean||!localRef.current)return false;
-    const channel=channelRef.current;
-    if(!channel){setChatError("Chat is not connected.");return false;}
-    chatLastSentRef.current=now;
-    const message=normalizeChatMessage({id:makeId(),name:localRef.current.name,text:clean,ts:now});
-    if(!message)return false;
-    setChatError("");
-    setChatMessages(prev=>mergeChatMessages(prev,message));
-    try{
-      const status=await channel.send({type:"broadcast",event:"chat_message",payload:message});
-      if(status!=="ok")throw new Error("Chat message was rejected.");
-      return true;
-    }catch(error){
-      console.warn("Chat message send failed",error);
-      setChatMessages(prev=>prev.filter(m=>m.id!==message.id));
-      setChatError("Message could not be sent. Check the connection and try again.");
-      return false;
-    }
-  };
-
-  const refreshVoiceDevices=async()=>{
-    try{if(!navigator.mediaDevices?.enumerateDevices)return;const devices=await navigator.mediaDevices.enumerateDevices();setVoiceDevices(devices.filter(d=>d.kind==="audioinput"&&d.deviceId));}catch(error){console.warn("Could not enumerate microphones",error)}};
-
-  const onToggleVoice=async()=>{
-    if(!voiceRef.current)return;
-    try{
-      setVoiceError("");
-      await voiceRef.current.setEnabled(!voiceRef.current.enabled);
-      if(voiceRef.current.enabled){await refreshVoiceDevices();setVoiceMuted(!!voiceRef.current.muted);setVoiceVolume(voiceRef.current.remoteVolume??.9);}
-      if(!voiceRef.current.enabled){setVoiceOpen(false);setVoiceMuted(false);}
-      if(channelRef.current&&localRef.current){
-        localRef.current={...localRef.current,voiceEnabled:voiceRef.current.enabled};
-        setPlayers(prev=>({...prev,[id]:localRef.current}));
-        await channelRef.current.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current.enabled});
-        voiceRef.current.syncPeers(Object.keys(channelRef.current.presenceState()).filter(key=>key!==id)).catch(()=>{});
-      }
-      return voiceRef.current.enabled;
-    }catch(e){
-      console.error("Voice chat failed",e);
-      setVoiceError(e?.message||"Microphone access failed.");
-      setVoiceState(VOICE_STATES.ERROR);
-      setVoiceEnabled(false);
-      return false;
-    }
-  };
-
-  const onToggleMute=()=>{if(!voiceRef.current?.enabled)return;const muted=voiceRef.current.setMuted(!voiceRef.current.muted);setVoiceMuted(muted)};
-  const onVoiceDeviceChange=async(deviceId)=>{try{setVoiceError("");await voiceRef.current?.setInputDevice(deviceId);setVoiceDevice(deviceId)}catch(error){setVoiceError(error?.message||"Could not change microphone.")}};
-  const onVoiceVolumeChange=e=>{const value=Number(e.target.value);setVoiceVolume(value);voiceRef.current?.setRemoteVolume(value)};
-
-  const claimInteraction=async(candidate,action)=>{
-    const supabase=await getSupabase();
-    if(!supabase)return true;
-    const {data,error}=await supabase.rpc("gc_claim_interaction",{p_object_id:candidate.id,p_holder_id:id,p_action:action,p_lease_seconds:30});
-    if(error){console.error("interaction claim failed",error);return false;}
-    return data===true;
-  };
-
-  const releaseInteraction=async objectId=>{
-    const supabase=await getSupabase();
-    if(!supabase||!objectId)return;
-    await supabase.rpc("gc_release_interaction",{p_object_id:objectId,p_holder_id:id}).catch(()=>{});
-  };
-
-  const touchInteraction=async objectId=>{
-    const supabase=await getSupabase();
-    if(supabase&&objectId)supabase.rpc("gc_touch_interaction",{p_object_id:objectId,p_holder_id:id,p_lease_seconds:30}).catch(()=>{});
-  };
-
-  const broadcastMusic=payload=>channelRef.current?.send({type:"broadcast",event:"room_state",payload});
-  const toggleMusic=()=>{
-    if(!musicTrack)return;
-    const now=Date.now();
-    const next=!musicPlaying;
-    const pos=musicPlaying&&musicStartedAt?Math.max(0,(now-musicStartedAt)/1000):musicPosition;
-    const started=next?now-pos*1000:null;
-    setMusicPlaying(next);setMusicPosition(pos);setMusicStartedAt(started);
-    broadcastMusic({musicPlaying:next,musicTrack,musicStartedAt:started,musicPosition:pos});
-  };
-  const onSelectMusic=trackId=>{
-    const track=musicTracks.find(t=>t.id===trackId);if(!track)return;
-    const started=Date.now();
-    setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);setMusicStatus("AVAILABLE");
-    broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
-  };
-  const onNextMusic=()=>{
-    if(!musicTracks.length)return;
-    const index=Math.max(0,musicTracks.findIndex(t=>t.id===musicTrack?.id));
-    onSelectMusic(musicTracks[(index+1)%musicTracks.length].id);
-  };
-
-  const uploadMusic=async(file)=>{
-    if(!file||!id)return;
-    const allowed=["audio/mpeg","audio/mp4","audio/x-m4a","audio/aac","audio/ogg","audio/webm","audio/wav"];
-    const ext=String(file.name||"").split(".").pop()?.toLowerCase();
-    const allowedExt=["mp3","m4a","aac","ogg","webm","wav"];
-    if(file.type&&!allowed.includes(file.type)&&!allowedExt.includes(ext)){setMusicError("Choose MP3, M4A, AAC, OGG, WebM or WAV.");return;}
-    if(file.size>25*1024*1024){setMusicError("Custom songs must be 25 MB or smaller.");return;}
-    const mimeByExt={mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",webm:"audio/webm",wav:"audio/wav"};
-    try{
-      setMusicError("Adding song…");
-      let audioUrl="";
-      let shared=true;
-      const supabase=await getSupabase();
-      if(supabase){
-        const safeName=file.name.replace(/[^a-z0-9._-]+/gi,"-").slice(-100)||"song";
-        const path=id+"/"+makeId()+"-"+safeName;
-        const {error}=await supabase.storage.from("gc-music").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type||mimeByExt[ext]||"audio/mpeg"});
-        if(!error)audioUrl=supabase.storage.from("gc-music").getPublicUrl(path)?.data?.publicUrl||"";
-      }
-      if(!audioUrl){audioUrl=URL.createObjectURL(file);shared=false;}
-      if(!audioUrl)throw new Error("The song could not be loaded.");
-      const track={id:"custom-"+makeId(),title:file.name.replace(/\.[^.]+$/,"").slice(0,80)||"Custom song",artist:localRef.current?.name||"You",album:"Custom song",image:"",audio:audioUrl,duration:0,license:shared?"User uploaded":"Local device",source:"custom",localOnly:!shared};
-      setMusicTracks(prev=>[...prev.filter(t=>t.id!==track.id),track]);
-      setMusicError(shared?"":"Added on this device.");
-      const started=Date.now();
-      setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);
-      if(shared)broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
-    }catch(error){
-      console.error("Custom music upload failed",error);
-      setMusicError(error?.message||"Could not add that song.");
-    }
-  };
-
-  useEffect(()=>{if(!joined)return;setMusicError("");setMusicStatus("LOADING");
-    fetch("/api/music?search=lounge")
-      .then(async r=>{
-        const data=await r.json().catch(()=>({}));
-        const status=classifyMusicResponse({status:r.status,data});
-        if(status==="NOT_CONFIGURED"){setMusicStatus(status);throw new Error(data?.error||"Music API is not configured.");}
-        if(status==="API_ERROR"){setMusicStatus(status);throw new Error(data?.error||"Music API request failed.");}
-        if(status==="NO_MUSIC"){setMusicStatus(status);return data;}
-        return data;
-      })
-      .then(data=>{
-        if(Array.isArray(data?.tracks)&&data.tracks.length){
-          setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0]);setMusicStatus("AVAILABLE");
-        }else{
-          setMusicStatus("NO_MUSIC");
-          setMusicError("No playable tracks were returned by the music provider.");
-        }
-      })
-      .catch(e=>{
-        console.warn("music catalog unavailable",e);
-        setMusicError(e?.message||"Music API request failed.");
-      })},[joined]);
-
-  const onAttack=()=>{
-    if(!canAttack(localRef.current))return;
-    const now=performance.now();
-    if(now<attackCooldownRef.current)return;
-    attackCooldownRef.current=now+500;
-    const me=localRef.current,others=Object.values(players).filter(p=>p.id!==id);
-    let target=null,best=99;
-    for(const p of others){
-      const d=Math.hypot(p.x-me.x,p.z-me.z);
-      const angle=Math.atan2(p.x-me.x,p.z-me.z);
-      const facing=Math.abs(Math.atan2(Math.sin(angle-(me.rot||0)),Math.cos(angle-(me.rot||0))));
-      if(d<1.65&&facing<1.05&&d<best){best=d;target=p}
-    }
-    const p={...me,attacking:true};localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({
-      type:"broadcast",
-      event:"attack",
-      payload:{
-        id,targetId:target?.id||null,at:Date.now(),
-        attackerX:me.x,attackerZ:me.z,attackerRot:me.rot||0,
-        targetX:target?.x??me.x,targetZ:target?.z??me.z
-      }
-    });
-    setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
-  };
-
-  const onEmote=emote=>{
-    if(!localRef.current)return;
-    if(localRef.current.action==="sit"||localRef.current.action==="sleep"||localRef.current.action==="emote")return;
-    const allowed={dance:"dance",wave:"wave",clap:"clap",laugh:"laugh"};
-    const value=allowed[emote]||"dance";
-    runRef.current=false;
-    setMoveImmediate({x:0,z:0});
-    const p=startEmote(localRef.current,value);
-    if(!p)return;
-    localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
-    setTimeout(()=>{
-      if(localRef.current?.emote===value){
-        const clear=finishEmote(localRef.current);
-        localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-        channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...clear,netTs:Date.now()}});
-      }
-    },2600);
-  };
-
-  const interact=async(candidate)=>{
-    if(!localRef.current||!candidate)return;
-    const p=localRef.current;
-
-    if(candidate.type==="stand"){
-      const objectId=candidate.id||p.interactionId;
-      const clear=releaseInteraction(p);
-      localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-      if(objectId){
-        releaseInteraction(objectId);
-        setLocks(prev=>{const next={...prev};delete next[objectId];return next});
-        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId,userId:id,locked:false}});
-      }
-      setAction(null);
-      return;
-    }
-
-    if(locks[candidate.id]&&locks[candidate.id]!==id)return false;
-    if(candidate.type==="music"){
-      toggleMusic();
-      return true;
-    }
-
-    if(candidate.type==="tv"){
-      // TV is a shared social activity: multiple players can watch simultaneously.
-      const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:candidate.rotation??0,moving:false,speed:0};
-      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
-      setAction("watch");
-      return true;
-    }
-
-    if(candidate.type==="seat"||candidate.type==="bed"){
-      const finalAction=candidate.type==="bed"?"sleep":"sit";
-      const claimed=await claimInteraction(candidate,finalAction);
-      if(!claimed)return false;
-      const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
-      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      setLocks(prev=>({...prev,[candidate.id]:id}));
-      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-      return true;
-    }
-
-    const food=SNACKS.find(s=>s.id===candidate.id);
-    if(food){
-      const state=snackStates[food.id];
-      if(state?.consumed||state?.heldBy)return false;
-      const claimed=await claimInteraction(food,food.action);
-      if(!claimed)return false;
-      const held={id:food.id,heldBy:id,consumed:false};
-      setSnackStates(prev=>({...prev,[food.id]:held}));
-      channelRef.current?.send({type:"broadcast",event:"snack_state",payload:held});
-      setLocks(prev=>({...prev,[food.id]:id}));
-      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:true}});
-      const payload={...p,action:food.action,interactionId:food.id,moving:false,speed:0};
-      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-      setTimeout(()=>{
-        const consumed={id:food.id,heldBy:null,consumed:true};
-        setSnackStates(prev=>({...prev,[food.id]:consumed}));
-        channelRef.current?.send({type:"broadcast",event:"snack_state",payload:consumed});
-        if(localRef.current?.interactionId===food.id){
-          const clear={...localRef.current,action:null,interactionId:null};
-          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-        }
-        releaseInteraction(food.id);
-        setLocks(prev=>{const next={...prev};delete next[food.id];return next});
-        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:false}});
-      },1500);
-      return true;
-    }
-    return false;
-  };
-
-  const interactionArrived=(candidate)=>{
-    if(!localRef.current)return;
-    const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
-    const payload=arriveInteraction(localRef.current,candidate);
-    localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
-    setAction(finalAction);
-    // Stay seated/asleep until the user explicitly presses Stand up or moves
-    // the joystick/keyboard. The old 7s timer was making the interaction state
-    // race with input and could leave the client looking locked.
-  };
-
-  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} musicStatus={musicStatus} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} voiceState={voiceState} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>{setMusicStatus(error?"PLAYBACK_ERROR":"AVAILABLE");setMusicError(error?"Tap Music to start audio on this device.":"")}}/>;
-
-  return <main className="join">
-    <div className="card">
-      <div className="logo">🌙</div><h1>GC Hangout Hall</h1>
-      <p>One large shared hall built around movement, camera space and multiplayer interaction.</p>
-      <label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18))} placeholder="e.g. Rishi"/></label>
-      <div className="label">Choose your human</div>      <div className="avatars">{PRESETS.map((p,i)=>
-        <button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id)} key={p.id}>
-          <span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small>
-        </button>
-      )}</div>
-      <button className="enter" onClick={join} disabled={!name.trim()||joining}>{joining?"Connecting…":"Enter the hall →"}</button>
-      {connectionError&&<div className="joinError" role="alert">{connectionError}</div>}
-      <div className="note">Open-plan hall • smooth movement • shared music • multiplayer</div>
-    </div>
-  </main>;
+      <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
+      {settingsOpen && (
+        <div className="settings-panel">
+          <label>Your name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={18} /></label>
+          <div className="avatar-picker">
+            {AVATARS.map((item) => (
+              <button key={item.id} className={item.id === avatarId ? "selected" : ""} onClick={() => setAvatarId(item.id)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setSettingsOpen(false)}>Done</button>
+        </div>
+      )}
+    </main>
+  );
 }
