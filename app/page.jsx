@@ -21,6 +21,7 @@ const PRESETS = [
 ];
 
 const HUMAN_URL="https://cdn.3dassets.dev/assets/32901/v1/model.glb";
+useGLTF.preload(HUMAN_URL);
 const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -36,8 +37,8 @@ const FURNITURE={
 };
 
 const SEATS=[
- {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-6.48],standPosition:[-10.45,0,-6.02],approachPosition:[-10.45,0,-6.02],rotation:0},
- {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-6.48],standPosition:[-9.55,0,-6.02],approachPosition:[-9.55,0,-6.02],rotation:0},
+ {id:"sofa-a-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-6.48],standPosition:[-10.45,0,-6.4],approachPosition:[-10.45,0,-6.4],rotation:0},
+ {id:"sofa-a-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-6.48],standPosition:[-9.55,0,-6.4],approachPosition:[-9.55,0,-6.4],rotation:0},
  {id:"sofa-b-left",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-10.45,0,-4.42],standPosition:[-10.45,0,-4.88],approachPosition:[-10.45,0,-4.88],rotation:Math.PI},
  {id:"sofa-b-right",label:"Sit on sofa",type:"seat",finalAction:"sit",position:[-9.55,0,-4.42],standPosition:[-9.55,0,-4.88],approachPosition:[-9.55,0,-4.88],rotation:Math.PI},
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
