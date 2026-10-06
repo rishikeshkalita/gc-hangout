@@ -14,20 +14,21 @@ const AVATARS = [
 ];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
 const INTERACTION_ANCHORS = Object.freeze([
-  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -12.0, z: -6.2, rot: Math.PI / 2, exitX: -12.0, exitZ: -4.65, radius: 1.35 },
-  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -7.6, z: -6.2, rot: -Math.PI / 2, exitX: -7.6, exitZ: -4.65, radius: 1.35 },
-  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -12.0, z: -3.5, rot: Math.PI / 2, exitX: -12.0, exitZ: -1.95, radius: 1.35 },
-  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -7.6, z: -3.5, rot: -Math.PI / 2, exitX: -7.6, exitZ: -1.95, radius: 1.35 },
-  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, exitX: 8.2, exitZ: 3.95, radius: 1.15 },
-  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, exitX: 11.2, exitZ: 3.95, radius: 1.15 },
-  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, exitX: 8.2, exitZ: 7.65, radius: 1.15 },
-  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, exitX: 11.2, exitZ: 7.65, radius: 1.15 },
-  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, exitX: 6.8, exitZ: -6.0, radius: 1.65 },
-  { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, exitX: 0, exitZ: -5.55, radius: 2.2 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 8.0, z: 5.8, rot: Math.PI, exitX: 8.0, exitZ: 3.85, radius: 2.6 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 11.0, z: 5.8, rot: Math.PI, exitX: 11.0, exitZ: 3.85, radius: 2.0 },
-  { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
+  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -12.0, z: -6.2, rot: Math.PI / 2, targetX: -12.0, targetZ: -6.2, exitX: -12.0, exitZ: -4.65, radius: 1.35 },
+  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -7.6, z: -6.2, rot: -Math.PI / 2, targetX: -7.6, targetZ: -6.2, exitX: -7.6, exitZ: -4.65, radius: 1.35 },
+  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -12.0, z: -3.5, rot: Math.PI / 2, targetX: -12.0, targetZ: -3.5, exitX: -12.0, exitZ: -1.95, radius: 1.35 },
+  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -7.6, z: -3.5, rot: -Math.PI / 2, targetX: -7.6, targetZ: -3.5, exitX: -7.6, exitZ: -1.95, radius: 1.35 },
+  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, targetX: 8.2, targetZ: 3.95, exitX: 8.2, exitZ: 2.95, radius: 1.15 },
+  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, targetX: 11.2, targetZ: 3.95, exitX: 11.2, exitZ: 2.95, radius: 1.15 },
+  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, targetX: 8.2, targetZ: 7.65, exitX: 8.2, exitZ: 8.65, radius: 1.15 },
+  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, targetX: 11.2, targetZ: 7.65, exitX: 11.2, exitZ: 8.65, radius: 1.15 },
+  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, targetX: 8.7, targetZ: -6.0, exitX: 5.9, exitZ: -6.0, radius: 1.65 },
+  { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.2 },
+  { id: "food-table", type: "EAT", label: "Eat", x: 8.0, z: 5.8, rot: Math.PI, targetX: 8.0, targetZ: 3.85, exitX: 8.0, exitZ: 2.8, radius: 2.6 },
+  { id: "drink-table", type: "DRINK", label: "Drink", x: 11.0, z: 5.8, rot: Math.PI, targetX: 11.0, targetZ: 3.85, exitX: 11.0, exitZ: 2.8, radius: 2.0 },
+  { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
 function findNearestAnchor(x, z) {
@@ -123,7 +124,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
+function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -193,6 +194,11 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
   }, [mobile]);
 
   useEffect(() => {
+    motion.current = { x: state.x, z: state.z, rot: state.rot, moving: false, speed: 0 };
+    dirty.current = false;
+  }, [motionResetKey]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       if (!dirty.current) return;
       dirty.current = false;
@@ -251,10 +257,13 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
     }
 
     if (interaction && (interaction.phase === "align" || interaction.phase === "animate" || interaction.phase === "sync")) {
-      if (Math.hypot(interaction.anchor.x - current.x, interaction.anchor.z - current.z) > 0.02) {
-        current.x = interaction.anchor.x;
-        current.z = interaction.anchor.z;
-        current.rot = interaction.anchor.rot;
+      const targetX = interaction.anchor.targetX ?? interaction.anchor.x;
+      const targetZ = interaction.anchor.targetZ ?? interaction.anchor.z;
+      const targetRot = interaction.anchor.targetRot ?? interaction.anchor.rot;
+      if (Math.hypot(targetX - current.x, targetZ - current.z) > 0.02) {
+        current.x = targetX;
+        current.z = targetZ;
+        current.rot = targetRot;
         dirty.current = true;
       }
     }
@@ -339,36 +348,47 @@ function Lamp({ position }) {
 
 function GraffitiWall() {
   const words = [
-    ["Maksudai", -11.8, 3.7, -9.76, -0.08],
-    ["Boineksudai", -7.0, 3.05, -9.78, 0.05],
-    ["Rendi", -3.3, 3.65, -9.77, -0.12],
-    ["sutamareni", 1.3, 3.05, -9.78, 0.08],
-    ["koti mara", 5.4, 3.7, -9.77, -0.08],
-    ["buskarpu", 9.2, 3.15, -9.77, 0.1],
-    ["suor", -12.3, 2.55, -9.77, 0.12],
-    ["kukur", -8.6, 2.2, -9.77, -0.05],
-    ["notisuda", -4.6, 2.55, -9.77, 0.1],
-    ["boinerlalak", 0.1, 2.35, -9.77, -0.1],
-    ["renda", 4.2, 2.5, -9.77, 0.08],
-    ["johra", 7.3, 2.35, -9.77, -0.1],
-    ["sudhirbhai", 10.2, 2.45, -9.77, 0.06],
+    ["Maksudai", -11.8, 3.7, -9.76, -0.08, 0.54],
+    ["Boineksudai", -7.0, 3.05, -9.76, 0.05, 0.46],
+    ["Rendi", -3.3, 3.65, -9.76, -0.12, 0.62],
+    ["sutamareni", 1.3, 3.05, -9.76, 0.08, 0.5],
+    ["koti mara", 5.4, 3.7, -9.76, -0.08, 0.52],
+    ["buskarpu", 9.2, 3.15, -9.76, 0.1, 0.48],
+    ["suor", -12.3, 2.55, -9.76, 0.12, 0.62],
+    ["kukur", -8.6, 2.2, -9.76, -0.05, 0.58],
+    ["notisuda", -4.6, 2.55, -9.76, 0.1, 0.46],
+    ["boinerlalak", 0.1, 2.35, -9.76, -0.1, 0.44],
+    ["renda", 4.2, 2.5, -9.76, 0.08, 0.55],
+    ["johra", 7.3, 2.35, -9.76, -0.1, 0.6],
+    ["sudhirbhai", 10.2, 2.45, -9.76, 0.06, 0.46],
+  ];
+  const splashes = [
+    [-11.7, 4.05, 0.08, 0.32], [-7.0, 3.45, -0.1, 0.28], [-3.2, 4.0, 0.06, 0.25],
+    [1.0, 3.45, -0.06, 0.3], [5.2, 4.02, 0.08, 0.27], [9.1, 3.55, -0.04, 0.26],
+    [-9.5, 2.0, 0.12, 0.22], [0.0, 2.0, -0.08, 0.24], [6.7, 2.0, 0.1, 0.2],
   ];
   return (
     <group>
       <mesh position={[0, 3.0, -9.79]}>
-        <planeGeometry args={[27.5, 3.6]} />
-        <meshBasicMaterial color="#16131c" transparent opacity={0.72} />
+        <planeGeometry args={[27.5, 3.8]} />
+        <meshBasicMaterial color="#17111d" transparent opacity={0.82} />
       </mesh>
-      {words.map(([word, x, y, z, rotation]) => (
+      {splashes.map(([x, y, r, s], index) => (
+        <mesh key={index} position={[x, y, -9.745]} rotation={[0, 0, r]} scale={[s, s * 0.55, 1]}>
+          <circleGeometry args={[0.9, 12]} />
+          <meshBasicMaterial color="#8f46cf" transparent opacity={0.5} depthWrite={false} />
+        </mesh>
+      ))}
+      {words.map(([word, x, y, z, rotation, fontSize], index) => (
         <Text
           key={word}
           position={[x, y, z]}
           rotation={[0, 0, rotation]}
-          fontSize={0.52}
+          fontSize={fontSize}
           maxWidth={4.2}
-          color="#d86cff"
+          color={index % 3 === 0 ? "#ff62d5" : index % 3 === 1 ? "#b56cff" : "#7be7ff"}
           outlineWidth={0.025}
-          outlineColor="#251035"
+          outlineColor="#241129"
           anchorX="center"
           anchorY="middle"
         >
@@ -410,11 +430,11 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef }) {
+function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
   return (
     <>
       <ambientLight intensity={1.55} />
-      <hemisphereLight args={["#fff2dc", "#303847", 1.1} />
+      <hemisphereLight args={["#fff2dc", "#303847", 1.1]} />
       <directionalLight position={[5, 10, 4]} intensity={0.72} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <pointLight position={[0, 4.5, 0]} intensity={1.8} distance={18} color="#fff1d5" />
       <pointLight position={[-9, 3.6, -3]} intensity={1.0} distance={10} color="#e2e8ff" />
@@ -434,7 +454,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef }) {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} />
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} />
     </>
   );
 }
@@ -449,6 +469,7 @@ export default function Game() {
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
+  const motionResetKey = useRef(0);
 
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
@@ -459,26 +480,33 @@ export default function Game() {
   };
 
   const endInteraction = () => {
-    setInteraction((current) => current ? { ...current, status: "released", phase: "release" } : current);
-    const exit = interaction?.anchor?.exitX != null
-      ? { x: interaction.anchor.exitX, z: interaction.anchor.exitZ, rot: restoreMotion.current.rot }
+    const current = interaction;
+    if (!current) return;
+    const anchor = current.anchor;
+    const exit = anchor.exitX != null && anchor.exitZ != null
+      ? { x: anchor.exitX, z: anchor.exitZ }
       : restoreMotion.current;
-    setPlayer((current) => ({ ...current, x: exit.x, z: exit.z, rot: exit.rot, moving: false, speed: 0 }));
+    setInteraction({ ...current, status: "released", phase: "release" });
+    setPlayer((state) => ({ ...state, x: exit.x, z: exit.z, rot: state.rot, moving: false, speed: 0 }));
     joystickRef.current = { x: 0, y: 0, active: false };
     setJoystick(joystickRef.current);
-    window.setTimeout(() => setInteraction(null), 0);
+    motionResetKey.current += 1;
+    const key = motionResetKey.current;
+    window.setTimeout(() => {
+      setInteraction((state) => state?.startedAt === current.startedAt ? null : state);
+    }, 0);
+    void key;
   };
 
   useEffect(() => {
-    if (!interaction) return undefined;
-    if (interaction.phase === "release") return undefined;
+    if (!interaction || interaction.phase === "release") return undefined;
     const phases = [["stop", 80], ["align", 160], ["animate", 320], ["sync", 700]];
     let timer;
     let index = 0;
     const advance = () => {
       if (index >= phases.length) return;
       const [phase, delay] = phases[index++];
-      setInteraction((current) => current ? { ...current, phase, status: phase === "sync" ? "active" : "reserved" } : current);
+      setInteraction((state) => state ? { ...state, phase, status: phase === "sync" ? "active" : "reserved" } : state);
       timer = window.setTimeout(advance, delay);
     };
     timer = window.setTimeout(advance, 40);
@@ -492,11 +520,13 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} />
       </Canvas>
+
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
       {nearby && !interaction && <button className="interaction-hint" onPointerDown={(event) => event.stopPropagation()} onClick={beginInteraction}><strong>{nearby.label}</strong><span>Tap to interact</span></button>}
       {interaction && <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}><strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span></button>}
+
       <div
         className="touch-controls"
         aria-label="Touch movement controls"
@@ -547,6 +577,7 @@ export default function Game() {
       >
         <div className="joystick"><span style={{ transform: `translate(${joystick.x * 30}px, ${-joystick.y * 30}px)` }} /></div>
       </div>
+
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
         <div className="settings-panel">
