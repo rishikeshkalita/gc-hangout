@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  VOICE_STATES, createLocalPlayer, upsertPlayer, removePlayer, applyPlayerState,
+  VOICE_STATES, canAttack, createLocalPlayer, upsertPlayer, removePlayer, applyPlayerState,
   beginInteraction, arriveInteraction, releaseInteraction, startEmote, finishEmote,
   claimSeat, releaseSeat, normalizeChatMessage, mergeChatMessages,
   normalizeMusicResponse, classifyMusicResponse, voiceTransition,
@@ -53,6 +53,12 @@ test("simultaneous seat claims resolve to one holder", () => {
   assert.equal(second.ok, false);
   assert.equal(releaseSeat(first.locks, "seat-1", "p2")["seat-1"], "p1");
   assert.equal(releaseSeat(first.locks, "seat-1", "p1")["seat-1"], undefined);
+});
+
+test("combat cannot start while sitting, sleeping, watching, moving or emoting", () => {
+  const p = createLocalPlayer({id:"p1", name:"A", avatarId:"maya"});
+  assert.equal(canAttack(p), true);
+  for (const action of ["sit","sleep","watch","moving","emote"]) assert.equal(canAttack({...p, action}), false);
 });
 
 test("emotes always have an exit transition", () => {
