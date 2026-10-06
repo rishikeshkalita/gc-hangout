@@ -1,153 +1,65 @@
-*{box-sizing:border-box}
-html,body{margin:0;background:#080a0f;color:#fff;font-family:Inter,ui-sans-serif,system-ui,sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
-html{height:100%;overflow:hidden}
-body{overflow:hidden;width:100%;min-height:100%;height:100%;touch-action:manipulation;-webkit-touch-callout:none}
-button,input,select{font:inherit}
-button,label,select{ -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none }
-input,textarea{ -webkit-user-select:text; user-select:text }
+* { box-sizing: border-box; }
 
-.join{min-height:100svh;display:grid;place-items:center;padding:18px;background:radial-gradient(circle at 50% 5%,#27304a 0,#10151f 42%,#07090d 80%)}
-.card{width:min(500px,94vw);padding:30px;border:1px solid #ffffff16;background:rgba(15,19,28,.94);border-radius:26px;box-shadow:0 30px 100px #000b;backdrop-filter:blur(18px)}
-.logo{font-size:40px}.card h1{font-size:40px;letter-spacing:-2px;margin:8px 0}.card p{color:#9da4b3;line-height:1.5;margin:0 0 24px}.card label,.label{display:block;color:#c9ced8;font-size:13px;font-weight:700;margin-bottom:9px}.card input{display:block;width:100%;margin-top:8px;background:#090c12;border:1px solid #2a303b;color:#fff;padding:14px 15px;border-radius:13px;outline:none}.avatars{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 20px}.avatars button{background:#11151d;border:1px solid #2a303a;border-radius:14px;color:white;padding:9px 4px;cursor:pointer}.avatars button.selected{border-color:#8d7bff;background:#211e39;box-shadow:0 0 0 1px #8d7bff55 inset}.avatars span{display:block;font-size:28px}.avatars small{color:#8f97a7;font-size:10px}.enter{width:100%;border:0;border-radius:14px;padding:15px;background:linear-gradient(135deg,#7867ff,#5141d0);color:white;font-weight:800;cursor:pointer}.enter:disabled{opacity:.35;cursor:not-allowed}.note{text-align:center;color:#697182;font-size:11px;margin-top:12px}
-.room{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;overflow:hidden;background:#090b10;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none}.room canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.cameraPad{display:none}.cameraGesture{display:none}.cameraJoystick{display:none}.room:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#05070b55 0%,transparent 18%,transparent 78%,#05070b66 100%);mix-blend-mode:multiply}
-.topbar{position:absolute;left:18px;right:18px;top:14px;display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border:1px solid #ffffff18;background:#0b0f17c9;backdrop-filter:blur(14px);border-radius:15px;box-shadow:0 12px 35px #0007;pointer-events:none}.topbar span{color:#73e5a2;font-size:12px}.zoneHint{position:absolute;top:62px;left:50%;transform:translateX(-50%);padding:7px 12px;border-radius:999px;background:#0b0f17aa;color:#a1a8b6;font-size:10px;white-space:nowrap;pointer-events:none;backdrop-filter:blur(10px)}
-.chatToggle{display:none}.chat{position:absolute;right:18px;top:76px;width:min(280px,28vw);padding:12px;background:#0b0f17d9;border:1px solid #ffffff18;border-radius:16px;box-shadow:0 18px 55px #0008;z-index:85;pointer-events:auto;touch-action:manipulation}.chat>b{font-size:11px;color:#aab1c0}.msg{font-size:12px;color:#c5cbd5;padding:9px 0;border-bottom:1px solid #ffffff0c}.msg strong{color:#fff;margin-right:5px}.input{margin-top:10px;padding:10px;border-radius:10px;background:#151a23;color:#727a89;font-size:12px}
-.controls{position:absolute;left:50%;z-index:80;pointer-events:auto;touch-action:manipulation;user-select:none;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;padding:6px;box-sizing:border-box;max-width:calc(100vw - 24px);background:#0b0f17e8;border:1px solid #ffffff18;border-radius:18px;box-shadow:0 18px 55px #0008}.controls button{border:0;background:#171c25;color:#d9dde5;padding:11px 15px;border-radius:11px;cursor:pointer;transition:transform .15s ease,background .15s ease;white-space:nowrap;touch-action:manipulation;-webkit-user-select:none;user-select:none}.controls button:active{transform:scale(.96)}.controls button.active{background:#342b63;color:#fff;box-shadow:0 0 0 1px #8064ff55 inset}
-.joystick,.fight,.mobileAction{display:none}.stick{position:absolute;width:42px;height:42px;left:50%;top:50%;margin:-21px;transform:translate(var(--jx,0),var(--jz,0));border-radius:50%;background:#c9ced8;box-shadow:0 6px 20px #0008}
-@media(max-width:700px){
-  .zoneHint{display:none}.topbar{top:8px;left:10px;right:10px;padding:8px 11px;border-radius:12px;background:#0b0f1790;box-shadow:none}.topbar b{font-size:13px}.topbar span{font-size:10px}
-  .chatToggle{display:grid;place-items:center;position:absolute;right:12px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:90;width:46px;height:46px;border:1px solid #ffffff20;border-radius:50%;background:#0b0f17dd;color:#fff;font-size:20px;box-shadow:0 12px 30px #0008;touch-action:manipulation}.chat{display:none;right:10px;top:auto;bottom:calc(92px + env(safe-area-inset-bottom));width:min(360px,calc(100vw - 20px));max-height:48dvh;padding:12px;border-radius:16px;z-index:89}.chat.open{display:block}.chat .chatList{max-height:26dvh}.chatForm input{font-size:16px;min-height:42px}.chatForm button{min-height:42px;padding:0 14px}.chat .msg{display:flex}
-  .controls{left:50%;bottom:max(8px,env(safe-area-inset-bottom));z-index:80;width:min(430px,calc(100vw - 110px));max-width:none;gap:5px;padding:5px;border-radius:15px;background:#0b0f17dd;backdrop-filter:blur(14px);overflow-x:auto}.controls button{flex:0 0 48px;min-width:48px;width:48px;height:44px;padding:0;font-size:0;border-radius:10px}.controls button::first-letter{font-size:19px}.musicSelect{flex:1 1 145px;min-width:130px;height:44px}
-  .cameraJoystick{display:none}.cameraGesture{display:none}
-  .joystick{display:block;position:absolute;left:max(10px,env(safe-area-inset-left));bottom:max(76px,calc(76px + env(safe-area-inset-bottom)));width:94px;height:94px;z-index:50;touch-action:none;pointer-events:auto;border-radius:50%;background:#0b0f1788;border:1px solid #ffffff16;box-shadow:0 12px 30px #0007}.stick{width:36px;height:36px;margin:-18px}.joystick:before{content:"";position:absolute;inset:15px;border:1px solid #ffffff22;border-radius:50%}
-  .fight,.mobileAction{display:block;position:absolute;z-index:50;border:1px solid #ffffff20;color:#fff;font-weight:800;border-radius:50%;box-shadow:0 12px 30px #0008}.fight{right:max(12px,env(safe-area-inset-right));bottom:calc(145px + env(safe-area-inset-bottom));width:62px;height:62px;background:#c95664;font-size:24px}.mobileAction{right:calc(max(12px,env(safe-area-inset-right)) + 72px);bottom:calc(155px + env(safe-area-inset-bottom));width:46px;height:46px;background:#4e54a8;font-size:18px}
-  .card{padding:25px}.card h1{font-size:36px}.avatars{gap:6px}.avatars button{padding:8px 3px}
-}
-@media(min-width:701px){.joystick,.fight,.mobileAction{display:none}}
-
-.interactionPrompt{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);z-index:9;border:1px solid #ffffff28;background:#111722e8;color:#fff;padding:10px 15px;border-radius:14px;box-shadow:0 14px 40px #0009;backdrop-filter:blur(14px);font-weight:800;font-size:13px;cursor:pointer}.interactionPrompt span{display:inline-block;margin-right:7px;color:#b7a8ff}
-@media(max-width:700px){.interactionPrompt{bottom:205px;padding:9px 13px;border-radius:13px;font-size:12px;max-width:70vw;white-space:nowrap}}
-
-.chatHead{display:flex;justify-content:space-between;align-items:center;gap:8px}.chatHead span{font-size:10px;color:#6f7786}.chatList{max-height:180px;overflow:auto;scrollbar-width:thin}.chat .msg{display:flex;gap:6px;line-height:1.35}.chat .msg strong{flex:0 0 auto}.chat .msg span{min-width:0;overflow-wrap:anywhere}.chatForm{margin-top:8px}.chatError{margin-top:7px;color:#f3b7bd;background:#2a171d;border:1px solid #633844;border-radius:9px;padding:6px 8px;font-size:10px;line-height:1.25}.chatForm{display:flex;gap:7px}.chatForm input{flex:1;min-width:0;width:100%;border:1px solid #242b37;background:#121720;color:#fff;border-radius:10px;padding:9px 10px;outline:none;font-size:12px}.chatForm input:focus{border-color:#6d62c8}.chatForm button{border:0;border-radius:10px;padding:0 12px;background:#5d50c9;color:#fff;font-weight:800;cursor:pointer;touch-action:manipulation}.voiceError{position:absolute;right:10px;bottom:150px;z-index:60;max-width:min(210px,58vw);padding:6px 8px;border:1px solid #6d3d47;background:#29151bd9;color:#ffd8df;border-radius:9px;font-size:9px;line-height:1.2;box-shadow:0 8px 20px #0007;pointer-events:none}
-@media(max-width:700px){
-  .chat.open{display:block;width:min(360px,calc(100vw - 20px));height:auto;max-height:48dvh;right:10px;bottom:calc(92px + env(safe-area-inset-bottom));padding:12px;border-radius:16px;overflow:hidden}
-  .chatForm input{height:42px}
-  .voiceError{right:10px;bottom:210px}
-}
-.musicSelect{max-width:190px;background:#141923;color:#eef0f6;border:1px solid #2a3040;border-radius:10px;padding:7px 9px;font-size:11px;outline:none}.musicSelect:focus{border-color:#6d62c8}@media(max-width:700px){.musicSelect{max-width:150px;font-size:10px}}
-.musicError{max-width:150px;color:#ffdfe2;background:#2a171dcc;border:1px solid #633844;border-radius:8px;padding:5px 7px;font-size:9px;line-height:1.2;pointer-events:none}@media(max-width:700px){.musicError{max-width:105px;font-size:8px;padding:4px 6px}}
-
-@media(max-width:700px) and (orientation:landscape){.topbar{top:6px}.chatToggle{right:10px;bottom:10px}.chat{right:10px;bottom:10px;max-height:70dvh}.controls{bottom:8px;width:min(430px,calc(100vw - 180px))}.joystick{bottom:calc(66px + env(safe-area-inset-bottom));width:82px;height:82px}.fight{bottom:calc(88px + env(safe-area-inset-bottom));width:58px;height:58px}.mobileAction{bottom:calc(98px + env(safe-area-inset-bottom))}}
-
-.chatClose{display:none;border:0;background:transparent;color:#aeb4c0;font-size:20px;line-height:1;padding:0;cursor:pointer}
-.musicUpload{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:42px;padding:0 10px;border-radius:10px;background:#171c25;color:#d9dde5;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation}.musicUpload input{display:none}
-.emoteMenu{position:absolute;right:18px;bottom:76px;z-index:90;display:flex;gap:6px;padding:7px;background:#0b0f17e8;border:1px solid #ffffff18;border-radius:14px;box-shadow:0 18px 55px #0008;pointer-events:auto;touch-action:manipulation}.emoteMenu button{border:0;background:#171c25;color:#fff;padding:9px 11px;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer}
-@media(max-width:700px){.chatClose{display:block}.emoteMenu{right:10px;bottom:calc(148px + env(safe-area-inset-bottom));max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:flex-end}.musicUpload{flex:0 0 54px;width:54px;padding:0;font-size:0}.musicUpload::first-letter{font-size:18px}.controls button,.musicUpload,.musicSelect,.chatToggle,.chatClose,.interactionPrompt,.mobileAction,.fight{touch-action:manipulation}.controls{scrollbar-width:none}.controls::-webkit-scrollbar{display:none}}
-@media(max-width:700px) and (orientation:landscape){.emoteMenu{bottom:74px;right:10px}}
-
-/* Touch-first layout also applies to Android tablets, foldables, and touch Chromebooks. */
-@media (hover:none) and (pointer:coarse) and (min-width:701px){
-  .chatToggle{display:grid;place-items:center;position:absolute;right:16px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:90;width:48px;height:48px;border:1px solid #ffffff20;border-radius:50%;background:#0b0f17dd;color:#fff;font-size:20px;box-shadow:0 12px 30px #0008;touch-action:manipulation}
-  .chat{display:none;right:16px;top:auto;bottom:calc(92px + env(safe-area-inset-bottom));width:min(390px,calc(100vw - 32px));max-height:52dvh;padding:12px;border-radius:16px;z-index:89}
-  .chat.open{display:block}
-  .chatClose{display:block}
-  .chatForm input{font-size:16px;min-height:44px}
-  .chatForm button{min-height:44px}
-  .controls{left:50%;bottom:max(10px,env(safe-area-inset-bottom));width:min(620px,calc(100vw - 180px));max-width:none;overflow-x:auto;scrollbar-width:none}
-  .controls::-webkit-scrollbar{display:none}
-  .controls button{min-width:54px;height:48px;padding:0}
-  .joystick{display:block;position:absolute;left:max(16px,env(safe-area-inset-left));bottom:max(86px,calc(86px + env(safe-area-inset-bottom)));width:104px;height:104px;z-index:50;touch-action:none;pointer-events:auto;border-radius:50%;background:#0b0f1788;border:1px solid #ffffff16;box-shadow:0 12px 30px #0007}
-  .stick{width:40px;height:40px;margin:-20px}
-  .fight,.mobileAction{display:block;position:absolute;z-index:50;touch-action:manipulation}
-  .fight{right:max(18px,env(safe-area-inset-right));bottom:calc(160px + env(safe-area-inset-bottom));width:68px;height:68px;font-size:26px}
-  .mobileAction{right:calc(max(18px,env(safe-area-inset-right)) + 80px);bottom:calc(170px + env(safe-area-inset-bottom));width:50px;height:50px}
-  .musicSelect{min-height:48px;font-size:12px}
-  .musicUpload{min-height:48px}
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0e1118;
 }
 
-.voicePanel{position:absolute;right:18px;bottom:76px;z-index:91;width:min(300px,calc(100vw - 36px));padding:12px;background:#0b0f17ee;border:1px solid #ffffff18;border-radius:16px;box-shadow:0 18px 55px #0008;backdrop-filter:blur(14px);touch-action:manipulation}.voicePanelTitle{display:flex;justify-content:space-between;align-items:center;color:#dfe3ea;font-size:12px;margin-bottom:9px}.voicePanelTitle button{border:0;background:transparent;color:#aeb4c0;font-size:20px}.voiceMute{width:100%;border:0;border-radius:10px;background:#171c25;color:#fff;padding:11px;font-weight:800;touch-action:manipulation}.voiceSetting{display:block;color:#9da5b4;font-size:10px;font-weight:700;margin-top:10px}.voiceSetting select{display:block;width:100%;margin-top:5px;min-height:40px;border:1px solid #2a3040;border-radius:10px;background:#141923;color:#fff;padding:7px}.voiceSetting input[type=range]{display:block;width:100%;margin-top:8px;accent-color:#6d62c8}@media(max-width:700px){.voicePanel{right:10px;bottom:calc(148px + env(safe-area-inset-bottom));width:min(320px,calc(100vw - 20px))}}
+html, body { width: 100%; min-height: 100%; margin: 0; overflow: hidden; background: #0e1118; }
+body { min-height: 100dvh; }
+button, input { font: inherit; }
+button { border: 0; cursor: pointer; }
 
-/* Gameplay controls: keep the canvas usable while making the HUD readable. */
-.cameraHint{position:absolute;left:50%;top:62px;transform:translateX(-50%);z-index:20;padding:7px 12px;border:1px solid #ffffff16;border-radius:999px;background:#0b0f1788;color:#aeb5c3;font-size:10px;letter-spacing:.02em;backdrop-filter:blur(10px);pointer-events:none}
-.controls{align-items:center;min-height:54px}
-.controls button{min-height:42px}
-.controls button:hover{background:#202733}
-.chatForm input{font-size:16px!important;line-height:1.25;touch-action:manipulation}
-.chatForm button{min-height:42px}
-.musicUpload{font-size:11px}
-@media(max-width:700px){
-  .cameraHint{top:52px;font-size:9px;padding:6px 9px}
-  .controls{min-height:54px}
-  .controls button{min-height:44px}
-  .chatForm input{font-size:16px!important;line-height:42px}
+.game-shell { position: fixed; inset: 0; overflow: hidden; background: #0e1118; }
+.game-shell canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+.hud {
+  position: fixed; left: 16px; top: 16px; z-index: 10; pointer-events: none;
+  padding: 11px 14px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px;
+  background: rgba(10,13,20,.62); backdrop-filter: blur(14px); box-shadow: 0 12px 40px rgba(0,0,0,.2);
 }
+.hud-title { font-size: 14px; font-weight: 800; letter-spacing: .12em; }
+.hud-subtitle { margin-top: 3px; color: #b8bdca; font-size: 12px; }
+.hud-controls { display: flex; gap: 8px; margin-top: 8px; color: #8f96a6; font-size: 10px; }
+.hud-controls span { padding: 4px 7px; border-radius: 7px; background: rgba(255,255,255,.06); }
 
-
-/* Strict mobile/gameplay QA overrides */
-.chatToggle,.chat{display:none!important}
-.chatNotices{position:absolute;left:50%;top:124px;transform:translateX(-50%);z-index:92;width:min(420px,calc(100vw - 24px));display:flex;flex-direction:column;gap:6px;pointer-events:none}
-.chatNotice{display:flex;align-items:baseline;gap:7px;max-width:100%;padding:8px 11px;border:1px solid #ffffff18;border-radius:12px;background:#0b0f17dd;box-shadow:0 10px 30px #0007;backdrop-filter:blur(12px);font-size:12px;line-height:1.3;animation:chatNoticeIn .16s ease-out,chatNoticeOut .45s ease-in 4s forwards}
-.chatNotice strong{color:#fff;flex:0 0 auto}.chatNotice span{color:#c7ccd5;min-width:0;overflow-wrap:anywhere}
-.chatComposer{position:absolute;right:10px;top:58px;z-index:93;width:min(180px,calc(100vw - 20px));pointer-events:auto}
-.chatForm{display:flex;gap:6px;margin:0;padding:4px;border:1px solid #ffffff18;border-radius:13px;background:#0b0f17d9;box-shadow:0 10px 30px #0007;backdrop-filter:blur(12px)}
-.chatForm input{flex:1;min-width:0;height:38px;padding:0 10px;border:0!important;border-radius:9px;background:#121720;color:#fff;outline:none;font-size:16px!important;line-height:38px!important;touch-action:manipulation}
-.chatForm input:focus{border-color:transparent!important}
-.chatForm button{flex:0 0 38px;width:38px;height:38px;min-height:38px;padding:0;border:0;border-radius:9px;background:#5d50c9;color:#fff;font-weight:900;touch-action:manipulation}
-.chatError{margin-top:5px}
-.musicStatus{position:absolute;left:50%;bottom:74px;transform:translateX(-50%);z-index:79;width:min(360px,calc(100vw - 140px));display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #ffffff14;border-radius:10px;background:#0b0f17b8;color:#bfc5d0;font-size:10px;pointer-events:none;backdrop-filter:blur(10px)}
-.musicStatus strong{color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.musicStatus span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.musicStatus progress{flex:1;min-width:45px;height:5px}
-.musicUpload{min-height:42px!important;padding:0 10px!important}
-@keyframes chatNoticeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-@keyframes chatNoticeOut{to{opacity:0;transform:translateY(-4px)}}
-@media(max-width:700px){
-  .chatNotices{top:108px;width:min(330px,calc(100vw - 20px));left:50%}
-  .chatComposer{top:58px;right:10px;width:min(150px,calc(100vw - 20px))}
-  .chatForm{padding:3px;border-radius:12px}
-  .chatForm input{height:38px;line-height:38px!important;font-size:16px!important}
-  .chatForm button{width:38px;height:38px;min-height:38px}
-  .musicStatus{bottom:64px;width:min(300px,calc(100vw - 110px));font-size:9px}
-  .musicUpload{flex:0 0 64px!important;width:64px!important;font-size:9px!important}
+.settings {
+  position: fixed; right: 16px; top: 16px; z-index: 12; width: 42px; height: 42px; border-radius: 50%;
+  color: #fff; background: rgba(10,13,20,.68); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(12px);
 }
-@media(max-width:700px) and (orientation:landscape){
-  .chatNotices{top:92px}.chatComposer{top:48px}
-  .musicStatus{bottom:60px}
+.settings-panel {
+  position: fixed; right: 16px; top: 66px; z-index: 20; width: min(290px, calc(100vw - 32px));
+  padding: 16px; border-radius: 16px; background: rgba(12,16,24,.94); border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
 }
+.settings-panel label { display: grid; gap: 6px; color: #d8dce5; font-size: 12px; }
+.settings-panel input {
+  width: 100%; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 11px;
+  color: #fff; background: rgba(255,255,255,.06); outline: none;
+}
+.avatar-picker { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 12px 0; }
+.avatar-picker button, .settings-panel > button { min-height: 38px; border-radius: 10px; color: #dce0ea; background: rgba(255,255,255,.07); }
+.avatar-picker button.selected { color: #fff; background: rgba(119,103,255,.45); outline: 1px solid rgba(167,155,255,.7); }
+.settings-panel > button { width: 100%; background: #7567ee; color: #fff; }
 
-.controls button.voiceState{font-size:11px;min-width:110px;width:auto;padding:0 10px;line-height:1.1;font-weight:700;letter-spacing:.01em}
-.controls button.voiceState.muted{background:#4a2630;color:#fff}
-@media (max-width:720px){.controls button.voiceState{font-size:10px;min-width:104px;width:104px;padding:0 7px}}
+.join {
+  min-height: 100dvh; display: grid; place-items: center; padding: 24px;
+  background: radial-gradient(circle at 50% 25%, #272c42 0, #11151e 42%, #090b10 100%);
+}
+.card {
+  width: min(460px, 100%); padding: 28px; border: 1px solid rgba(255,255,255,.1); border-radius: 20px;
+  background: rgba(16,20,29,.88); box-shadow: 0 24px 80px rgba(0,0,0,.35);
+}
+.logo { font-size: 28px; }
+.card h1 { margin: 10px 0 8px; font-size: 25px; }
+.card p { margin: 0; color: #aeb4c1; line-height: 1.5; }
+.enter { margin-top: 18px; padding: 10px 15px; border-radius: 10px; color: #fff; background: #7567ee; }
+.note { margin-top: 12px; color: #8f96a6; font-size: 12px; overflow-wrap: anywhere; }
 
-.controls button.voiceState.error{background:#4b2229;color:#ffd8df}
-.controls button.voiceState.disconnected{background:#3b3130;color:#ffe1c2}
-
-/* Recovery wave: touch camera owns the play surface; controls are compact and isolated. */
-.room canvas{touch-action:none!important;cursor:grab}
-.room canvas:active{cursor:grabbing}
-.controls{bottom:max(8px,env(safe-area-inset-bottom));gap:4px;padding:4px;border-radius:13px;max-width:calc(100vw - 104px);overflow-x:auto;scrollbar-width:none}
-.controls::-webkit-scrollbar{display:none}
-.controls button{min-height:38px;height:38px;min-width:42px;padding:0 9px;border-radius:9px;font-size:11px}
-.musicSelect{height:38px;min-height:38px;min-width:112px}
-.musicUpload{min-height:38px!important;height:38px!important;padding:0 8px!important}
-.musicStatus{bottom:55px;width:min(270px,calc(100vw - 120px));padding:5px 8px;font-size:9px}
-.chatComposer{top:52px;width:min(155px,calc(100vw - 20px))}
-.chatForm input{height:34px!important;line-height:34px!important}
-.chatForm button{width:34px;height:34px;min-height:34px}
-.interactionPrompt{bottom:118px;padding:7px 10px;font-size:11px}
-.emoteMenu{bottom:62px}
-.emoteTrigger{display:none}
-@media(max-width:700px){
-  .controls{left:auto;right:10px;transform:none;width:min(250px,calc(100vw - 105px));bottom:max(8px,env(safe-area-inset-bottom))}
-  .controls button{height:38px;min-height:38px;min-width:42px}
-  .controls button.voiceState{min-width:82px;width:82px;font-size:8px}
-  .musicSelect{min-width:108px;height:38px}
-  .musicUpload{font-size:9px!important;min-width:54px!important;width:54px!important}
-  .joystick{left:10px;bottom:max(66px,calc(66px + env(safe-area-inset-bottom)));width:82px;height:82px}
-  .stick{width:34px;height:34px;margin:-17px}
-  .fight{right:10px;bottom:calc(112px + env(safe-area-inset-bottom));width:52px;height:52px;font-size:20px}
-  .mobileAction{right:70px;bottom:calc(120px + env(safe-area-inset-bottom));width:42px;height:42px;font-size:16px}
-  .emoteTrigger{display:block;position:absolute;right:122px;bottom:calc(120px + env(safe-area-inset-bottom));z-index:51;width:42px;height:42px;border:1px solid #ffffff20;border-radius:50%;background:#3c356d;color:#fff;box-shadow:0 10px 24px #0008;font-size:18px;touch-action:manipulation}
-  .emoteMenu{right:10px;bottom:calc(170px + env(safe-area-inset-bottom));z-index:95;max-width:calc(100vw - 20px)}
-  .interactionPrompt{bottom:calc(162px + env(safe-area-inset-bottom));max-width:65vw}
-  .chatComposer{top:52px;right:10px;width:145px}
-  .musicStatus{bottom:52px;width:min(220px,calc(100vw - 120px));font-size:8px}
+@media (max-width: 640px) {
+  .hud { left: 10px; top: 10px; padding: 9px 11px; }
+  .hud-controls span:nth-child(3) { display: none; }
+  .settings { right: 10px; top: 10px; }
+  .settings-panel { right: 10px; top: 60px; }
 }
