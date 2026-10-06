@@ -298,7 +298,7 @@ function DigitalSignage() {
     <RoundedBox args={[8.82,.58,.035]} radius={.09} smoothness={5} position={[0,0,.08]}>
       <meshStandardMaterial color="#020409" roughness={.16} metalness={.35}/>
     </RoundedBox>
-    <Text position={[0,0,.12]} font="https://cdn.jsdelivr.net/fontsource/fonts/orbitron@5.2.8/latin-700-normal.woff2" fontSize={.43} color={color} anchorX="center" anchorY="middle" letterSpacing={.055} outlineWidth={.018} outlineColor={color}>
+    <Text position={[0,0,.12]} fontSize={.43} color={color} anchorX="center" anchorY="middle" letterSpacing={.055} outlineWidth={.018} outlineColor={color}>
       XOPADHORA GC
     </Text>
     <Text position={[0,0,.105]} fontSize={.50} color={color} fillOpacity={.10} anchorX="center" anchorY="middle">
