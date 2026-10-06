@@ -2,6 +2,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Physics, RigidBody, CuboidCollider, BallCollider } from "@react-three/rapier";
 import { Ecctrl } from "ecctrl";
+import { EcctrlCameraControls } from "ecctrl/camera";
 import React from "react";
 import {
   PerspectiveCamera,
@@ -244,21 +245,26 @@ function Rug({x,z,w,d}) {
 }
 
 function TV({playing,track}) {
-  const bars=Array.from({length:18},(_,i)=>.15+.12*((i*7)%5));
+  const bars=useRef([]);
+  useFrame((_,dt)=>{
+    const t=performance.now()/1000;
+    bars.current.forEach((mesh,i)=>{
+      if(!mesh)return;
+      const target=playing?.22+(0.14+((i*7)%5)*.025)*(.5+.5*Math.sin(t*(6+i*.25)+i)):.12;
+      mesh.scale.y+=(target-mesh.scale.y)*(1-Math.exp(-12*dt));
+    });
+  });
   return <group position={[0,4.05,-9.2]}>
-    <RoundedBox castShadow args={[9.2,4.6,.28]} radius={.22} smoothness={6}>
-      <meshStandardMaterial color="#171a22" roughness={.28} metalness={.45}/>
-    </RoundedBox>
+    <RoundedBox castShadow args={[9.2,4.6,.28]} radius={.22} smoothness={6}><meshStandardMaterial color="#171a22" roughness={.28} metalness={.45}/></RoundedBox>
     <mesh position={[0,0,.18]}><planeGeometry args={[8.65,4.05]}/><meshStandardMaterial color={playing?"#17162e":"#090c12"} emissive={playing?"#4a3b99":"#0b0e15"} emissiveIntensity={playing?1.3:.25}/></mesh>
     <Text position={[-3.65,1.45,.23]} fontSize={.26} color="#a99bff" anchorX="left">GC RADIO</Text>
     <Text position={[-3.65,.78,.23]} fontSize={.42} color="#ffffff" anchorX="left">{playing?(track?.title||"GC RADIO"):"HANGOUT DISPLAY"}</Text>
     <Text position={[-3.65,.30,.23]} fontSize={.2} color="#aaa5b9" anchorX="left">{playing?(track?.artist||"Jamendo"):"Select a track to start the room mix"}</Text>
-    <group position={[-3.62,-1.15,.23]}>{bars.map((h,i)=><mesh key={i} position={[i*.34,0,0]}><boxGeometry args={[.18,playing?h:0.12,.02]}/><meshStandardMaterial color={playing?"#7e6bff":"#343341"} emissive={playing?"#4f40b0":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>)}</group>
+    <group position={[-3.62,-1.15,.23]}>{Array.from({length:18},(_,i)=><mesh ref={el=>{bars.current[i]=el}} key={i} position={[i*.34,0,0]} scale={[1,.12,1]}><boxGeometry args={[.18,.18,.02]}/><meshStandardMaterial color={playing?"#7e6bff":"#343341"} emissive={playing?"#4f40b0":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>)}</group>
     <mesh position={[2.55,.95,.24]}><circleGeometry args={[.72,32]}/><meshStandardMaterial color={playing?"#715bff":"#272b36"} emissive={playing?"#5b48c7":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>
     <Text position={[2.55,.95,.28]} fontSize={.32} color="#ffffff" anchorX="center" anchorY="middle">{playing?"▶":"Ⅱ"}</Text>
   </group>
 }
-
 function Speaker({playing,x,index}) {
   const coneRefs=useRef([]);
   useFrame(({clock})=>{
@@ -619,6 +625,20 @@ function WorldColliders(){
     </RigidBody>)}
   </>;
 }
+function FollowCamera({posRef}) {
+  const controls=useRef(null);
+  const initialized=useRef(false);
+  useFrame(()=>{
+    const p=posRef.current;
+    if(!controls.current)return;
+    if(!initialized.current){
+      controls.current.setLookAt(p.x,p.y+2.2,p.z+6.8,p.x,p.y+1,p.z,false);
+      initialized.current=true;
+    }else controls.current.setTarget(p.x,p.y+1,p.z,true);
+  });
+  return <EcctrlCameraControls ref={controls} makeDefault smoothTime={.12} draggingSmoothTime={.12} minDistance={4.2} maxDistance={9.2} minPolarAngle={.55} maxPolarAngle={1.42}/>;
+}
+
 function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onInteractionArrive}){
   const ctrl=useRef(null),lastSend=useRef(0);
   useFrame(({camera},dt)=>{
@@ -656,7 +676,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep"||p.action==="watch")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camListenerTarget="document" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.10} decDeltaTime={.075} maxVelLimit={4.6} rejectVelFactor={1.2} />;
 }
 function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
@@ -829,6 +849,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
     >
       <Physics gravity={[0,-9.81,0]}>
+        <FollowCamera posRef={posRef}/>
         <WorldColliders/>
         <EcctrlLocalController posRef={posRef} moveRef={moveRef} runRef={runRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
@@ -1172,7 +1193,8 @@ export default function Home(){
       combatPositionRef.current={ts:combatNow};
       getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0)})).catch(error=>console.warn("combat position sync failed",error));
     }
-    localRef.current=p;
+    const next={...p,emote:p.emote??localRef.current?.emote??null,attacking:p.attacking??localRef.current?.attacking??false,hit:p.hit??localRef.current?.hit??false};
+    localRef.current=next;
     const now=performance.now();
     setPlayers(prev=>{
       const current=prev[id];
