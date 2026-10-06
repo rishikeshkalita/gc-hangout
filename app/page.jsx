@@ -77,8 +77,7 @@ const SNACKS=[
  {id:"water-2",name:"Water",kind:"waterBottle",position:[-10.95,.84,-5.55],action:"drink",label:"Drink water"}
 ];
 
-const INTERACTABLES=[ ...SEATS,
- ...BEDS,
+const INTERACTABLES=[ ...SEATS, ...BEDS,
  {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
  {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
 ];
@@ -157,8 +156,7 @@ function Snack({item,state,players}){
   const gltf=useGLTF(FOOD_ASSETS[item.kind]);
   const scene=useMemo(()=>{
     const s=SkeletonUtils.clone(gltf.scene);    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-    return s;
-  },[gltf.scene]);
+    return s;  },[gltf.scene]);
   useFrame((_,dt)=>{
     if(!ref.current)return;
     const target=holder?[holder.x,.98,holder.z]:item.position;
@@ -237,8 +235,7 @@ function Speakers({playing}) {
   </>
 }
 function OpenFloorMark() {
-  return <group position={[0,.035,0]}>
-    <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[4.9,5.02,64]}/><meshBasicMaterial color="#4f5364" transparent opacity={.42}/></mesh>
+  return <group position={[0,.035,0]}>    <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[4.9,5.02,64]}/><meshBasicMaterial color="#4f5364" transparent opacity={.42}/></mesh>
     <Text position={[0,.03,-.2]} rotation={[-Math.PI/2,0,0]} fontSize={.34} color="#5c6170">OPEN SOCIAL FLOOR</Text>
   </group>
 }
@@ -301,7 +298,7 @@ function DigitalSignage() {
     <RoundedBox args={[8.82,.58,.035]} radius={.09} smoothness={5} position={[0,0,.08]}>
       <meshStandardMaterial color="#020409" roughness={.16} metalness={.35}/>
     </RoundedBox>
-    <Text position={[0,0,.12]} fontSize={.43} color={color} anchorX="center" anchorY="middle" outlineWidth={.018} outlineColor={color}>
+    <Text position={[0,0,.12]} font="https://cdn.jsdelivr.net/fontsource/fonts/orbitron@5.2.8/latin-700-normal.woff2" fontSize={.43} color={color} anchorX="center" anchorY="middle" letterSpacing={.055} outlineWidth={.018} outlineColor={color}>
       XOPADHORA GC
     </Text>
     <Text position={[0,0,.105]} fontSize={.50} color={color} fillOpacity={.10} anchorX="center" anchorY="middle">
@@ -317,8 +314,7 @@ function DigitalSignage() {
 }
 
 function RealHuman({player,me}) {
-  const {scene,animations}=useGLTF(HUMAN_URL);
-  const root=useRef();
+  const {scene,animations}=useGLTF(HUMAN_URL);  const root=useRef();
   const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
   const {actions}=useAnimations(animations,root);
   const clipRef=useRef(null);
@@ -397,8 +393,7 @@ function RealHuman({player,me}) {
       set("spine",0.04);
       set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
       set("forearmL",-0.28);set("forearmR",-0.28);
-      wasSeated.current=true;
-    }else if(wasSeated.current){
+      wasSeated.current=true;    }else if(wasSeated.current){
       for(const [name,r] of Object.entries(restBones)){
         const b=bones[name];
         if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
@@ -477,8 +472,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
         const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d2,velocity.current.z*d2);
         if(step.hop)hopRef.current=performance.now()+420;
         // The controller already produces camera-relative world velocity.
-        // Keep the model facing that same direction; adding PI makes joystick
-        // movement visually run backwards.
+        // Keep the model facing that same direction; adding PI makes joystick        // movement visually run backwards.
         const moveRot=Math.atan2(velocity.current.x,velocity.current.z);
         const next={...before,x:step.x,z:step.z,rot:moveRot,moving:speed>.06,speed,hopUntil:hopRef.current,poseRotation:moveRot};
         const movementYaw=next.rot;
@@ -557,8 +551,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
       const k=e.key.toLowerCase();
       if(k===" "){e.preventDefault();requestInteraction(candidate);return}
-      if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep")){
-        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
+      if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep")){        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
       }
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       e.preventDefault();
@@ -637,8 +630,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       shadows dpr={[1,1.25]} performance={{min:.55}}
       camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
       onWheel={e=>{viewRef.current.distance=clamp(viewRef.current.distance+(e.deltaY>0?.4:-.4),4.2,8.6)}}
-      onPointerDown={e=>{
-        if(e.pointerType!=="mouse")return;
+      onPointerDown={e=>{        if(e.pointerType!=="mouse")return;
         cameraDrag.current={x:e.clientX,y:e.clientY};
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }}
@@ -717,8 +709,7 @@ export default function Home(){
     channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
     channel.on("broadcast",{event:"attack"},({payload})=>{
       if(!payload?.id)return;
-      setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);
-      setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
+      setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);      setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
       if(payload.targetId===id&&localRef.current){
         const nextHealth=Math.max(0,(localRef.current.health||3)-1),next={...localRef.current,health:nextHealth};
         localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));send(next);
@@ -797,7 +788,6 @@ export default function Home(){
     }
 
     if(locks[candidate.id]&&locks[candidate.id]!==id)return;
-
     if(candidate.type==="music"){
       toggleMusic();
       return;
@@ -877,8 +867,7 @@ export default function Home(){
       <div className="logo">🌙</div><h1>GC Hangout Hall</h1>
       <p>One large shared hall built around movement, camera space and multiplayer interaction.</p>
       <label>Your name<input value={name} onChange={e=>setName(e.target.value.slice(0,18))} placeholder="e.g. Rishi"/></label>
-      <div className="label">Choose your human</div>
-      <div className="avatars">{PRESETS.map((p,i)=>
+      <div className="label">Choose your human</div>      <div className="avatars">{PRESETS.map((p,i)=>
         <button className={avatarId===p.id?"selected":""} onClick={()=>setAvatarId(p.id)} key={p.id}>
           <span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small>
         </button>
