@@ -772,6 +772,25 @@ Examples:
 - [ ] Re-entry: after exiting one interaction, immediately enter a different furniture interaction and then exit again.
 - [ ] Boundary recovery: walk from each furniture zone back into the central floor; no invisible movement lock or snapping.
 
+### Latest Wave 2 iPhone screenshot regression — 2026-10-07
+
+- **User evidence reviewed:** six fresh iPhone Safari screenshots covering sofa seating, dining seating/eating/drinking, bed, TV, graffiti, and mobile movement.
+- **Screenshot findings:**
+  - Sofa: the Sit prompt was not reachable from every usable seat/approach; the sitting pose looked too upright/occluded by the sofa, with the avatar facing sideways on the earlier anchor setup.
+  - Dining: only four of six physical chairs had Sit anchors. Eat/Drink competed with the dining Sit anchors, so the UI often selected **Sit** and the avatar entered a sitting pose instead of an eating/drinking pose.
+  - Food/drink: no visible food or drink props were present on the table or in the interaction pose.
+  - Bed: no interaction prompt appeared because the previous bed trigger was inside the bed collision volume, making the approach position unreachable.
+  - TV: the Watch TV prompt and active interaction were visible and therefore the TV path is currently observable.
+  - Joystick: the user still observed intermittent left/right inversion. The prior camera-relative movement calculation was correct mathematically, but touch movement also rotated the avatar continuously, making the visual direction feel inverted during camera/avatar orientation changes.
+  - Speed: normal movement at 2.6 units/sec was reported as too slow.
+- **Correction PR:** #9 — fix/wave2-interactions-movement-20261007.
+- **Correction head:** f0e643723c1f35aeab9b80817094a308d699762e.
+- **Changes:** separated trigger positions from interaction targets; added three seat anchors per sofa; added all six dining-chair anchors; moved the bed trigger outside the bed collision; separated Eat and Drink trigger zones from Sit; added visible food/drink props; improved seated pose and seat-facing rotation; increased normal speed to 3.8 units/sec and Shift speed to 5.2; stopped touch movement from continuously rotating the avatar.
+- **Automated verification:** PR CI status pending at the time of this roadmap update.
+- **Browser result:** **NOT VERIFIED** for the correction. These screenshots are the current device evidence that drove the fix.
+- **Deployment:** no new Vercel deployment attempted; deployment quota remains exhausted.
+- **Current gate:** Wave 2 remains **NOT VERIFIED**. Do not start Wave 3 until the corrected build passes the full furniture/joystick regression matrix.
+
 ### Wave 2 runtime regression correction
 
 - **Observed on real device:** iOS Safari deployment displayed React error #306.
