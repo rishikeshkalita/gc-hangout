@@ -34,6 +34,41 @@ const FURNITURE={
  bed:"https://cdn.3dassets.dev/assets/38770/v1/model.glb",
  lamp:"https://cdn.3dassets.dev/assets/38797/v1/model.glb"
 };
+
+const SEATS=[
+ {id:"sofa-a-left",label:"Sit on sofa",type:"seat",position:[-10.58,0,-6.18],rotation:Math.PI},
+ {id:"sofa-a-right",label:"Sit on sofa",type:"seat",position:[-9.42,0,-6.18],rotation:Math.PI},
+ {id:"sofa-b-left",label:"Sit on sofa",type:"seat",position:[-10.58,0,-4.92],rotation:0},
+ {id:"sofa-b-right",label:"Sit on sofa",type:"seat",position:[-9.42,0,-4.92],rotation:0},
+ ...[[-.72,-1],[0,-1],[.72,-1],[-.72,1],[0,1],[.72,1]].map(([x,side],i)=>({
+   id:"dining-seat-"+i,label:"Sit at table",type:"seat",
+   position:[10+x,0,5.8+(side<0?-1.2:1.2)],rotation:side<0?0:Math.PI
+ }))
+];
+const BEDS=[
+ {id:"bed-a",label:"Sleep",type:"bed",position:[8.7,0,-6.2],rotation:Math.PI/2},
+ {id:"bed-b",label:"Sleep",type:"bed",position:[12.2,0,-6.2],rotation:Math.PI/2}
+];
+const SNACKS=[
+ {id:"chips",name:"Chips",kind:"chips",position:[-8.75,.76,-5.55],action:"eat",label:"Eat chips"},
+ {id:"cookies",name:"Cookies",kind:"cookies",position:[-11.05,.76,-5.55],action:"eat",label:"Eat cookies"},
+ {id:"pizza",name:"Pizza",kind:"pizza",position:[-9.55,.76,-5.55],action:"eat",label:"Eat pizza"},
+ {id:"soda",name:"Soda",kind:"can",position:[-7.15,.76,-5.55],action:"drink",label:"Drink soda"},
+ {id:"popcorn",name:"Popcorn",kind:"popcorn",position:[0,.8,-7.0],action:"eat",label:"Eat popcorn"},
+ {id:"donut",name:"Donut",kind:"donut",position:[10,.82,5.8],action:"eat",label:"Eat donut"},
+ {id:"burger",name:"Burger",kind:"burger",position:[10.8,.82,5.8],action:"eat",label:"Eat burger"},
+ {id:"sandwich",name:"Sandwich",kind:"sandwich",position:[-13,.78,-5.55],action:"eat",label:"Eat sandwich"},
+ {id:"candy",name:"Candy",kind:"candy",position:[-6.85,.76,-5.55],action:"eat",label:"Eat candy"},
+ {id:"fruit",name:"Fruit",kind:"fruit",position:[12.8,.78,7.3],action:"eat",label:"Eat fruit"},
+ {id:"bottle",name:"Bottle",kind:"bottle",position:[11.7,.9,4.55],action:"drink",label:"Drink"}
+];
+
+const INTERACTABLES=[
+ ...SEATS,
+ ...BEDS,
+ {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
+ {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
+];
 function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
  const gltf=useGLTF(url);
  const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return s},[gltf.scene]);
@@ -92,6 +127,41 @@ function CoffeeTable({x,z}){return <RealFurniture url={FURNITURE.coffee} positio
 function DiningTable(){return <group position={[10,0,5.8]}><RealFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><RealFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
 
 function Bed({x,z,rotation=0}){return <RealFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
+
+
+function Snack({item,state,players}){
+  const ref=useRef();
+  const holder=state?.heldBy?players[state.heldBy]:null;
+  const consumed=!!state?.consumed;
+  useFrame((_,dt)=>{
+    if(!ref.current)return;
+    const target=holder?[holder.x,.95,holder.z]:item.position;
+    const a=1-Math.exp(-14*dt);
+    ref.current.position.x+=(target[0]-ref.current.position.x)*a;
+    ref.current.position.y+=(target[1]-ref.current.position.y)*a;
+    ref.current.position.z+=(target[2]-ref.current.position.z)*a;
+    ref.current.rotation.y+=dt*(holder?3.2:.35);
+  });
+  if(consumed)return null;
+  const body=()=>{
+    if(item.kind==="chips")return <><RoundedBox args={[.42,.62,.18]} radius={.06} smoothness={3}><meshStandardMaterial color="#d85a49" roughness={.5}/></RoundedBox><Text position={[0,0,.1]} fontSize={.09} color="#fff" anchorX="center" anchorY="middle">CHIPS</Text></>;
+    if(item.kind==="cookies")return <group>{[-.12,.12].map((x,i)=><mesh key={i} position={[x,0,0]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.12,.12,.045,20]}/><meshStandardMaterial color="#c88b52" roughness={.8}/></mesh>)}</group>;
+    if(item.kind==="pizza")return <mesh rotation={[-Math.PI/2,0,0]}><coneGeometry args={[.34,.06,3]} /><meshStandardMaterial color="#e0a05a" roughness={.8}/></mesh>;
+    if(item.kind==="can")return <><mesh><cylinderGeometry args={[.09,.09,.34,20]}/><meshStandardMaterial color="#6b78d8" metalness={.25} roughness={.45}/></mesh><mesh position={[0,.05,.091]}><planeGeometry args={[.11,.16]}/><meshStandardMaterial color="#f0f0f0"/></mesh></>;
+    if(item.kind==="popcorn")return <><mesh><coneGeometry args={[.25,.42,4]} /><meshStandardMaterial color="#e9d7b1" roughness={.8}/></mesh><mesh position={[0,.28,0]}><sphereGeometry args={[.24,16,10]}/><meshStandardMaterial color="#fff3d6"/></mesh></>;
+    if(item.kind==="donut")return <mesh rotation={[Math.PI/2,0,0]}><torusGeometry args={[.18,.075,12,24]}/><meshStandardMaterial color="#c67b55" roughness={.75}/></mesh>;
+    if(item.kind==="burger")return <group>{[-.11,0,.11].map((y,i)=><mesh key={i} position={[0,y,0]}><cylinderGeometry args={[.2,.2,.08,20]}/><meshStandardMaterial color={i===1?"#8f5538":"#d29b55"} roughness={.8}/></mesh>)}</group>;
+    if(item.kind==="sandwich")return <RoundedBox args={[.38,.18,.28]} radius={.04} smoothness={3}><meshStandardMaterial color="#d9b27b" roughness={.8}/></RoundedBox>;
+    if(item.kind==="candy")return <mesh rotation={[0,0,Math.PI/2]}><capsuleGeometry args={[.06,.18,8,12]}/><meshStandardMaterial color="#e36a9d" roughness={.5}/></mesh>;
+    if(item.kind==="bottle")return <group><mesh position={[0,.08,0]}><cylinderGeometry args={[.085,.1,.36,18]}/><meshStandardMaterial color="#77a6cf" roughness={.3} metalness={.1}/></mesh><mesh position={[0,.3,0]}><cylinderGeometry args={[.055,.055,.1,16]}/><meshStandardMaterial color="#d9dde5"/></mesh></group>;
+    return <mesh><sphereGeometry args={[.13,16,12]}/><meshStandardMaterial color="#e7a45d" roughness={.7}/></mesh>;
+  };
+  return <group ref={ref} position={item.position}>{body()}</group>;
+}
+
+function Snacks({players,snackStates}){
+  return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
+}
 
 function Kitchen() {
   return <group position={[13.0,0,1.0]}>
@@ -160,7 +230,7 @@ function OpenFloorMark() {
   </group>
 }
 
-function Hall({musicPlaying}) {
+function Hall({musicPlaying,players,snackStates}) {
   return <group>
     <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
     <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
@@ -200,6 +270,7 @@ function Hall({musicPlaying}) {
     <WallArt x={-6.0} z={-9.78}/>
     <WallArt x={6.0} z={-9.78}/>
     <OpenFloorMark/>
+    <Snacks players={players} snackStates={snackStates}/>
   </group>
 }
 
@@ -268,10 +339,74 @@ function FallbackHuman({player,me}) {
   </group>
 }
 
-function PlayerController({posRef,moveRef,onMove,viewRef}) {
+function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onInteractionArrive}) {
   const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
   useFrame(({camera},dt)=>{
     const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
+
+    if(interactionRef.current){
+      const target=interactionRef.current;
+      const p=posRef.current;
+      const dx=target.position[0]-p.x,dz=target.position[2]-p.z;
+      const dist=Math.hypot(dx,dz);
+      if(dist>.055){
+        const speed=4.6,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
+        const next={...p,x:nx,z:nz,rot:target.rotation,moving:true,speed:step/Math.max(d,.001),action:"moving",poseRotation:target.rotation};
+        velocity.current.x=dx/dist*speed;velocity.current.z=dz/dist*speed;
+        posRef.current=next;
+        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
+      }else{
+        const next={...p,x:target.position[0],z:target.position[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id};
+        velocity.current.x=0;velocity.current.z=0;posRef.current=next;interactionRef.current=null;
+        onMove(next);onInteractionArrive?.(target);
+      }
+    } else {
+      const d2=Math.min(dt,.05),m2=moveRef.current,v2=viewRef.current;
+      const viewLerp=1-Math.exp(-18*d2);
+      v2.yaw+=Math.atan2(Math.sin(v2.targetYaw-v2.yaw),Math.cos(v2.targetYaw-v2.yaw))*viewLerp;
+      v2.pitch+=(v2.targetPitch-v2.pitch)*viewLerp;
+      const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};
+      const inputForward=-m2.z;
+      const ix=m2.x*right.x+inputForward*forward.x,iz=m2.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
+      const movingInput=Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
+      const tx=ix/len*targetSpeed,tz=iz/len*targetSpeed;
+      velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(movingInput?14:18)*d2);
+      velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(movingInput?14:18)*d2);
+      if(!movingInput){velocity.current.x*=Math.max(0,1-10*d2);velocity.current.z*=Math.max(0,1-10*d2)}
+      const speed=Math.hypot(velocity.current.x,velocity.current.z);
+      if(speed>.025){
+        const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d2,velocity.current.z*d2);
+        if(step.hop)hopRef.current=performance.now()+420;
+        const next={...before,x:step.x,z:step.z,rot:Math.atan2(velocity.current.x,velocity.current.z),moving:speed>.06,speed,hopUntil:hopRef.current};
+        const movementYaw=next.rot;
+        const forwardInput=-m2.z;
+        if(Math.abs(forwardInput)>.58 && performance.now()-v2.lastManualCamera>850){
+          const desiredYaw=movementYaw-Math.PI;
+          v2.targetYaw+=Math.atan2(Math.sin(desiredYaw-v2.targetYaw),Math.cos(desiredYaw-v2.targetYaw))*Math.min(1,1.35*d2);
+        }
+        posRef.current=next;
+        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
+      }else if(posRef.current.moving){
+        const next={...posRef.current,moving:false,speed:0,hopUntil:0};posRef.current=next;onMove(next);
+      }
+    }
+
+    const t=posRef.current,dist=v.distance;
+    const horizontal=Math.cos(v.pitch)*dist;
+    const rawX=t.x+Math.sin(v.yaw)*horizontal;
+    const rawZ=t.z+Math.cos(v.yaw)*horizontal;
+    const rawY=1.05+Math.sin(v.pitch)*dist;
+    const camX=clamp(rawX,-HALL_HALF_X+1.65,HALL_HALF_X-1.65);
+    const camZ=clamp(rawZ,-HALL_HALF_Z+1.65,HALL_HALF_Z-1.65);
+    const camY=clamp(rawY,.75,6.8);
+    const follow=Math.min(1,8.5*d);
+    camera.position.x+=(camX-camera.position.x)*follow;
+    camera.position.y+=(camY-camera.position.y)*follow;
+    camera.position.z+=(camZ-camera.position.z)*follow;
+    camera.lookAt(t.x,t.y+.9,t.z);
+  });
+  return null;
+}
     const viewLerp=1-Math.exp(-18*d);
     v.yaw+=Math.atan2(Math.sin(v.targetYaw-v.yaw),Math.cos(v.targetYaw-v.yaw))*viewLerp;
     v.pitch+=(v.targetPitch-v.pitch)*viewLerp;
@@ -321,13 +456,33 @@ function PlayerController({posRef,moveRef,onMove,viewRef}) {
   return null;
 }
 
-function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract}) {
+function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,locks,snackStates}) {
   const [move,setMove]=useState({x:0,z:0});
+  const [candidate,setCandidate]=useState(null);
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
+  const interactionRef=useRef(null);
   const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28,lastManualCamera:0});
   const cameraDrag=useRef(null);
+
+  useEffect(()=>{
+    const timer=setInterval(()=>{
+      const p=posRef.current;
+      if(p.action&&p.interactionId){setCandidate({id:p.interactionId,label:"Stand up",type:"stand",position:[p.x,0,p.z],rotation:p.poseRotation||p.rot});return}
+      let best=null,dist=2.15;
+      const list=[...INTERACTABLES,...SNACKS];
+      for(const item of list){
+        if(item.type==="bed"&&!item.position)continue;
+        if(item.id in locks)continue;
+        if(item.id in snackStates&&snackStates[item.id]?.consumed)continue;
+        const d=Math.hypot(p.x-item.position[0],p.z-item.position[2]);
+        if(d<dist){dist=d;best=item}
+      }
+      setCandidate(best);
+    },100);
+    return()=>clearInterval(timer);
+  },[locks,snackStates]);
 
   useEffect(()=>{
     const down=e=>{
@@ -396,14 +551,14 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       onPointerCancel={()=>{cameraDrag.current=null}}
     >
       <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
-      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef}/>
+      <PlayerController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
       <ambientLight intensity={.78}/>
       <directionalLight position={[2,10,5]} intensity={1.35} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
       <directionalLight position={[-8,5,-6]} intensity={.55} color="#9aa9ff"/>
       <Environment preset="warehouse" environmentIntensity={.35}/>
-      <Hall musicPlaying={musicPlaying}/>
+      <Hall musicPlaying={musicPlaying} players={players} snackStates={snackStates}/>
       <TV playing={musicPlaying}/>
       <Speakers playing={musicPlaying}/>
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
@@ -418,15 +573,16 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
     <div className="chat"><b>💬 GC CHAT</b><div className="msg"><strong>Room</strong> {Object.keys(players).length} people here</div><div className="input">Type a message…</div></div>
+    {candidate&&<button className="interactionPrompt" onClick={()=>onInteract(candidate)}><span>↗</span>{candidate.label}</button>}
     <div className="controls">
-      <button onClick={onInteract}>🪑 Interact</button>
+      <button onClick={()=>candidate&&onInteract(candidate)}>✦ Interact</button>
       <button className={musicPlaying?"active":""} onClick={onToggleMusic}>🎵 Music</button>
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
     <div className="cameraGesture" onPointerDown={e=>{e.preventDefault();beginCamera(e)}} onPointerMove={e=>{e.preventDefault();moveCamera(e)}} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
     <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onClick={onInteract}>✦</button>
+    <button className="mobileAction" onClick={()=>candidate&&onInteract(candidate)}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
   </div>
 }
@@ -434,13 +590,13 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
 export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
   const [id]=useState(makeId),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
-  const [action,setAction]=useState(null);
+  const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const musicRef=useRef(false);
   musicRef.current=musicPlaying;
   const channelRef=useRef(null),localRef=useRef(null);
 
   const join=()=>{
-    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,action:null};
+    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0};
     localRef.current=p;setJoined(true);
   };
 
@@ -469,7 +625,15 @@ export default function Home(){
       }
     });
     channel.on("broadcast",{event:"player_action"},({payload})=>{
-      if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev[payload.id],action:payload.action}:prev)
+      if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],...payload}}:prev)
+    });
+    channel.on("broadcast",{event:"interaction_lock"},({payload})=>{
+      if(!payload?.objectId)return;
+      if(payload.locked)setLocks(prev=>({...prev,[payload.objectId]:payload.userId}));
+      else setLocks(prev=>{const next={...prev};delete next[payload.objectId];return next});
+    });
+    channel.on("broadcast",{event:"snack_state"},({payload})=>{
+      if(payload?.id)setSnackStates(prev=>({...prev,[payload.id]:payload}));
     });
     channel.subscribe(async status=>{
       if(status==="SUBSCRIBED"&&localRef.current){
@@ -503,32 +667,96 @@ export default function Home(){
     setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
   };
 
-  const interact=()=>{
-    if(!localRef.current)return;
+  const interact=(candidate)=>{
+    if(!localRef.current||!candidate)return;
     const p=localRef.current;
-    const x=p.x,z=p.z;
-    let next=null;
-    if(Math.hypot(x+10,z+6)<3.7)next="sit";
-    else if(Math.hypot(x-10,z-6)<3.7)next="eat";
-    else if(Math.hypot(x-10,z+6)<3.7)next="sleep";
-    else if(z<-7.0&&Math.abs(x)<7)next="watch";
-    else if(Math.abs(x)>11&&z>2)next="drink";
-    if(!next){setAction("Move closer to a zone");setTimeout(()=>setAction(null),1100);return}
-    const payload={...p,action:next,moving:false};
-    localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
-    setAction(next);
-    channelRef.current?.send({type:"broadcast",event:"player_action",payload:{id,action:next}});
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload});
-    setTimeout(()=>{
-      if(localRef.current?.action===next){
-        const clear={...localRef.current,action:null};
-        localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-        channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-      }
-    },3500);
+
+    if(candidate.type==="stand"){
+      const objectId=p.interactionId;
+      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,speed:0,moving:false};
+      localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+      if(objectId)channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId,userId:id,locked:false}});
+      setAction(null);
+      return;
+    }
+
+    if(locks[candidate.id]&&locks[candidate.id]!==id)return;
+
+    if(candidate.type==="music"){
+      toggleMusic();
+      return;
+    }
+
+    if(candidate.type==="tv"){
+      const payload={...p,action:"watch",interactionId:candidate.id,poseRotation:0,moving:false,speed:0};
+      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+      setTimeout(()=>{
+        if(localRef.current?.interactionId===candidate.id){
+          const clear={...localRef.current,action:null,interactionId:null};
+          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+          channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
+        }
+      },5000);
+      return;
+    }
+
+    if(candidate.type==="seat"||candidate.type==="bed"){
+      const finalAction=candidate.type==="bed"?"sleep":"sit";
+      interactionRef.current=candidate;
+      const payload={...p,action:"moving",interactionId:null,poseRotation:candidate.rotation,moving:true,speed:3.2};
+      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:true}});
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+      return;
+    }
+
+    const food=SNACKS.find(s=>s.id===candidate.id);
+    if(food){
+      const state=snackStates[food.id];
+      if(state?.consumed||state?.heldBy)return;
+      const held={id:food.id,heldBy:id,consumed:false};
+      setSnackStates(prev=>({...prev,[food.id]:held}));
+      channelRef.current?.send({type:"broadcast",event:"snack_state",payload:held});
+      channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:true}});
+      const payload={...p,action:food.action,interactionId:food.id,moving:false,speed:0};
+      localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+      channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+      setTimeout(()=>{
+        const consumed={id:food.id,heldBy:null,consumed:true};
+        setSnackStates(prev=>({...prev,[food.id]:consumed}));
+        channelRef.current?.send({type:"broadcast",event:"snack_state",payload:consumed});
+        if(localRef.current?.interactionId===food.id){
+          const clear={...localRef.current,action:null,interactionId:null};
+          localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+          channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+        }
+        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:food.id,userId:id,locked:false}});
+      },1500);
+    }
   };
 
-  if(joined)return <Room local={localRef.current} players={players} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact}/>;
+  const interactionArrived=(candidate)=>{
+    if(!localRef.current)return;
+    const finalAction=candidate.type==="bed"?"sleep":"sit";
+    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation};
+    localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload});
+    setAction(finalAction);
+    setTimeout(()=>{
+      if(localRef.current?.interactionId===candidate.id&&localRef.current?.action===finalAction){
+        const clear={...localRef.current,action:null,interactionId:null,poseRotation:localRef.current.rot};
+        localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
+        channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
+        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
+      }
+    },7000);
+  };
+
+  if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived}/>;
 
   return <main className="join">
     <div className="card">
