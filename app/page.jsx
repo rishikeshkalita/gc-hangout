@@ -384,11 +384,11 @@ function RealHuman({player,me}) {
     const a=1-Math.exp(-18*dt);
     root.current.position.x+=(player.x-root.current.position.x)*a;
     root.current.position.z+=(player.z-root.current.position.z)*a;
-    const seatedY=seated?(player.seatY??-.34):sleeping?.02:0;
+    const seatedY=seated?(player.seatY??-.34):(sleeping?0.02:0);
     root.current.position.y+=(seatedY-root.current.position.y)*a;
     root.current.rotation.y+=Math.atan2(Math.sin(targetRot-root.current.rotation.y),Math.cos(targetRot-root.current.rotation.y))*a;
 
-    const targetPose=seated?1:sleeping?.68:0;
+    const targetPose=seated?1:(sleeping?0.68:0);
     poseBlend.current+=(targetPose-poseBlend.current)*(1-Math.exp(-12*dt));
     const p=poseBlend.current;
 
