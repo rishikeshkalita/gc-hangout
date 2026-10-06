@@ -970,7 +970,18 @@ export default function Home(){
       });
     });
     channel.on("broadcast",{event:"request_state"},()=>localRef.current&&send(localRef.current));
-    channel.on("broadcast",{event:"room_state"},({payload})=>{if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying);if(payload?.musicTrack)setMusicTrack(payload.musicTrack);if(typeof payload?.musicStartedAt==="number")setMusicStartedAt(payload.musicStartedAt);if(typeof payload?.musicPosition==="number")setMusicPosition(payload.musicPosition)});
+    channel.on("broadcast",{event:"room_state"},({payload})=>{
+      if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying);
+      if(payload?.musicTrack){
+        setMusicTrack(payload.musicTrack);
+        setMusicTracks(prev=>{
+          if(prev.some(t=>t.id===payload.musicTrack.id))return prev;
+          return [...prev,payload.musicTrack];
+        });
+      }
+      if(typeof payload?.musicStartedAt==="number"||payload?.musicStartedAt===null)setMusicStartedAt(payload.musicStartedAt);
+      if(typeof payload?.musicPosition==="number")setMusicPosition(payload.musicPosition);
+    });
     channel.on("broadcast",{event:"chat_message"},({payload})=>{
       if(!payload?.id||!payload?.text)return;
       setChatMessages(prev=>prev.some(m=>m.id===payload.id)?prev:[...prev,payload].slice(-80));
@@ -1207,6 +1218,8 @@ export default function Home(){
     const ext=String(file.name||"").split(".").pop()?.toLowerCase();
     const allowedExt=["mp3","m4a","aac","ogg","webm","wav"];
     if(file.type&&!allowed.includes(file.type)&&!allowedExt.includes(ext)){setMusicError("Choose an MP3, M4A, AAC, OGG, WebM or WAV file.");return;}
+    const mimeByExt={mp3:"audio/mpeg",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg",webm:"audio/webm",wav:"audio/wav"};
+    const uploadType=file.type||mimeByExt[ext]||"audio/mpeg";
     if(file.size>25*1024*1024){setMusicError("Custom songs must be 25 MB or smaller.");return;}
     try{
       setMusicError("Uploading song…");
@@ -1214,7 +1227,7 @@ export default function Home(){
       if(!supabase)throw new Error("Music storage is unavailable.");
       const safeName=file.name.replace(/[^a-z0-9._-]+/gi,"-").slice(-100)||"song";
       const path=id+"/"+makeId()+"-"+safeName;
-      const {error}=await supabase.storage.from("gc-music").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type||"audio/mpeg"});
+      const {error}=await supabase.storage.from("gc-music").upload(path,file,{cacheControl:"3600",upsert:false,contentType:uploadType});
       if(error)throw error;
       const {data}=supabase.storage.from("gc-music").getPublicUrl(path);
       if(!data?.publicUrl)throw new Error("Uploaded song URL could not be created.");
