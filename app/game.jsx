@@ -134,6 +134,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   const cameraPosition = useRef(new THREE.Vector3(0, 3.6, 7.8));
   const playerGroup = useRef();
   const motion = useRef({ x: state.x, z: state.z, rot: state.rot, moving: state.moving, speed: state.speed });
+  const lastResetKey = useRef(motionResetKey);
   const dirty = useRef(false);
   const nearbyRef = useRef(null);
   const { camera, gl, size } = useThree();
