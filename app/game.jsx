@@ -757,7 +757,8 @@ export default function Home(){
       const session=await ensureAnonymousSession(supabase,{display_name:name.trim()});
       if(!session?.user?.id)throw new Error("Supabase did not return a player identity.");
       const playerId=session.user.id;
-      await supabase.rpc("gc_reset_combat_state");
+      const {error:resetError}=await supabase.rpc("gc_reset_combat_state");
+      if(resetError)console.warn("Combat state reset unavailable",resetError);
       const p={id:playerId,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
       localRef.current=p;
       setId(playerId);
@@ -775,13 +776,14 @@ export default function Home(){
     let disposed=false;
     let cleanup=()=>{};
     (async()=>{
-      const supabase=await getSupabase();
-      if(disposed)return;
-      if(!supabase){setConnectionError("Supabase is not configured.");return}
-      const {data:{session}}=await supabase.auth.getSession();
-      if(!session?.access_token){setConnectionError("Your multiplayer session is unavailable. Please reload and try again.");return}
-      await supabase.realtime.setAuth(session.access_token);
-    const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
+      try{
+        const supabase=await getSupabase();
+        if(disposed)return;
+        if(!supabase){setConnectionError("Supabase is not configured.");return}
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session?.access_token){setConnectionError("Your multiplayer session is unavailable. Please reload and try again.");return}
+        await supabase.realtime.setAuth(session.access_token);
+      const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
     const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
     const reconcilePresence=()=>{
@@ -925,6 +927,12 @@ export default function Home(){
       voiceRef.current?.destroy();voiceRef.current=null;
       channel.unsubscribe();channelRef.current=null;
     };
+      }catch(e){
+        if(!disposed){
+          console.error("Multiplayer bootstrap failed",e);
+          setConnectionError(e?.message||"Multiplayer connection failed. Please reload and try again.");
+        }
+      }
     })();
     return()=>{disposed=true;cleanup()};
   },[joined,id,avatarId]); const onMove=p=>{
