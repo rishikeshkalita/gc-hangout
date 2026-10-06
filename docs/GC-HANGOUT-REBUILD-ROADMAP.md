@@ -139,7 +139,7 @@ Examples of the acceptance model:
 
 ## UI philosophy — world first
 
-The interface should stay out of the way, especially on iPhone.
+The interface should stay out of the way across **all supported device classes**. Mobile devices, tablets, laptops, and desktop computers should all preserve the same world-first experience.
 
 Primary screen content:
 
@@ -153,18 +153,21 @@ Controls should be compact and secondary:
 - [ ] 🙂 Emotes.
 - [ ] ⚙️ Settings.
 
-### Mobile UI rules
+### Cross-device UI rules
 
 - [ ] No giant panels covering the room.
 - [ ] No traditional game HUD dominating the screen.
 - [ ] Controls remain compact and reachable.
 - [ ] Safe-area aware.
-- [ ] Chat input does not trigger Safari zoom.
+- [ ] Touch input works reliably on mobile/tablet browsers.
+- [ ] Mouse/trackpad input works reliably on desktop/laptop browsers.
+- [ ] Keyboard input is supported where appropriate.
+- [ ] Chat input does not trigger unwanted mobile browser zoom.
 - [ ] UI does not steal gameplay camera gestures.
 - [ ] Temporary notifications do not block movement.
 - [ ] The world remains visually dominant.
 
-**Experience target:** entering GC Hangout should feel like entering the group's shared virtual room, not opening a conventional game menu.
+**Experience target:** entering GC Hangout on any supported device should feel like entering the group's shared virtual room, not opening a conventional game menu.
 
 ## Architecture consequences for the rebuild
 
@@ -494,25 +497,27 @@ Two-client/local multi-instance testing:
 
 ---
 
-## WAVE 6 — MOBILE UX + PERFORMANCE + FULL QA
+## WAVE 6 — CROSS-DEVICE UX + PERFORMANCE + FULL QA
 
-**Goal:** make the game reliable on the target device class before any release deployment.
+**Goal:** make the game reliable across supported mobile, tablet, laptop, and desktop device classes before any release deployment.
 
-### Mobile HUD
+### Cross-device HUD
 
-- [ ] World dominates screen.
-- [ ] Compact top room/online display.
-- [ ] Left joystick.
-- [ ] Right interaction/emote/mic controls.
-- [ ] Compact bottom music/chat.
+- [ ] World dominates the screen on every device class.
+- [ ] Compact room/online display.
+- [ ] Touch controls for mobile/tablet.
+- [ ] Mouse/trackpad controls for desktop/laptop.
+- [ ] Keyboard support where appropriate.
+- [ ] Compact interaction/emote/mic controls.
+- [ ] Compact music/chat controls.
 - [ ] Add Song accessible.
-- [ ] Safe areas.
-- [ ] Notch/Dynamic Island.
-- [ ] Safari controls.
-- [ ] Small-screen layout.
+- [ ] Safe-area handling on mobile devices.
+- [ ] Notch/browser-control handling where applicable.
+- [ ] Responsive small-screen layout.
+- [ ] Responsive large-screen layout.
 - [ ] No giant panels.
 - [ ] No gameplay-blocking errors.
-- [ ] Touch/pointer architecture verified.
+- [ ] Touch/pointer/keyboard architecture verified.
 
 ### Performance
 
@@ -546,7 +551,9 @@ Two-client/local multi-instance testing:
 - [ ] Visual acceptance.
 - [ ] Two-client multiplayer.
 - [ ] Two-client voice.
-- [ ] Mobile input.
+- [ ] Mobile/tablet touch input.
+- [ ] Desktop/laptop mouse/trackpad/keyboard input.
+- [ ] Responsive layout across screen sizes.
 - [ ] Camera around boundaries/furniture.
 - [ ] All interactions.
 
@@ -559,9 +566,9 @@ Two-client/local multi-instance testing:
 
 ---
 
-## WAVE 7 — RELEASE + REAL IPHONE ACCEPTANCE
+## WAVE 7 — RELEASE + REAL DEVICE ACCEPTANCE
 
-**Goal:** use deployment only when a remote/iPhone test is genuinely required.
+**Goal:** use deployment only when real-device or production-environment testing is genuinely required.
 
 ### Before deployment
 
@@ -586,8 +593,12 @@ Two-client/local multi-instance testing:
 - [ ] **Do not deploy merely to debug local problems.**
 - [ ] **Do not create repeated preview deployments.**
 
-### Real iPhone acceptance
+### Real-device acceptance
 
+- [ ] Test on a representative mobile device.
+- [ ] Test on a representative tablet where supported.
+- [ ] Test on a representative laptop.
+- [ ] Test on a representative desktop.
 - [ ] Open game.
 - [ ] Human appears.
 - [ ] Large hall appears.
@@ -601,7 +612,7 @@ Two-client/local multi-instance testing:
 - [ ] Drink.
 - [ ] TV/music.
 - [ ] Add Song.
-- [ ] Chat without zoom.
+- [ ] Chat without unwanted mobile browser zoom.
 - [ ] Mic ON.
 - [ ] Mic MUTED.
 - [ ] Mic ON again.
@@ -644,7 +655,7 @@ Use:
 
 Examples:
 
-- [ ] Real iPhone/Safari testing requires HTTPS/deployed environment.
+- [ ] Real-device browser testing requires HTTPS/deployed environment.
 - [ ] Vercel-specific runtime/environment behavior must be verified.
 - [ ] Production integration needs one final remote test.
 
@@ -783,7 +794,7 @@ For every wave, record:
 - [ ] Automated tests pass.
 - [ ] Production build passes.
 - [ ] Browser verification passes or is explicitly unavailable.
-- [ ] iPhone acceptance passes.
+- [ ] Cross-device acceptance passes.
 - [ ] No unsupported “working” claims.
 
 > **Finish line:** A human player inside a large, beautiful hangout hall with smooth camera and movement, where people can actually hang out together.
