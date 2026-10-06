@@ -437,6 +437,17 @@ function Furniture() {
         <RoundedBox args={[4.8, 0.25, 2.4]} position={[0, 0.95, 0]} radius={0.12} smoothness={5} castShadow><meshStandardMaterial color="#72513f" /></RoundedBox>
         {[-1.5, 0, 1.5].map((x) => <Chair key={x} position={[x, 0, -1.85]} />)}
         {[-1.5, 0, 1.5].map((x) => <Chair key={x} position={[x, 0, 1.85]} rotation={Math.PI} />)}
+        <group position={[-1.35, 1.13, -0.25]}>
+          <RoundedBox args={[0.52, 0.08, 0.34]} radius={0.04} smoothness={3}><meshStandardMaterial color="#ece7dd" /></RoundedBox>
+          <mesh position={[0, 0.08, 0]}><cylinderGeometry args={[0.12, 0.1, 0.05, 12]} /><meshStandardMaterial color="#d59a43" roughness={0.72} /></mesh>
+        </group>
+        <group position={[0.2, 1.13, 0.2]}>
+          <RoundedBox args={[0.52, 0.08, 0.34]} radius={0.04} smoothness={3}><meshStandardMaterial color="#ece7dd" /></RoundedBox>
+          <mesh position={[0, 0.1, 0]}><sphereGeometry args={[0.1, 12, 8]} /><meshStandardMaterial color="#d56b52" roughness={0.75} /></mesh>
+        </group>
+        <group position={[1.45, 1.13, -0.15]}>
+          <mesh><cylinderGeometry args={[0.08, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.86} roughness={0.3} /></mesh>
+        </group>
       </group>
       <group position={[8.7, 0, -6.5]}><Bed position={[0, 0, 0]} /></group>
       <group position={[13.25, 0, 0.7]}><RoundedBox args={[1.4, 1.1, 6.2]} position={[0, 0.6, 0]} radius={0.12} smoothness={4}><meshStandardMaterial color="#343941" /></RoundedBox></group>
