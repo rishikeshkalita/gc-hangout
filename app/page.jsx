@@ -505,7 +505,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
         posRef.current=next;interactionRef.current=null;onMove(next);onInteractionArrive?.(target);
       }
     }else if(!locked){
-      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:m.x,y:-m.z},run:!!runRef.current,jump:false});
+      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:m.x,y:-m.z},run:!!runRef.current||Math.hypot(m.x,m.z)>.88,jump:false});
       if(Math.abs(m.x)<0.001&&Math.abs(m.z)<0.001){const lv=c.body.linvel();c.body.setLinvel({x:0,y:lv.y,z:0},true);}
       const q=c.currQuat,pos=c.currPos;
       const yaw=Math.atan2(2*(q.w*q.y+q.x*q.z),1-2*(q.y*q.y+q.z*q.z));
@@ -568,6 +568,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       if(["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
       const k=e.key.toLowerCase();
       if(k===" "){e.preventDefault();requestInteraction(candidate);return}
+      if(k==="shift"){runRef.current=true;return}
       if((k==="w"||k==="a"||k==="s"||k==="d"||k.startsWith("arrow"))&&(posRef.current.action==="sit"||posRef.current.action==="sleep")){        requestInteraction({id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"});
       }
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
