@@ -381,8 +381,9 @@ function RealHuman({player,me,liveRef}) {
     const run=names.find(n=>/run|jog|sprint/i.test(n))||walk;
     const grasp=names.find(n=>/grasp|eat|drink/i.test(n))||idle;
     const hit=names.find(n=>/hit|hurt|shove|pain|reaction/i.test(n))||null;
+    const attack=names.find(n=>/punch|jab|kick|attack|fight|combo/i.test(n))||null;
     const emote=player.emote?names.find(n=>new RegExp(player.emote,"i").test(n)):null;
-    const desired=locked?null:(player.hit&&hit?hit:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle)))));
+    const desired=locked?null:(player.hit&&hit?hit:(player.attacking&&attack?attack:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle))))));
     if(desired===clipRef.current)return;
     const previous=clipRef.current?actions[clipRef.current]:null;
     if(previous)previous.fadeOut(.16);
