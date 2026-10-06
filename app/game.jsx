@@ -923,7 +923,18 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
         }
         onToggleMusic?.();
       }} disabled={!musicTracks.length}>🎵 Music</button>
-      {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
+      {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={async e=>{
+        const selected=musicTracks.find(t=>t.id===e.target.value);
+        if(selected?.audio&&audioRef.current){
+          try{
+            audioRef.current.src=selected.audio;
+            audioRef.current.load();
+            await audioRef.current.play();
+            onMusicAutoplayBlocked?.(null);
+          }catch(error){onMusicAutoplayBlocked?.(error);}
+        }
+        onSelectMusic?.(e.target.value);
+      }} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>
       <label className="musicUpload" title="Add song">🎵＋ Add song<input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
