@@ -801,6 +801,7 @@ export default function Home(){
         for(const key of voiceRef.current.peers.keys()){
           if(key!==id&&!online.has(key))voiceRef.current.removePeer(key);
         }
+        voiceRef.current.syncPeers(Object.keys(state).filter(key=>key!==id)).catch(()=>{});
       }
       for(const [key,entries] of Object.entries(state)){
         if(key!==id&&entries?.[0]?.voiceEnabled&&voiceRef.current&&voiceRef.current.enabled&&id<key)voiceRef.current.offerTo(key).catch(()=>{});
@@ -967,6 +968,7 @@ export default function Home(){
         localRef.current={...localRef.current,voiceEnabled:voiceRef.current.enabled};
         setPlayers(prev=>({...prev,[id]:localRef.current}));
         await channelRef.current.track({id,name:localRef.current.name,avatarId,voiceEnabled:voiceRef.current.enabled});
+        voiceRef.current.syncPeers(Object.keys(channelRef.current.presenceState()).filter(key=>key!==id)).catch(()=>{});
       }
     }catch(e){
       console.error("Voice chat failed",e);
