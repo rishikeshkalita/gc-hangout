@@ -263,7 +263,7 @@ function Hall({musicPlaying,players,snackStates}) {
     {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
 
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
-    <Sofa position={[-10,0,-7.28]} rotation={0}/>
+    <Sofa position={[-10,0,-7.28]} rotation={Math.PI}/>
     <Sofa position={[-10,0,-3.62]} rotation={Math.PI}/>
     <Sofa position={[-12.58,0,-5.45]} rotation={-Math.PI/2}/>
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
