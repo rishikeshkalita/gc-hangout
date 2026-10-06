@@ -16,6 +16,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ensureAnonymousSession, getSupabase } from "../lib/supabase";
 import { VoiceMesh } from "../lib/voice";
+import { applyPlayerState, arriveInteraction, beginInteraction, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, upsertPlayer } from "../lib/game-state.mjs";
 
 const PRESETS = [
   {id:"maya",label:"Maya"}, {id:"noah",label:"Noah"}, {id:"riya",label:"Riya"},
@@ -31,21 +32,6 @@ const HALL_HALF_X=15, HALL_HALF_Z=10, PLAYER_RADIUS=.34;
 const TRACK={title:"GC After Hours",artist:"GC Radio",album:"Community Mix"};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const makeId=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now();
-const normalizeChatMessage=payload=>{
-  if(!payload||typeof payload!=="object")return null;
-  const id=typeof payload.id==="string"?payload.id.slice(0,80):"";
-  const text=typeof payload.text==="string"?payload.text.replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,240):"";
-  if(!id||!text)return null;
-  const name=typeof payload.name==="string"?payload.name.replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,18):"Guest";
-  const ts=Number.isFinite(Number(payload.ts))?Number(payload.ts):Date.now();
-  return {id,name:name||"Guest",text,ts};
-};
-const mergeChatMessages=(current,incoming)=>{
-  const list=Array.isArray(incoming)?incoming:[incoming];
-  const map=new Map(current.map(m=>[m.id,m]));
-  for(const raw of list){const message=normalizeChatMessage(raw);if(message)map.set(message.id,message);}
-  return [...map.values()].sort((a,b)=>a.ts-b.ts).slice(-80);
-};
 const PLANT_ASSETS={
   palm:"https://cdn.3dassets.dev/assets/38577/v1/model.glb",
   treeFern:"https://cdn.3dassets.dev/assets/38578/v1/model.glb",
@@ -168,17 +154,33 @@ const tryMove=(x,z,dx,dz)=>{
   return{x,z,hop:false};
 };
 
-function AssetBoundary({children,fallback}) {
-  return <ErrorBoundary fallback={fallback}>{children}</ErrorBoundary>;
+function AssetFailureMarker({url,label="3D asset"}) {
+  return <group>
+    <mesh position={[0,.28,0]} castShadow>
+      <boxGeometry args={[.5,.5,.5]}/>
+      <meshStandardMaterial color="#6b2737" emissive="#2b1018" emissiveIntensity={.35}/>
+    </mesh>
+    <Text position={[0,.72,0]} fontSize={.09} color="#ffb5c4" anchorX="center" maxWidth={1.8}>
+      {label} failed
+    </Text>
+  </group>;
+}
+function AssetBoundary({children,fallback,url,label}) {
+  return <ErrorBoundary fallback={fallback} url={url} label={label}>{children}</ErrorBoundary>;
 }
 class ErrorBoundary extends React.Component {
   constructor(p){super(p);this.state={failed:false}}
   static getDerivedStateFromError(){return{failed:true}}
-  componentDidCatch(e){console.error("3D asset error",e)}
+  componentDidCatch(e){
+    console.error("3D asset load/render failure", {asset:this.props.label||"3D asset", url:this.props.url||"unknown", error:e?.message||String(e)});
+  }
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function SafeFurniture(props){return <AssetBoundary fallback={null}><RealFurniture {...props}/></AssetBoundary>}
+function SafeFurniture(props){
+  const {url}=props;
+  return <AssetBoundary url={url} label={url} fallback={<AssetFailureMarker url={url} label="Furniture"/>}><RealFurniture {...props}/></AssetBoundary>;
+}
 function Sofa({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.0}/>} 
 function Chair({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
 function CoffeeTable({x,z}){return <SafeFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
@@ -207,7 +209,7 @@ function SnackUnsafe({item,state,players}){
   return <group ref={ref} position={item.position} scale={scale}><primitive object={scene}/></group>;
 }
 
-function Snack({item,state,players}){return <AssetBoundary fallback={null}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
+function Snack({item,state,players}){const url=FOOD_ASSETS[item.kind];return <AssetBoundary url={url} label={item.name} fallback={<AssetFailureMarker url={url} label={item.name}/>}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
 function Snacks({players,snackStates}){
   return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
 }
@@ -747,8 +749,9 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     runRef.current=false;
     setMoveImmediate({x:0,z:0});
     if(item.type==="seat"||item.type==="bed"){
-      if(interactionRef.current||posRef.current.action==="moving"||posRef.current.action==="emote")return;
-      interactionRef.current={...item,phase:"approach",movePosition:item.approachPosition||item.position};
+      const nextInteraction=beginInteraction(posRef.current,item);
+      if(!nextInteraction||interactionRef.current)return;
+      interactionRef.current=nextInteraction;
     }
     Promise.resolve(onInteract(item)).then(ok=>{if(ok===false&&item.type!=="music"&&item.type!=="tv")interactionRef.current=null;});
   };
@@ -871,7 +874,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
-            <AssetBoundary fallback={null}><RealHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
+            <AssetBoundary url={HUMAN_URL} label={`Avatar ${p.name}`} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id} liveRef={p.id===local.id?posRef:null}/></AssetBoundary>
           </Suspense>
         )}
       </Physics>
@@ -997,12 +1000,14 @@ export default function Home(){
       const playerId=session.user.id;
       const {error:resetError}=await supabase.rpc("gc_reset_combat_state");
       if(resetError)console.warn("Combat state reset unavailable",resetError);
-      const p={id:playerId,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
+      // Renderable player source of truth is `players`. localRef is only a synchronous controller snapshot;
+      // it never determines whether a player exists. This keeps spawn independent from movement callbacks.
+      const p=createLocalPlayer({id:playerId,name:name.trim(),avatarId,spawn:{x:0,y:0,z:0,rot:0}});
       localRef.current=p;
       const {error:positionError}=await supabase.rpc("gc_update_combat_position",{p_x:0,p_z:0,p_rot:0});
       if(positionError)console.warn("Initial combat position sync unavailable",positionError);
       setId(playerId);
-      setPlayers({[playerId]:p});
+      setPlayers(prev=>upsertPlayer(prev,p));
       setJoined(true);
     }catch(e){
       console.error("Unable to join GC Hangout",e);
@@ -1061,7 +1066,7 @@ export default function Home(){
       setPlayers(prev=>{
         const current=prev[payload.id];
         if(current?.netTs&&payload.netTs&&payload.netTs<current.netTs)return prev;
-        return {...prev,[payload.id]:payload};
+        return applyPlayerState(prev,payload);
       });
     });
     channel.on("broadcast",{event:"request_state"},()=>localRef.current&&send(localRef.current));
@@ -1396,12 +1401,13 @@ export default function Home(){
     const value=allowed[emote]||"dance";
     runRef.current=false;
     setMoveImmediate({x:0,z:0});
-    const p={...localRef.current,action:"emote",emote:value,moving:false,speed:0};
+    const p=startEmote(localRef.current,value);
+    if(!p)return;
     localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
     setTimeout(()=>{
       if(localRef.current?.emote===value){
-        const clear={...localRef.current,emote:null,action:null,moving:false,speed:0};
+        const clear=finishEmote(localRef.current);
         localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
         channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...clear,netTs:Date.now()}});
       }
@@ -1414,7 +1420,7 @@ export default function Home(){
 
     if(candidate.type==="stand"){
       const objectId=candidate.id||p.interactionId;
-      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null};
+      const clear=releaseInteraction(p);
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
       if(objectId){
@@ -1488,7 +1494,7 @@ export default function Home(){
   const interactionArrived=(candidate)=>{
     if(!localRef.current)return;
     const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
-    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null,poseType:candidate.poseType??candidate.type??null};
+    const payload=arriveInteraction(localRef.current,candidate);
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...payload,netTs:Date.now()}});
     setAction(finalAction);
