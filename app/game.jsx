@@ -71,24 +71,34 @@ function tryMove(x, z, dx, dz) {
   return { x, z };
 }
 
-function HumanAvatar({ avatar, moving, local, pose = "idle" }) {
+function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
   const group = useRef();
   const arms = useRef([]);
   const legs = useRef([]);
   const { skin, shirt, pants, hair } = avatar;
+  const displayName = (name || avatar.label || "You").trim().slice(0, 18).toUpperCase();
 
   useFrame(({ clock }) => {
     if (!group.current) return;
     const t = clock.getElapsedTime();
     const stride = moving ? Math.sin(t * 11) * 0.48 : Math.sin(t * 2.2) * 0.025;
-    if (pose === "sleep") group.current.rotation.x = -Math.PI / 2;
-    else group.current.rotation.x = 0;
-    group.current.position.y = moving ? Math.abs(Math.sin(t * 11)) * 0.018 : 0;
-    group.current.rotation.z = moving ? Math.sin(t * 11) * 0.012 : 0;
-    if (arms.current[0]) arms.current[0].rotation.x = moving ? stride : 0.02 * Math.sin(t * 2.2);
-    if (arms.current[1]) arms.current[1].rotation.x = moving ? -stride : -0.02 * Math.sin(t * 2.2);
-    if (legs.current[0]) legs.current[0].rotation.x = moving ? -stride : 0;
-    if (legs.current[1]) legs.current[1].rotation.x = moving ? stride : 0;
+    const seated = pose === "sit";
+    const gesture = pose === "eat" || pose === "drink";
+
+    group.current.position.y = pose === "sleep" ? 0.42 : seated ? -0.18 : 0;
+    group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
+    group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
+
+    if (arms.current[0]) {
+      arms.current[0].rotation.x = seated ? -0.2 : gesture ? -0.9 - Math.sin(t * 7) * 0.12 : moving ? stride : 0.02 * Math.sin(t * 2.2);
+      arms.current[0].rotation.z = gesture ? -0.18 : 0;
+    }
+    if (arms.current[1]) {
+      arms.current[1].rotation.x = seated ? -0.2 : pose === "drink" ? -1.05 : pose === "eat" ? -0.65 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.z = gesture ? 0.18 : 0;
+    }
+    if (legs.current[0]) legs.current[0].rotation.x = seated ? -1.05 : moving ? -stride : 0;
+    if (legs.current[1]) legs.current[1].rotation.x = seated ? -1.05 : moving ? stride : 0;
   });
 
   return (
@@ -100,6 +110,26 @@ function HumanAvatar({ avatar, moving, local, pose = "idle" }) {
       <mesh position={[0, 1.82, 0]} castShadow scale={[1.05, 0.62, 1.05]}>
         <sphereGeometry args={[0.31, 20, 16]} />
         <meshStandardMaterial color={hair} roughness={0.9} />
+      </mesh>
+      <mesh position={[-0.11, 1.63, 0.285]} castShadow>
+        <sphereGeometry args={[0.045, 10, 8]} />
+        <meshStandardMaterial color="#f6f3ef" roughness={0.45} />
+      </mesh>
+      <mesh position={[0.11, 1.63, 0.285]} castShadow>
+        <sphereGeometry args={[0.045, 10, 8]} />
+        <meshStandardMaterial color="#f6f3ef" roughness={0.45} />
+      </mesh>
+      <mesh position={[-0.11, 1.63, 0.322]}>
+        <sphereGeometry args={[0.019, 8, 6]} />
+        <meshStandardMaterial color="#161922" />
+      </mesh>
+      <mesh position={[0.11, 1.63, 0.322]}>
+        <sphereGeometry args={[0.019, 8, 6]} />
+        <meshStandardMaterial color="#161922" />
+      </mesh>
+      <mesh position={[0, 1.54, 0.315]}>
+        <sphereGeometry args={[0.035, 8, 6]} />
+        <meshStandardMaterial color={skin} />
       </mesh>
       <RoundedBox position={[0, 1.02, 0]} args={[0.66, 0.78, 0.38]} radius={0.1} smoothness={4} castShadow>
         <meshStandardMaterial color={shirt} roughness={0.82} />
@@ -124,8 +154,16 @@ function HumanAvatar({ avatar, moving, local, pose = "idle" }) {
         <capsuleGeometry args={[0.095, 0.52, 6, 10]} />
         <meshStandardMaterial color={pants} roughness={0.84} />
       </mesh>
-      <Text position={[0, 2.2, 0]} fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center">
-        {local ? "YOU" : avatar.label}
+      <mesh position={[-0.18, 0.12, 0.1]} castShadow>
+        <capsuleGeometry args={[0.11, 0.22, 6, 10]} />
+        <meshStandardMaterial color="#171b24" roughness={0.72} />
+      </mesh>
+      <mesh position={[0.18, 0.12, 0.1]} castShadow>
+        <capsuleGeometry args={[0.11, 0.22, 6, 10]} />
+        <meshStandardMaterial color="#171b24" roughness={0.72} />
+      </mesh>
+      <Text position={[0, 2.18, 0]} fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center">
+        {displayName}
       </Text>
     </group>
   );
@@ -258,7 +296,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickVector }) {
 
   return (
     <group position={[state.x, 0, state.z]} rotation={[0, state.rot, 0]}>
-      <HumanAvatar avatar={state.avatar} moving={state.moving} local pose={pose} />
+      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} />
       {interaction?.status === "active" && <Text position={[0, 2.45, 0]} fontSize={0.16} color="#d8ceff" anchorX="center">{interaction.anchor.label.toUpperCase()}</Text>}
     </group>
   );
