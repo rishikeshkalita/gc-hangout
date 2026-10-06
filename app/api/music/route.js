@@ -6,18 +6,26 @@ export async function GET(request){
     return NextResponse.json({configured:false,tracks:[],error:"JAMENDO_CLIENT_ID is not configured."},{status:503});
   }
   const query=request.nextUrl.searchParams.get("search")||"instrumental lounge";
-  const url=new URL("https://api.jamendo.com/v3.0/tracks/");
-  url.searchParams.set("client_id",clientId);
-  url.searchParams.set("format","json");
-  url.searchParams.set("limit","12");
-  url.searchParams.set("audioformat","mp32");
-  url.searchParams.set("imagesize","200");
-  url.searchParams.set("search",query.slice(0,80));
-  url.searchParams.set("include","licenses");
-  try{
+  const fetchTracks=async(search)=>{
+    const url=new URL("https://api.jamendo.com/v3.0/tracks/");
+    url.searchParams.set("client_id",clientId);
+    url.searchParams.set("format","json");
+    url.searchParams.set("limit","12");
+    url.searchParams.set("audioformat","mp31");
+    url.searchParams.set("imagesize","200");
+    if(search)url.searchParams.set("search",search.slice(0,80));
+    url.searchParams.set("include","licenses");
     const response=await fetch(url,{next:{revalidate:300}});
     if(!response.ok)throw new Error("Jamendo request failed: "+response.status);
-    const data=await response.json();
+    return response.json();
+  };
+  try{
+    const queries=[query,"lounge","instrumental",""];
+    let data={results:[]};
+    for(const search of queries){
+      data=await fetchTracks(search);
+      if(Array.isArray(data.results)&&data.results.some(t=>t.audio))break;
+    }
     const tracks=(data.results||[]).filter(t=>t.audio).map(t=>({
       id:String(t.id),title:t.name,artist:t.artist_name||"Unknown artist",
       album:t.album_name||"Jamendo",image:t.album_image||t.image||"",
