@@ -871,7 +871,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
 
     <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
-    <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
+    <div className="zoneHint">Large open social floor • perimeter interaction zones</div><div className="cameraHint">🖱 Drag to look • wheel/pinch to zoom • WASD / joystick to move</div>
     <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onPointerDown={e=>e.stopPropagation()} onClick={()=>setChatOpen(v=>!v)}>💬</button>
     <div className={`chat${chatOpen?" open":""}`} onPointerDown={e=>e.stopPropagation()}>
       <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span><button className="chatClose" type="button" onClick={()=>setChatOpen(false)}>×</button></div>
@@ -907,7 +907,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
         onToggleMusic?.();
       }} disabled={!musicTracks.length}>🎵 Music</button>
       {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
-      <label className="musicUpload" title="Add a custom song">＋ Song<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
+      <label className="musicUpload" title="Add a custom song">🎵＋ Add<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
       {musicError&&<span className="musicError" role="status">{musicError}</span>}
       <button type="button" onClick={onAttack}>🥊 Fight</button>
       <button type="button" className={voiceEnabled&&!voiceMuted?"active":""} onClick={async()=>{if(!voiceEnabled){const enabled=await onToggleVoice();if(enabled)setVoiceOpen(true)}else setVoiceOpen(v=>!v)}}>{voiceEnabled?(voiceMuted?"🔇":"🎙️"):"🎤"} {voiceEnabled?(voiceMuted?"Muted":"Voice"):"Voice"}</button>
