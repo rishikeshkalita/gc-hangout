@@ -671,6 +671,16 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const musicPlayBlockedRef=useRef(false);
+  useEffect(()=>{
+    const audio=audioRef.current;
+    if(!audio)return;
+    const update=()=>setAudioProgress({current:Number(audio.currentTime)||0,duration:Number(audio.duration)||Number(musicTrack?.duration)||0});
+    update();
+    const timer=setInterval(update,250);
+    audio.addEventListener("timeupdate",update);
+    audio.addEventListener("loadedmetadata",update);
+    return()=>{clearInterval(timer);audio.removeEventListener("timeupdate",update);audio.removeEventListener("loadedmetadata",update)};
+  },[musicTrack?.id]);
   const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
   const [emoteOpen,setEmoteOpen]=useState(false);
@@ -789,7 +799,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       }
     }
     const safe=candidates.find(q=>!blocked(q[0],q[2],.34))||[clamp(p.x,-HALL_HALF_X+.5,HALL_HALF_X-.5),0,clamp(p.z,-HALL_HALF_Z+.5,HALL_HALF_Z-.5)];
-    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null};
+    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null,emote:null};
     interactionRef.current=null;
     posRef.current=clear;
     setCandidate(null);
@@ -859,17 +869,25 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div><div className="cameraHint">🖱 Drag to look • wheel/pinch to zoom • WASD / joystick to move</div>
-    <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onPointerDown={e=>e.stopPropagation()} onClick={()=>setChatOpen(v=>!v)}>💬</button>
-    <div className={`chat${chatOpen?" open":""}`} onPointerDown={e=>e.stopPropagation()}>
-      <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span><button className="chatClose" type="button" onClick={()=>setChatOpen(false)}>×</button></div>
-      <div className="chatList" role="log" aria-live="polite" aria-relevant="additions">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
-      {chatError&&<div className="chatError" role="status">{chatError}</div>}
-      <form className="chatForm" onSubmit={async e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){const sent=await onSendChat?.(input.value);if(sent!==false)input.value=""}}}>
-        <input name="message" maxLength={240} autoComplete="off" placeholder="Message the room…"/>
-        <button type="submit">Send</button>
+    <div className="chatNotices" role="log" aria-live="polite" aria-relevant="additions">
+      {chatNotices.map(m=><div className="chatNotice" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}
+    </div>
+    <div className="chatComposer" onPointerDown={e=>e.stopPropagation()}>
+      <form className="chatForm" onSubmit={async e=>{
+        e.preventDefault();
+        const input=e.currentTarget.elements.namedItem("message");
+        if(input?.value.trim()){
+          const sent=await onSendChat?.(input.value);
+          if(sent!==false){input.value="";input.blur();}
+        }
+      }}>
+        <input name="message" maxLength={240} autoComplete="off" inputMode="text" enterKeyHint="send" aria-label="Chat message" placeholder="Message…"/>
+        <button type="submit" aria-label="Send message">➤</button>
       </form>
+      {chatError&&<div className="chatError" role="status">{chatError}</div>}
     </div>
     {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
+    <div className="musicStatus" aria-live="polite">{musicTrack?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1)}/></>:<span>No song selected</span>}</div>
     <div className="controls" onPointerDown={e=>e.stopPropagation()}>
       <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
       <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
