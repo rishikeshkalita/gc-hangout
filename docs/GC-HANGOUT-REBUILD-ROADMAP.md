@@ -24,6 +24,161 @@
 
 ---
 
+
+
+---
+
+# Product North Star — GC Hangout
+
+## Core idea
+
+**GC Hangout is a shared virtual home for the GC.**
+
+Everyone in the GC gets their own recognizable human avatar and enters the **same persistent-feeling shared hangout space**. The purpose is social presence: walking around together, sitting together, talking, listening to music, watching TV, eating, drinking, sleeping, dancing, chatting, and simply being in the same place.
+
+This is **not** a progression game.
+
+### Product identity
+
+- [ ] One shared large hangout house/hall.
+- [ ] Every GC member has a recognizable human avatar.
+- [ ] Everyone sees everyone else in real time.
+- [ ] The experience is centered on social presence.
+- [ ] No missions.
+- [ ] No enemies.
+- [ ] No quests.
+- [ ] No inventory grinding.
+- [ ] No progression loop that distracts from hanging out.
+
+## Shared-world mental model
+
+The authoritative product model is:
+
+**GC → Shared World → Shared State**
+
+Not:
+
+**Player → Private Game**
+
+The room is the product. Each connected member is a participant in the same room.
+
+### State that must be shared appropriately
+
+- [ ] Player identity/name.
+- [ ] Player position.
+- [ ] Player rotation.
+- [ ] Player movement/animation state.
+- [ ] Sitting.
+- [ ] Sleeping.
+- [ ] Eating.
+- [ ] Drinking.
+- [ ] Dancing.
+- [ ] Waving.
+- [ ] Clapping.
+- [ ] Interaction state.
+- [ ] Seat/interaction ownership.
+- [ ] Music track and playback state.
+- [ ] TV state.
+- [ ] Chat events.
+- [ ] Voice presence/state.
+- [ ] Join/leave/presence state.
+
+**Architecture rule:** if another member can see, hear, or otherwise experience an action, that action must have an explicit shared-state model where synchronization is required. Local-only state must never accidentally become the source of truth for a shared interaction.
+
+## The shared home
+
+The main room should feel like one large real place, with distinct activity areas but without turning into cramped separate rooms.
+
+### Required spatial identity
+
+- [ ] Large sofa/lounge area.
+- [ ] TV/music area.
+- [ ] Food/snack table.
+- [ ] Drinks area.
+- [ ] Dining table.
+- [ ] Extra chairs.
+- [ ] Sleeping/bed area.
+- [ ] Plants/decorations.
+- [ ] Lamps and ambient lighting.
+- [ ] Music area.
+- [ ] Spacious central floor for group dancing/emotes.
+- [ ] Proper walls and boundaries so players cannot escape the building.
+
+### Spatial design rule
+
+The **central floor remains intentionally spacious**. Furniture and activity zones should create social opportunities without fragmenting the room. The GC must be able to gather together in one visible shared space.
+
+## Social interactions are the actual game
+
+Interactions should be visible, embodied actions—not UI confirmations.
+
+Examples of the acceptance model:
+
+- [ ] Two members sit on a sofa → both human avatars visibly sit beside each other.
+- [ ] A member picks up food → the avatar visibly eats it.
+- [ ] A member grabs a drink → a real drinking animation plays.
+- [ ] A member lies on the bed → the avatar visibly lies down.
+- [ ] A member turns on the TV → everyone sees the same shared playback state.
+- [ ] A member starts dancing → everyone sees the dance.
+- [ ] A member sends chat → others see a small temporary notification.
+- [ ] A member speaks → other members hear them through voice chat.
+- [ ] A member joins → their human avatar appears in the shared room.
+
+**Acceptance rule:** source code, UI labels, database rows, or event logs are not sufficient evidence. The shared behavior must be observable.
+
+## Human avatar rule
+
+- [ ] Every player has a proper human avatar.
+- [ ] Avatar loading is independent of movement/network callbacks.
+- [ ] The human avatar is the production player representation.
+- [ ] A capsule/debug primitive may never silently become the production fallback.
+- [ ] If the intended human avatar cannot load, the failure is explicit and diagnosable.
+- [ ] Remote members also render as human avatars.
+
+**Hard rule:** a capsule is never an acceptable silent production avatar fallback.
+
+## UI philosophy — world first
+
+The interface should stay out of the way, especially on iPhone.
+
+Primary screen content:
+
+**3D world + your avatar + other members**
+
+Controls should be compact and secondary:
+
+- [ ] 🎤 Voice.
+- [ ] 💬 Chat.
+- [ ] 🎵 Music.
+- [ ] 🙂 Emotes.
+- [ ] ⚙️ Settings.
+
+### Mobile UI rules
+
+- [ ] No giant panels covering the room.
+- [ ] No traditional game HUD dominating the screen.
+- [ ] Controls remain compact and reachable.
+- [ ] Safe-area aware.
+- [ ] Chat input does not trigger Safari zoom.
+- [ ] UI does not steal gameplay camera gestures.
+- [ ] Temporary notifications do not block movement.
+- [ ] The world remains visually dominant.
+
+**Experience target:** entering GC Hangout should feel like entering the group's shared virtual room, not opening a conventional game menu.
+
+## Architecture consequences for the rebuild
+
+These product rules override implementation convenience:
+
+- [ ] Design the shared-state model before implementing multiplayer-specific UI.
+- [ ] Define authoritative state transitions for movement, interactions, music, chat, voice, and presence.
+- [ ] Keep local prediction/rendering separate from shared authoritative state.
+- [ ] Make every visible interaction reproducible for remote players.
+- [ ] Use one authoritative implementation per shared system.
+- [ ] Do not build private-player-only behavior that later has to be retrofitted for multiplayer.
+- [ ] Test two-client behavior as soon as the shared-state layer exists.
+- [ ] Treat human-avatar rendering as a hard dependency of the player experience, not optional decoration.
+
 # Rebuild Waves
 
 We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related systems, gets tested locally, and then becomes a stable checkpoint.
