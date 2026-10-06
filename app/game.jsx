@@ -134,6 +134,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   const cameraPosition = useRef(new THREE.Vector3(0, 3.6, 7.8));
   const playerGroup = useRef();
   const motion = useRef({ x: state.x, z: state.z, rot: state.rot, moving: state.moving, speed: state.speed });
+  const lastResetKey = useRef(motionResetKey);
   const dirty = useRef(false);
   const nearbyRef = useRef(null);
   const { camera, gl, size } = useThree();
@@ -194,9 +195,11 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   }, [mobile]);
 
   useEffect(() => {
+    if (lastResetKey.current === motionResetKey) return;
+    lastResetKey.current = motionResetKey;
     motion.current = { x: state.x, z: state.z, rot: state.rot, moving: false, speed: 0 };
     dirty.current = false;
-  }, [motionResetKey]);
+  }, [motionResetKey, state.x, state.z, state.rot]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -491,11 +494,9 @@ export default function Game() {
     joystickRef.current = { x: 0, y: 0, active: false };
     setJoystick(joystickRef.current);
     motionResetKey.current += 1;
-    const key = motionResetKey.current;
     window.setTimeout(() => {
       setInteraction((state) => state?.startedAt === current.startedAt ? null : state);
     }, 0);
-    void key;
   };
 
   useEffect(() => {
