@@ -520,7 +520,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
-function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
+function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const runRef=useRef(false);
@@ -550,7 +550,9 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
       if(Number.isFinite(desired)&&Math.abs((audio.currentTime||0)-desired)>.75){
         try{audio.currentTime=desired}catch{}
       }
-      audio.play().catch(()=>{});
+      audio.play().catch(error=>{
+        if(musicPlaying)onMusicAutoplayBlocked?.(error);
+      });
     };
     sync();
     const timer=setInterval(sync,1000);
@@ -749,7 +751,7 @@ export default function Home(){
     if(!name.trim()||joining)return;
     setJoining(true);setConnectionError("");
     try{
-      const supabase=await getSupabase();
+        const supabase=await getSupabase();
       if(!supabase)throw new Error("Supabase is not configured.");
       const session=await ensureAnonymousSession(supabase,{display_name:name.trim()});
       if(!session?.user?.id)throw new Error("Supabase did not return a player identity.");
@@ -758,6 +760,8 @@ export default function Home(){
       if(resetError)console.warn("Combat state reset unavailable",resetError);
       const p={id:playerId,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
       localRef.current=p;
+      const {error:positionError}=await supabase.rpc("gc_update_combat_position",{p_x:0,p_z:0,p_rot:0});
+      if(positionError)console.warn("Initial combat position sync unavailable",positionError);
       setId(playerId);
       setJoined(true);
     }catch(e){
@@ -794,9 +798,9 @@ export default function Home(){
           if(key===id)continue;
           const meta=entries?.[0]||{};
           next[key]={...(next[key]||{}),id:key,name:meta.name||next[key]?.name||"Guest",avatarId:meta.avatarId||next[key]?.avatarId||"maya",voiceEnabled:!!meta.voiceEnabled};
-        }
+          }
         return next;
-      });
+        });
       if(voiceRef.current?.enabled){
         for(const key of voiceRef.current.peers.keys()){
           if(key!==id&&!online.has(key))voiceRef.current.removePeer(key);
@@ -836,37 +840,41 @@ export default function Home(){
     });
     channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
     channel.on("broadcast",{event:"attack"},async({payload})=>{
-      if(!payload?.id||payload.id===id)return;
-      setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);
-      setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
-      if(payload.targetId!==id||!localRef.current)return;
+      try{
+        if(!payload?.id||payload.id===id)return;
+        setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);
+        setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
+        if(payload.targetId!==id||!localRef.current)return;
       const supabase=await getSupabase();
-      if(!supabase)return;
-      const {data,error}=await supabase.rpc("gc_apply_attack",{
-        p_target_id:id,
-        p_attacker_x:Number(payload.attackerX),
-        p_attacker_z:Number(payload.attackerZ),
-        p_attacker_rot:Number(payload.attackerRot),
-        p_target_x:Number(localRef.current.x),
-        p_target_z:Number(localRef.current.z)
+        if(!supabase)return;
+        const {data,error}=await supabase.rpc("gc_apply_attack",{
+          p_target_id:id,
+          p_attacker_x:Number(payload.attackerX),
+          p_attacker_z:Number(payload.attackerZ),
+          p_attacker_rot:Number(payload.attackerRot),
+          p_target_x:Number(localRef.current.x),
+          p_target_z:Number(localRef.current.z)
       });
-      if(error){console.warn("combat validation failed",error);return}
-      const result=Array.isArray(data)?data[0]:data;
-      if(!result?.accepted)return;
-      const nextHealth=Number(result.target_health);
-      const next={...localRef.current,health:nextHealth,hit:true};
-      localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));
-      setTimeout(()=>{
-        if(localRef.current?.hit){
-          localRef.current={...localRef.current,hit:false};
-          setPlayers(prev=>({...prev,[id]:localRef.current}));
+        if(error){console.warn("combat validation failed",error);return}
+        const result=Array.isArray(data)?data[0]:data;
+        if(!result?.accepted)return;
+        const nextHealth=Number(result.target_health);
+        const next={...localRef.current,health:nextHealth,hit:true};
+        localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));
+        setTimeout(()=>{
+          if(localRef.current?.hit){
+            localRef.current={...localRef.current,hit:false};
+            setPlayers(prev=>({...prev,[id]:localRef.current}));
         }
-      },350);
-      if(result.defeated)setTimeout(()=>{
-        const respawn={...localRef.current,x:0,z:0,health:3,attacking:false,action:null,interactionId:null,seatY:null,poseType:null};
-        localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn);
-        supabase.rpc("gc_reset_combat_state").catch(()=>{});
-      },900);
+        },350);
+        if(result.defeated)setTimeout(()=>{
+          const respawn={...localRef.current,x:0,z:0,health:3,attacking:false,action:null,interactionId:null,seatY:null,poseType:null};
+          localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn);
+          supabase.rpc("gc_reset_combat_state").catch(()=>{});
+        },900);
+      }catch(error){
+        console.warn("combat event handling failed",error);
+      }
     });
     channel.on("broadcast",{event:"player_action"},({payload})=>{
       if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],...payload}}:prev)
@@ -940,9 +948,16 @@ export default function Home(){
       }
     })();
     return()=>{disposed=true;cleanup()};
-  },[joined,id,avatarId]); const onMove=p=>{
+  },[joined,id,avatarId]);
+  const combatPositionRef=useRef({ts:0});
+  const onMove=p=>{
     if(!id)return;
     const stamped={...p,netTs:Date.now()};
+    const now=performance.now();
+    if(now-combatPositionRef.current.ts>=120){
+      combatPositionRef.current={ts:now};
+      getSupabase().then(supabase=>supabase?.rpc("gc_update_combat_position",{p_x:Number(p.x),p_z:Number(p.z),p_rot:Number(p.rot||0)})).catch(error=>console.warn("combat position sync failed",error));
+    }
     localRef.current=p;
     const now=performance.now();
     setPlayers(prev=>{
@@ -1169,7 +1184,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError} onMusicAutoplayBlocked={()=>setMusicError("Tap Music to start audio on this device.")}/>;
 
   return <main className="join">
     <div className="card">
