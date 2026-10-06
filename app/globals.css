@@ -93,6 +93,7 @@ button { border: 0; cursor: pointer; }
 
 .interaction-hint {
   position: fixed;
+  pointer-events: auto;
   left: 50%;
   bottom: calc(18px + env(safe-area-inset-bottom));
   z-index: 14;
@@ -103,7 +104,8 @@ button { border: 0; cursor: pointer; }
   padding: 10px 14px;
   border-radius: 12px;
   color: #fff;
-  background: rgba(18,21,30,.9);
+  background: rgba(18,21,30,.94);
+  -webkit-tap-highlight-color: transparent;
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: 0 12px 30px rgba(0,0,0,.28);
 }
@@ -113,6 +115,7 @@ button { border: 0; cursor: pointer; }
 
 .touch-controls {
   position: fixed;
+  overscroll-behavior: contain;
   left: max(16px, env(safe-area-inset-left));
   bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 30;
