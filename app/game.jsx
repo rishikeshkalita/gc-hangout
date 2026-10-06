@@ -749,6 +749,7 @@ export default function Home(){
       const session=await ensureAnonymousSession(supabase,{display_name:name.trim()});
       if(!session?.user?.id)throw new Error("Supabase did not return a player identity.");
       const playerId=session.user.id;
+      await supabase.rpc("gc_reset_combat_state");
       const p={id:playerId,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
       localRef.current=p;
       setId(playerId);
@@ -826,24 +827,38 @@ export default function Home(){
       });
     });
     channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
-    channel.on("broadcast",{event:"attack"},({payload})=>{
-      if(!payload?.id)return;
-      setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);      setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
-      if(payload.targetId===id&&localRef.current){
-        const attacker=payload.id?playersRef.current?.[payload.id]:null;
-        const victim=localRef.current;
-        const d=attacker?Math.hypot(attacker.x-victim.x,attacker.z-victim.z):99;
-        const angle=attacker?Math.atan2(victim.x-attacker.x,victim.z-attacker.z):0;
-        const facing=attacker?Math.abs(Math.atan2(Math.sin(angle-(attacker.rot||0)),Math.cos(angle-(attacker.rot||0)))):99;
-        if(d>1.9||facing>1.25)return;
-        const nextHealth=Math.max(0,(victim.health||3)-1),next={...victim,health:nextHealth,hit:true};
-        localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));send(next);
-        setTimeout(()=>{if(localRef.current?.hit){localRef.current={...localRef.current,hit:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
-        if(nextHealth===0)setTimeout(()=>{
-          const respawn={...localRef.current,x:0,z:0,health:3,attacking:false,action:null};
-          localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn);
-        },900);
-      }
+    channel.on("broadcast",{event:"attack"},async({payload})=>{
+      if(!payload?.id||payload.id===id)return;
+      setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:true}}:prev);
+      setTimeout(()=>setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],attacking:false}}:prev),350);
+      if(payload.targetId!==id||!localRef.current)return;
+      const supabase=await getSupabase();
+      if(!supabase)return;
+      const {data,error}=await supabase.rpc("gc_apply_attack",{
+        p_target_id:id,
+        p_attacker_x:Number(payload.attackerX),
+        p_attacker_z:Number(payload.attackerZ),
+        p_attacker_rot:Number(payload.attackerRot),
+        p_target_x:Number(localRef.current.x),
+        p_target_z:Number(localRef.current.z)
+      });
+      if(error){console.warn("combat validation failed",error);return}
+      const result=Array.isArray(data)?data[0]:data;
+      if(!result?.accepted)return;
+      const nextHealth=Number(result.target_health);
+      const next={...localRef.current,health:nextHealth,hit:true};
+      localRef.current=next;setPlayers(prev=>({...prev,[id]:next}));
+      setTimeout(()=>{
+        if(localRef.current?.hit){
+          localRef.current={...localRef.current,hit:false};
+          setPlayers(prev=>({...prev,[id]:localRef.current}));
+        }
+      },350);
+      if(result.defeated)setTimeout(()=>{
+        const respawn={...localRef.current,x:0,z:0,health:3,attacking:false,action:null,interactionId:null,seatY:null,poseType:null};
+        localRef.current=respawn;setPlayers(prev=>({...prev,[id]:respawn}));send(respawn);
+        supabase.rpc("gc_reset_combat_state").catch(()=>{});
+      },900);
     });
     channel.on("broadcast",{event:"player_action"},({payload})=>{
       if(payload?.id)setPlayers(prev=>prev[payload.id]?{...prev,[payload.id]:{...prev[payload.id],...payload}}:prev)
@@ -900,7 +915,7 @@ export default function Home(){
   const onSendChat=textValue=>{
     const now=Date.now();
     if(now-chatLastSentRef.current<700)return;
-    const clean=String(textValue||"").replace(/[\\u0000-\\u001f\\u007f]/g," ").replace(/\\s+/g," ").trim().slice(0,240);
+    const clean=String(textValue||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,240);
     if(!clean||!localRef.current)return;
     chatLastSentRef.current=now;
     const message={id:makeId(),name:localRef.current.name,text:clean,ts:now};
@@ -982,7 +997,15 @@ export default function Home(){
       if(d<1.65&&facing<1.05&&d<best){best=d;target=p}
     }
     const p={...me,attacking:true};localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({type:"broadcast",event:"attack",payload:{id,targetId:target?.id||null,at:Date.now()}});
+    channelRef.current?.send({
+      type:"broadcast",
+      event:"attack",
+      payload:{
+        id,targetId:target?.id||null,at:Date.now(),
+        attackerX:me.x,attackerZ:me.z,attackerRot:me.rot||0,
+        targetX:target?.x??me.x,targetZ:target?.z??me.z
+      }
+    });
     setTimeout(()=>{if(localRef.current){localRef.current={...localRef.current,attacking:false};setPlayers(prev=>({...prev,[id]:localRef.current}))}},350);
   };
 
