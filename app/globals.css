@@ -91,13 +91,23 @@ button { border: 0; cursor: pointer; }
 .avatar-picker button.selected { color: #fff; background: rgba(119,103,255,.45); outline: 1px solid rgba(167,155,255,.7); }
 .settings-panel > button { width: 100%; background: #7567ee; color: #fff; }
 
-.interaction-hint {
+.interaction-actions {
   position: fixed;
-  pointer-events: auto;
   left: 50%;
   bottom: calc(18px + env(safe-area-inset-bottom));
   z-index: 14;
   transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  width: min(94vw, 360px);
+  pointer-events: auto;
+}
+
+.interaction-hint {
+  position: relative;
+  pointer-events: auto;
   display: grid;
   gap: 3px;
   min-width: 150px;
@@ -111,7 +121,14 @@ button { border: 0; cursor: pointer; }
 }
 .interaction-hint strong { color: #fff; font-size: 12px; }
 .interaction-hint span { color: #aeb5c4; font-size: 10px; }
-.interaction-hint.active { background: rgba(74,61,122,.92); }
+.interaction-hint.active {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  min-width: 150px;
+  background: rgba(74,61,122,.92);
+}
 
 .touch-controls {
   position: fixed;
@@ -191,9 +208,13 @@ button { border: 0; cursor: pointer; }
     top: calc(56px + env(safe-area-inset-top));
     width: min(280px, calc(100vw - 20px));
   }
-  .interaction-hint {
+  .interaction-actions {
     bottom: calc(18px + env(safe-area-inset-bottom));
-    min-width: 142px;
+    width: min(94vw, 360px);
+  }
+  .interaction-hint {
+    min-width: 0;
+    flex: 1 1 0;
   }
 }
 
