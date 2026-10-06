@@ -295,9 +295,13 @@ function RealHuman({player,me}) {
   const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
   const {actions}=useAnimations(animations,root);
   const clipRef=useRef(null);
-  const poseRef=useRef(0);
-  const restBones=useRef(null);
   const wasSeated=useRef(false);
+  const poseBlend=useRef(0);
+  const seated=player.action==="sit";
+  const sleeping=player.action==="sleep";
+  const locked=seated||sleeping;
+  const targetRot=player.poseRotation??player.rot??0;
+
   const bones=useMemo(()=>{
     const b={thighL:null,thighR:null,shinL:null,shinR:null,footL:null,footR:null,spine:null,upperArmL:null,upperArmR:null,forearmL:null,forearmR:null};
     model.traverse(o=>{
@@ -317,9 +321,14 @@ function RealHuman({player,me}) {
       if(!b.forearmL&&left&&/(forearm|lowerarm)/.test(n))b.forearmL=o;
       if(!b.forearmR&&right&&/(forearm|lowerarm)/.test(n))b.forearmR=o;
     });
-    restBones.current=Object.fromEntries(Object.entries(b).map(([k,v])=>[k,v?{x:v.rotation.x,y:v.rotation.y,z:v.rotation.z}:null]));
     return b;
   },[model]);
+
+  const restBones=useMemo(()=>{
+    const rest={};
+    for(const [name,b] of Object.entries(bones))rest[name]=b?{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}:null;
+    return rest;
+  },[bones]);
 
   useEffect(()=>{model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}})},[model]);
 
@@ -328,81 +337,64 @@ function RealHuman({player,me}) {
     const names=Object.keys(actions);
     const idle=names.find(n=>/idle/i.test(n))||names[0];
     const walk=names.find(n=>/walk/i.test(n))||idle;
-    const run=names.find(n=>/run/i.test(n))||walk;
     const grasp=names.find(n=>/grasp/i.test(n))||idle;
-    const locked=player.action==="sit"||player.action==="sleep";
-    // The asset's walk cycle is the stable locomotion clip. Do not switch to the
-    // authored run clip at normal joystick speed; it makes the gait look broken.
-    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:(player.speed||0)>.08?walk:idle);
+    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:((player.speed||0)>.08?walk:idle));
     if(desired===clipRef.current)return;
-    const prev=clipRef.current?actions[clipRef.current]:null;
-    if(prev)prev.fadeOut(.2);
-    if(desired&&actions[desired]){
-      actions[desired].reset().fadeIn(.2).play();
-      clipRef.current=desired;
-    }else clipRef.current=null;
-  },[actions,player.action,player.speed]);
+    const previous=clipRef.current?actions[clipRef.current]:null;
+    if(previous)previous.fadeOut(.16);
+    if(desired&&actions[desired]){actions[desired].reset().fadeIn(.16).play();clipRef.current=desired;}
+    else clipRef.current=null;
+  },[actions,locked,player.action,player.speed]);
 
   useFrame((_,dt)=>{
     if(!root.current)return;
     const a=1-Math.exp(-18*dt);
     root.current.position.x+=(player.x-root.current.position.x)*a;
     root.current.position.z+=(player.z-root.current.position.z)*a;
-    const seated=player.action==="sit";
-    const sleeping=player.action==="sleep";
-    const yTarget=seated?.02:sleeping?.02:0;
-    root.current.position.y+=(yTarget-root.current.position.y)*a;
-    const targetRot=player.poseRotation??player.rot??0;
+    root.current.position.y+=((locked?.02:0)-root.current.position.y)*a;
     root.current.rotation.y+=Math.atan2(Math.sin(targetRot-root.current.rotation.y),Math.cos(targetRot-root.current.rotation.y))*a;
-    root.current.rotation.x+=(0-root.current.rotation.x)*a;
 
-    const targetPose=seated?1:sleeping?.65:0;
-    poseRef.current+=(targetPose-poseRef.current)*(1-Math.exp(-10*dt));
-    const p=poseRef.current;
+    const targetPose=seated?1:sleeping?.68:0;
+    poseBlend.current+=(targetPose-poseBlend.current)*(1-Math.exp(-12*dt));
+    const p=poseBlend.current;
 
-    // The locomotion mixer owns the skeleton while standing/walking. The
-    // seated pose is applied only while seated, and the exact authored rest
-    // rotations are restored once on the transition back to locomotion.
-    const rest=restBones.current;
-    if((seated||sleeping)&&rest){
-      const sit=sleeping?.72:p;
-      const set=(name,x=0,y=0,z=0)=>{const b=bones[name],r=rest[name];if(!b||!r)return;b.rotation.x=r.x+x*sit;b.rotation.y=r.y+y*sit;b.rotation.z=r.z+z*sit};
-      set("thighL",-1.42); set("thighR",-1.42);
-      set("shinL",1.58); set("shinR",1.58);
-      set("footL",-0.28); set("footR",-0.28);
-      set("spine",0.06);
-      set("upperArmL",-0.12,0.02,-0.04); set("upperArmR",-0.12,-0.02,0.04);
-      set("forearmL",-0.34,0,0); set("forearmR",-0.34,0,0);
+    if(locked){
+      const set=(name,x=0,y=0,z=0)=>{
+        const b=bones[name],r=restBones[name];
+        if(!b||!r)return;
+        b.rotation.x=r.x+x*p;b.rotation.y=r.y+y*p;b.rotation.z=r.z+z*p;
+      };
+      set("thighL",-1.28);set("thighR",-1.28);
+      set("shinL",1.48);set("shinR",1.48);
+      set("footL",-0.24);set("footR",-0.24);
+      set("spine",0.04);
+      set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
+      set("forearmL",-0.28);set("forearmR",-0.28);
       wasSeated.current=true;
-    }else if(wasSeated.current&&rest){
-      for(const [name,r] of Object.entries(rest)){
+    }else if(wasSeated.current){
+      for(const [name,r] of Object.entries(restBones)){
         const b=bones[name];
         if(b&&r){b.rotation.x=r.x;b.rotation.y=r.y;b.rotation.z=r.z}
       }
-      wasSeated.current=false;
-      poseRef.current=0;
+      wasSeated.current=false;poseBlend.current=0;
     }
 
     const active=clipRef.current?actions[clipRef.current]:null;
-    if(active){
-      active.timeScale=/run/i.test(clipRef.current)?clamp((player.speed||3.9)/3.9,.82,1.16):/walk/i.test(clipRef.current)?clamp((player.speed||2.1)/2.1,.72,1.3):1;
-    }
+    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((player.speed||2.1)/2.1,.82,1.18);
+    else if(active)active.timeScale=1;
   });
 
-  const seatedBackX=seated?-Math.sin(targetRot)*.10:0;
-  const seatedBackZ=seated?-Math.cos(targetRot)*.10:0;
+  const seatedBackX=locked?-Math.sin(targetRot)*.08:0;
+  const seatedBackZ=locked?-Math.cos(targetRot)*.08:0;
   return <group ref={root} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
     <group position={[seatedBackX,0,seatedBackZ]}>
-    <primitive object={model}/>
-    <Text position={[0,2.05,0]} fontSize={.14} color={me?"#bbaeff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#11131a">
-      {player.name}{me?" • you":""}
-    </Text>
-    {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}
-    {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
+      <primitive object={model} dispose={null}/>
+      <Text position={[0,2.05,0]} fontSize={.14} color={me?"#bbaeff":"#ffffff"} anchorX="center" outlineWidth={.012} outlineColor="#11131a">{player.name}{me?" • you":""}</Text>
+      {player.attacking&&<Text position={[0,2.32,0]} fontSize={.18} color="#ffd36b" anchorX="center">POW!</Text>}
+      {player.action&&player.action!=="moving"&&<Text position={[0,2.52,0]} fontSize={.11} color="#b8b1c4" anchorX="center">{player.action.toUpperCase()}</Text>}
     </group>
   </group>
 }
-
 function FallbackHuman({player,me}) {
   const ref=useRef();
   useFrame((_,dt)=>{
@@ -425,7 +417,8 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
     if(interactionRef.current){
       const target=interactionRef.current;
       const p=posRef.current;
-      const dx=target.position[0]-p.x,dz=target.position[2]-p.z;
+      const movePosition=target.movePosition||target.approachPosition||target.position;
+      const dx=movePosition[0]-p.x,dz=movePosition[2]-p.z;
       const dist=Math.hypot(dx,dz);
       if(dist>.055){
         const speed=4.6,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
@@ -434,7 +427,8 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
         posRef.current=next;
         const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
       }else{
-        const next={...p,x:target.position[0],z:target.position[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id};
+        const finalPosition=target.position;
+        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id};
         velocity.current.x=0;velocity.current.z=0;posRef.current=next;interactionRef.current=null;
         onMove(next);onInteractionArrive?.(target);
       }
@@ -509,7 +503,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       return;
     }
     if((item?.type==="seat"||item?.type==="bed")&&!interactionRef.current){
-      interactionRef.current=item;
+      interactionRef.current={...item,movePosition:item.approachPosition||item.position};
     }
     onInteract(item);
   };
@@ -561,23 +555,24 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const objectId=p.interactionId;
     if(!objectId)return false;
 
-    // Clear the Room's authoritative controller state immediately. Previously
-    // Home cleared localRef, but Room's posRef stayed "sit", so the controller
-    // re-entered the seated lock on the next frame.
-    const safe=SEATS.find(s=>s.id===p.interactionId)?.standPosition;
-    const clear={...p,x:safe?.[0]??p.x,z:safe?.[2]??p.z,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0};
+    const item=INTERACTABLES.find(x=>x.id===objectId);
+    const candidates=[];
+    if(item?.standPosition)candidates.push(item.standPosition);
+    const baseAngle=(p.poseRotation??p.rot??0)+Math.PI;
+    for(let radius=.72;radius<=2.1;radius+=.24){
+      for(let i=0;i<16;i++){
+        const angle=baseAngle+(Math.PI*2*i/16);
+        candidates.push([p.x+Math.sin(angle)*radius,0,p.z+Math.cos(angle)*radius]);
+      }
+    }
+    const safe=candidates.find(q=>!blocked(q[0],q[2],.34))||[clamp(p.x,-HALL_HALF_X+.5,HALL_HALF_X-.5),0,clamp(p.z,-HALL_HALF_Z+.5,HALL_HALF_Z-.5)];
+    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0};
     interactionRef.current=null;
     posRef.current=clear;
     setCandidate(null);
     setMoveImmediate({x:0,z:0});
     onMove(clear);
-    onInteract({
-      id:objectId,
-      type:"stand",
-      position:[clear.x,0,clear.z],
-      rotation:p.poseRotation||p.rot,
-      label:"Stand up"
-    });
+    onInteract({id:objectId,type:"stand",position:[clear.x,0,clear.z],rotation:p.poseRotation||p.rot,label:"Stand up"});
     return true;
   };
 
@@ -647,8 +642,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <Speakers playing={musicPlaying}/>
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
       {Object.values(players).map(p=>
-        <Suspense key={p.id} fallback={<FallbackHuman player={p} me={p.id===local.id}/>}>
-          <AssetBoundary fallback={<FallbackHuman player={p} me={p.id===local.id}/>}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary>
+        <Suspense key={p.id} fallback={null}>
+          <AssetBoundary fallback={null}><RealHuman player={p} me={p.id===local.id}/></AssetBoundary>
         </Suspense>
       )}
     </Canvas>
