@@ -340,6 +340,7 @@ function RealHuman({player,me,liveRef}) {
   const model=useMemo(()=>SkeletonUtils.clone(scene),[scene]);
   const {actions}=useAnimations(animations,root);
   const clipRef=useRef(null);
+  const emoteClipRef=useRef(null);
   const wasSeated=useRef(false);
   const poseBlend=useRef(0);
   const seated=player.action==="sit";
@@ -387,6 +388,7 @@ function RealHuman({player,me,liveRef}) {
     const hit=names.find(n=>/hit|hurt|shove|pain|reaction/i.test(n))||null;
     const attack=names.find(n=>/punch|jab|kick|attack|fight|combo/i.test(n))||null;
     const emote=player.emote?names.find(n=>new RegExp(player.emote,"i").test(n)):null;
+    emoteClipRef.current=emote||null;
     const desired=locked?null:(player.hit&&hit?hit:(player.attacking&&attack?attack:(emote||((player.action==="eat"||player.action==="drink")?grasp:((player.speed||0)>3.0?run:((player.speed||0)>.08?walk:idle))))));
     if(desired===clipRef.current)return;
     const previous=clipRef.current?actions[clipRef.current]:null;
@@ -450,8 +452,39 @@ function RealHuman({player,me,liveRef}) {
     }
 
     const active=clipRef.current?actions[clipRef.current]:null;
-    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.82,1.18);
+    if(active&&/walk/i.test(clipRef.current))active.timeScale=clamp((tspeed||2.1)/2.1,.72,1.32);
     else if(active)active.timeScale=1;
+
+    const moving=!locked&&tspeed>.08;
+    if(moving&&!/walk|run/i.test(clipRef.current||"")){
+      const swing=Math.sin(performance.now()/110*Math.min(1.6,Math.max(.8,tspeed/2.1)));
+      const setFallback=(name,x=0,y=0,z=0)=>{
+        const b=bones[name],r=restBones[name];
+        if(!b||!r)return;
+        b.rotation.x=r.x+x;b.rotation.y=r.y+y;b.rotation.z=r.z+z;
+      };
+      setFallback("thighL",swing*.38);setFallback("thighR",-swing*.38);
+      setFallback("shinL",-Math.max(0,swing)*.16);setFallback("shinR",Math.max(0,swing)*.16);
+      setFallback("upperArmL",-swing*.22);setFallback("upperArmR",swing*.22);
+    }
+    if(!locked&&player.emote&&!emoteClipRef.current){
+      const t=performance.now()/1000;
+      const setEmote=(name,x=0,y=0,z=0)=>{
+        const b=bones[name],r=restBones[name];
+        if(!b||!r)return;
+        b.rotation.x=r.x+x;b.rotation.y=r.y+y;b.rotation.z=r.z+z;
+      };
+      if(player.emote==="wave"){
+        setEmote("upperArmR",-1.0,0,-.12);setEmote("forearmR",-.45+Math.sin(t*9)*.35);
+      }else if(player.emote==="clap"){
+        setEmote("upperArmL",-1.0,0,-.32);setEmote("upperArmR",-1.0,0,.32);
+        setEmote("forearmL",-1.15+Math.sin(t*8)*.18);setEmote("forearmR",-1.15-Math.sin(t*8)*.18);
+      }else if(player.emote==="laugh"){
+        setEmote("spine",Math.sin(t*7)*.08);setEmote("upperArmL",-1.05,0,-.28);setEmote("upperArmR",-1.05,0,.28);
+      }else{
+        setEmote("spine",Math.sin(t*4)*.12);setEmote("upperArmL",-.45+Math.sin(t*5)*.28,0,-.25);setEmote("upperArmR",-.45-Math.sin(t*5)*.28,0,.25);
+      }
+    }
   });
 
   const seatedBackX=locked?-Math.sin(targetRot)*.08:0;
@@ -579,13 +612,16 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
       if(p.action==="sit"||p.action==="sleep")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camListenerTarget="document" />;
 }
-function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,musicError,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
+function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
+  const musicPlayBlockedRef=useRef(false);
   const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
+  const [chatOpen,setChatOpen]=useState(false);
+  const [emoteOpen,setEmoteOpen]=useState(false);
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
@@ -611,8 +647,14 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       if(Number.isFinite(desired)&&Math.abs((audio.currentTime||0)-desired)>.75){
         try{audio.currentTime=desired}catch{}
       }
-      audio.play().catch(error=>{
-        if(musicPlaying)onMusicAutoplayBlocked?.(error);
+      audio.play().then(()=>{
+        musicPlayBlockedRef.current=false;
+        if(musicPlaying)onMusicAutoplayBlocked?.(null);
+      }).catch(error=>{
+        if(musicPlaying){
+          musicPlayBlockedRef.current=true;
+          onMusicAutoplayBlocked?.(error);
+        }
       });
     };
     sync();
@@ -765,25 +807,43 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
-    <div className="chat">
-      <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span></div>
+    <button className="chatToggle" aria-label="Open chat" aria-expanded={chatOpen} onPointerDown={e=>e.stopPropagation()} onClick={()=>setChatOpen(v=>!v)}>💬</button>
+    <div className={`chat${chatOpen?" open":""}`} onPointerDown={e=>e.stopPropagation()}>
+      <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span><button className="chatClose" type="button" onClick={()=>setChatOpen(false)}>×</button></div>
       <div className="chatList">{chatMessages.slice(-6).map(m=><div className="msg" key={m.id}><strong>{m.name}</strong><span>{m.text}</span></div>)}</div>
       <form className="chatForm" onSubmit={e=>{e.preventDefault();const input=e.currentTarget.elements.namedItem("message");if(input?.value.trim()){onSendChat?.(input.value);input.value=""}}}>
-        <input name="message" maxLength={240} placeholder="Message the room…"/>
+        <input name="message" maxLength={240} autoComplete="off" placeholder="Message the room…"/>
+        <button type="submit">Send</button>
       </form>
     </div>
-    {candidate&&<button className="interactionPrompt" onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
-    <div className="controls">
-      <button onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
-      <button className={musicPlaying?"active":""} onClick={onToggleMusic} disabled={!musicTracks.length}>🎵 Music</button>{musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}{musicError&&<span className="musicError" role="status">{musicError}</span>}
-      <button onClick={onAttack}>🥊 Fight</button>
-      <button className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
-      <button onClick={()=>onEmote?.("dance")}>💃 Emote</button>
+    {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
+    <div className="controls" onPointerDown={e=>e.stopPropagation()}>
+      <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
+      <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
+        if(musicPlaying&&musicPlayBlockedRef.current&&audioRef.current){
+          try{await audioRef.current.play();musicPlayBlockedRef.current=false;onMusicAutoplayBlocked?.(null);return}catch(error){onMusicAutoplayBlocked?.(error);return}
+        }
+        onToggleMusic?.();
+      }} disabled={!musicTracks.length}>🎵 Music</button>
+      {musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
+      <label className="musicUpload" title="Add a custom song">＋ Song<input type="file" accept="audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)onUploadMusic?.(file);e.currentTarget.value=""}} /></label>
+      {musicError&&<span className="musicError" role="status">{musicError}</span>}
+      <button type="button" onClick={onAttack}>🥊 Fight</button>
+      <button type="button" className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
+      <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
     </div>
-    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
-    <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
+    {emoteOpen&&(
+      <div className="emoteMenu" onPointerDown={e=>e.stopPropagation()}>
+        <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false)}}>💃 dance</button>
+        <button type="button" onClick={()=>{onEmote?.("wave");setEmoteOpen(false)}}>👋 wave</button>
+        <button type="button" onClick={()=>{onEmote?.("clap");setEmoteOpen(false)}}>👏 clap</button>
+        <button type="button" onClick={()=>{onEmote?.("laugh");setEmoteOpen(false)}}>😂 laugh</button>
+      </div>
+    )}
+    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
+    <button className="mobileAction" onPointerDown={e=>e.stopPropagation()} onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     {voiceError&&<div className="voiceError">{voiceError}</div>}
-    <button className="fight" onClick={onAttack}>🥊</button>
+    <button className="fight" onPointerDown={e=>e.stopPropagation()} onClick={onAttack}>🥊</button>
   </div>
 }
 
@@ -902,7 +962,7 @@ export default function Home(){
         return [...map.values()].sort((a,b)=>a.ts-b.ts).slice(-80);
       });
     });
-    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current}}));
+    channel.on("broadcast",{event:"request_room"},()=>channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}}));
     channel.on("broadcast",{event:"attack"},async({payload})=>{
       try{
         if(!payload?.id||payload.id===id)return;
@@ -1107,6 +1167,35 @@ export default function Home(){
     onSelectMusic(musicTracks[(index+1)%musicTracks.length].id);
   };
 
+  const uploadMusic=async(file)=>{
+    if(!file||!id)return;
+    const allowed=["audio/mpeg","audio/mp4","audio/x-m4a","audio/aac","audio/ogg","audio/webm","audio/wav"];
+    const ext=String(file.name||"").split(".").pop()?.toLowerCase();
+    const allowedExt=["mp3","m4a","aac","ogg","webm","wav"];
+    if(file.type&&!allowed.includes(file.type)&&!allowedExt.includes(ext)){setMusicError("Choose an MP3, M4A, AAC, OGG, WebM or WAV file.");return;}
+    if(file.size>25*1024*1024){setMusicError("Custom songs must be 25 MB or smaller.");return;}
+    try{
+      setMusicError("Uploading song…");
+      const supabase=await getSupabase();
+      if(!supabase)throw new Error("Music storage is unavailable.");
+      const safeName=file.name.replace(/[^a-z0-9._-]+/gi,"-").slice(-100)||"song";
+      const path=id+"/"+makeId()+"-"+safeName;
+      const {error}=await supabase.storage.from("gc-music").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type||"audio/mpeg"});
+      if(error)throw error;
+      const {data}=supabase.storage.from("gc-music").getPublicUrl(path);
+      if(!data?.publicUrl)throw new Error("Uploaded song URL could not be created.");
+      const track={id:"custom-"+makeId(),title:file.name.replace(/\.[^.]+$/,"").slice(0,80)||"Custom song",artist:localRef.current?.name||"Custom",album:"Custom song",image:"",audio:data.publicUrl,duration:0,license:"User uploaded"};
+      setMusicTracks(prev=>[...prev,track]);
+      setMusicError("");
+      const started=Date.now();
+      setMusicTrack(track);setMusicPlaying(true);setMusicStartedAt(started);setMusicPosition(0);
+      broadcastMusic({musicPlaying:true,musicTrack:track,musicStartedAt:started,musicPosition:0});
+    }catch(error){
+      console.error("Custom music upload failed",error);
+      setMusicError(error?.message||"Custom song upload failed.");
+    }
+  };
+
   useEffect(()=>{if(!joined)return;setMusicError("");fetch("/api/music?search=instrumental%20lounge").then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data?.error||"Music catalog unavailable.");return data}).then(data=>{if(Array.isArray(data.tracks)&&data.tracks.length){setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0])}else setMusicError("No licensed music tracks are available right now.")}).catch(e=>{console.warn("music catalog unavailable",e);setMusicError(e?.message||"Music catalog unavailable.")})},[joined]);
 
   const onAttack=()=>{
@@ -1251,7 +1340,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError} onMusicAutoplayBlocked={()=>setMusicError("Tap Music to start audio on this device.")}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError} onMusicAutoplayBlocked={error=>setMusicError(error?"Tap Music to start audio on this device.":"")}/>;
 
   return <main className="join">
     <div className="card">
