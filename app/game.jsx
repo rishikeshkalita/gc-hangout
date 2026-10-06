@@ -724,7 +724,8 @@ export default function Home(){
   const [musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
-  const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");\n  const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
+  const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
+  const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
   const musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
   const attackCooldownRef=useRef(0);
   const chatMessagesRef=useRef([]);
