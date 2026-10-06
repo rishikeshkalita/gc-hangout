@@ -218,7 +218,7 @@ function LocalPlayer({ state, onMove, onNearby, onInteract, interaction, joystic
     camera.position.copy(cameraPosition.current);
     camera.lookAt(next.x, 1.05, next.z);
 
-    if (interaction && interaction.status === "active") {
+    if (interaction && (interaction.phase === "align" || interaction.phase === "animate" || interaction.phase === "sync")) {
       const dx = interaction.anchor.x - state.x;
       const dz = interaction.anchor.z - state.z;
       if (Math.hypot(dx, dz) > 0.02) {
@@ -229,7 +229,7 @@ function LocalPlayer({ state, onMove, onNearby, onInteract, interaction, joystic
 
   return (
     <group position={[state.x, 0, state.z]} rotation={[0, state.rot, 0]}>
-      <HumanAvatar avatar={state.avatar} moving={state.moving} local pose={interaction?.anchor?.type === "SLEEP" ? "sleep" : "idle"} />
+      <HumanAvatar avatar={state.avatar} moving={state.moving} local pose={interaction?.anchor?.type === "SLEEP" ? "sleep" : interaction?.anchor?.type === "SIT" ? "sit" : interaction?.anchor?.type === "EAT" ? "eat" : interaction?.anchor?.type === "DRINK" ? "drink" : interaction?.anchor?.type === "WATCH_TV" ? "watch" : "idle"} />
       {interaction?.status === "active" && <Text position={[0, 2.45, 0]} fontSize={0.16} color="#d8ceff" anchorX="center">{interaction.anchor.label.toUpperCase()}</Text>}
     </group>
   );
