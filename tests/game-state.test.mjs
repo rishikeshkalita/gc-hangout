@@ -70,3 +70,10 @@ test("interaction lifecycle is explicit and deterministic", () => {
   expect(advanceInteraction(reserved, "sync").status).toBe("active");
   expect(advanceInteraction(reserved, "release").status).toBe("released");
 });
+
+
+test("interaction anchors include DRINK and generic INTERACT types", () => {
+  expect(INTERACTION_TYPES).toEqual(expect.arrayContaining(["DRINK", "INTERACT"]));
+  expect(createInteractionAnchor("drink", "DRINK", 1, 2, 0).type).toBe("DRINK");
+  expect(createInteractionAnchor("generic", "INTERACT", 2, 3, 0).type).toBe("INTERACT");
+});
