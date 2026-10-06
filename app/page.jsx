@@ -722,7 +722,7 @@ export default function Home(){
   const channelRef=useRef(null),localRef=useRef(null);
 
   const join=()=>{
-    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null};
+    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null};
     localRef.current=p;setJoined(true);
   };
 
@@ -806,7 +806,7 @@ export default function Home(){
     if(candidate.type==="stand"){
       const objectId=candidate.id||p.interactionId;
       interactionRef.current=null;
-      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null};
+      const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null};
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
       if(objectId){
@@ -881,7 +881,7 @@ export default function Home(){
   const interactionArrived=(candidate)=>{
     if(!localRef.current)return;
     const finalAction=candidate.finalAction||(candidate.type==="bed"?"sleep":"sit");
-    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null};
+    const payload={...localRef.current,action:finalAction,interactionId:candidate.id,moving:false,speed:0,poseRotation:candidate.rotation,seatY:candidate.seatY??null,poseType:candidate.poseType??candidate.type??null};
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload});
     setAction(finalAction);
