@@ -820,9 +820,14 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       <button type="button" className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
       <button type="button" className={emoteOpen?"active":""} onClick={()=>setEmoteOpen(v=>!v)}>💃 Emote</button>
     </div>
-    {emoteOpen&&<div className="emoteMenu">
-      {["dance","wave","clap","laugh"].map(name=><button key={name} type="button" onClick={()=>{onEmote?.(name);setEmoteOpen(false)}}>{name==="dance"?"💃":name==="wave"?"👋":name==="clap"?"👏":"😂"} {name}</button>)}
-    </div>
+    {emoteOpen&&(
+      <div className="emoteMenu">
+        <button type="button" onClick={()=>{onEmote?.("dance");setEmoteOpen(false)}}>💃 dance</button>
+        <button type="button" onClick={()=>{onEmote?.("wave");setEmoteOpen(false)}}>👋 wave</button>
+        <button type="button" onClick={()=>{onEmote?.("clap");setEmoteOpen(false)}}>👏 clap</button>
+        <button type="button" onClick={()=>{onEmote?.("laugh");setEmoteOpen(false)}}>😂 laugh</button>
+      </div>
+    )}
     <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     {voiceError&&<div className="voiceError">{voiceError}</div>}
