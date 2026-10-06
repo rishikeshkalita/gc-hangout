@@ -532,6 +532,26 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
   const interactionRef=useRef(null);
+  useEffect(()=>{
+    const audio=audioRef.current;
+    if(!audio)return;
+    if(!musicTrack?.audio){audio.pause();return;}
+    if(audio.src!==musicTrack.audio){audio.src=musicTrack.audio;audio.load();}
+    const sync=()=>{
+      if(!musicPlaying){audio.pause();return;}
+      const duration=Number(musicTrack.duration)||audio.duration||0;
+      let desired=musicStartedAt?Math.max(0,(Date.now()-musicStartedAt)/1000):Number(musicPosition)||0;
+      if(duration>0)desired=desired%duration;
+      if(Number.isFinite(desired)&&Math.abs((audio.currentTime||0)-desired)>.75){
+        try{audio.currentTime=desired}catch{}
+      }
+      audio.play().catch(()=>{});
+    };
+    sync();
+    const timer=setInterval(sync,1000);
+    return()=>clearInterval(timer);
+  },[musicTrack?.id,musicTrack?.audio,musicTrack?.duration,musicPlaying,musicStartedAt,musicPosition]);
+
 
   const requestInteraction=(item)=>{
     // Stand is handled by Room so its authoritative controller state is
@@ -715,10 +735,27 @@ export default function Home(){
   const locksRef=useRef({}),snackStatesRef=useRef({});
   locksRef.current=locks;snackStatesRef.current=snackStates;
   const channelRef=useRef(null),localRef=useRef(null),voiceRef=useRef(null);
+  const uiStateAtRef=useRef(0);
 
-  const join=()=>{
-    const p={id,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
-    localRef.current=p;setJoined(true);
+  const join=async()=>{
+    if(!name.trim()||joining)return;
+    setJoining(true);setConnectionError("");
+    try{
+      const supabase=await getSupabase();
+      if(!supabase)throw new Error("Supabase is not configured.");
+      const session=await ensureAnonymousSession(supabase,{display_name:name.trim()});
+      if(!session?.user?.id)throw new Error("Supabase did not return a player identity.");
+      const playerId=session.user.id;
+      const p={id:playerId,name:name.trim()||"You",avatarId,x:0,y:0,z:0,rot:0,health:3,attacking:false,moving:false,speed:0,action:null,interactionId:null,poseRotation:0,seatY:null,poseType:null,voiceEnabled:false};
+      localRef.current=p;
+      setId(playerId);
+      setJoined(true);
+    }catch(e){
+      console.error("Unable to join GC Hangout",e);
+      setConnectionError(e?.message||"Unable to connect to the multiplayer service.");
+    }finally{
+      setJoining(false);
+    }
   };
 
   useEffect(()=>{
@@ -728,8 +765,11 @@ export default function Home(){
     (async()=>{
       const supabase=await getSupabase();
       if(disposed)return;
-if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
-    const channel=supabase.channel("gc-hangout-main",{config:{broadcast:{self:false,ack:true},presence:{key:id}}});
+      if(!supabase){setConnectionError("Supabase is not configured.");return}
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session?.access_token){setConnectionError("Your multiplayer session is unavailable. Please reload and try again.");return}
+      await supabase.realtime.setAuth(session.access_token);
+    const channel=supabase.channel("gc-hangout-main",{config:{private:true,broadcast:{self:false,ack:true},presence:{key:id}}});
     channelRef.current=channel;
     const send=p=>channel.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
     const reconcilePresence=()=>{
@@ -834,8 +874,18 @@ if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
     })();
     return()=>{disposed=true;cleanup()};
   },[joined,id,avatarId]); const onMove=p=>{
-    localRef.current=p;setPlayers(prev=>({...prev,[id]:p}));
-    channelRef.current?.send({type:"broadcast",event:"player_state",payload:{...p,netTs:Date.now()}});
+    if(!id)return;
+    const stamped={...p,netTs:Date.now()};
+    localRef.current=p;
+    const now=performance.now();
+    setPlayers(prev=>{
+      const current=prev[id];
+      const stateChanged=current?.action!==p.action||current?.interactionId!==p.interactionId||current?.emote!==p.emote||current?.attacking!==p.attacking||current?.hit!==p.hit;
+      if(!stateChanged&&now-uiStateAtRef.current<100)return prev;
+      uiStateAtRef.current=now;
+      return {...prev,[id]:{...p,uiTs:now}};
+    });
+    channelRef.current?.send({type:"broadcast",event:"player_state",payload:stamped});
   };
 
   const onSendChat=textValue=>{
@@ -1052,7 +1102,8 @@ if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
           <span>{i%3===0?"👩":i%3===1?"👨":"🧑"}</span><small>{p.label}</small>
         </button>
       )}</div>
-      <button className="enter" onClick={join} disabled={!name.trim()}>Enter the hall →</button>
+      <button className="enter" onClick={join} disabled={!name.trim()||joining}>{joining?"Connecting…":"Enter the hall →"}</button>
+      {connectionError&&<div className="joinError" role="alert">{connectionError}</div>}
       <div className="note">Open-plan hall • smooth movement • shared music • multiplayer</div>
     </div>
   </main>;
