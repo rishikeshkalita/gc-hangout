@@ -857,7 +857,7 @@ if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
   };
 
   const claimInteraction=async(candidate,action)=>{
-    const supabase=getSupabase();
+    const supabase=await getSupabase();
     if(!supabase)return true;
     const {data,error}=await supabase.rpc("gc_claim_interaction",{p_object_id:candidate.id,p_holder_id:id,p_action:action,p_lease_seconds:30});
     if(error){console.error("interaction claim failed",error);return false;}
@@ -865,13 +865,13 @@ if(!supabase){setPlayers(prev=>({...prev,[id]:localRef.current}));return}
   };
 
   const releaseInteraction=async objectId=>{
-    const supabase=getSupabase();
+    const supabase=await getSupabase();
     if(!supabase||!objectId)return;
     await supabase.rpc("gc_release_interaction",{p_object_id:objectId,p_holder_id:id}).catch(()=>{});
   };
 
-  const touchInteraction=objectId=>{
-    const supabase=getSupabase();
+  const touchInteraction=async objectId=>{
+    const supabase=await getSupabase();
     if(supabase&&objectId)supabase.rpc("gc_touch_interaction",{p_object_id:objectId,p_holder_id:id,p_lease_seconds:30}).catch(()=>{});
   };
 
