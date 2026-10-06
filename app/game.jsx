@@ -1372,7 +1372,7 @@ export default function Home(){
   };
 
   useEffect(()=>{if(!joined)return;setMusicError("");setMusicStatus("LOADING");
-    fetch("/api/music?search=instrumental%20lounge")
+    fetch("/api/music?search=lounge")
       .then(async r=>{
         const data=await r.json().catch(()=>({}));
         const status=classifyMusicResponse({status:r.status,data});
