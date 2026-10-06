@@ -19,9 +19,9 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "sofa-left-1", type: "SIT", label: "Sit", x: -11.4, z: -6.2, rot: Math.PI, targetX: -11.4, targetZ: -6.2, targetRot: Math.PI, triggerX: -11.4, triggerZ: -4.75, exitX: -11.4, exitZ: -4.35, radius: 1.45 },
   { id: "sofa-left-2", type: "SIT", label: "Sit", x: -9.8, z: -6.2, rot: Math.PI, targetX: -9.8, targetZ: -6.2, targetRot: Math.PI, triggerX: -9.8, triggerZ: -4.75, exitX: -9.8, exitZ: -4.35, radius: 1.45 },
   { id: "sofa-left-3", type: "SIT", label: "Sit", x: -8.2, z: -6.2, rot: Math.PI, targetX: -8.2, targetZ: -6.2, targetRot: Math.PI, triggerX: -8.2, triggerZ: -4.75, exitX: -8.2, exitZ: -4.35, radius: 1.45 },
-  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -11.4, z: -3.5, rot: Math.PI, targetX: -11.4, targetZ: -3.5, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.05, exitX: -11.4, exitZ: -1.65, radius: 1.45 },
-  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -9.8, z: -3.5, rot: Math.PI, targetX: -9.8, targetZ: -3.5, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.05, exitX: -9.8, exitZ: -1.65, radius: 1.45 },
-  { id: "sofa-lounge-3", type: "SIT", label: "Sit", x: -8.2, z: -3.5, rot: Math.PI, targetX: -8.2, targetZ: -3.5, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.05, exitX: -8.2, exitZ: -1.65, radius: 1.45 },
+  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -11.4, z: -3.5, rot: Math.PI, targetX: -11.4, targetZ: -3.5, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.05, exitX: -11.4, exitZ: -1.45, radius: 1.45 },
+  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -9.8, z: -3.5, rot: Math.PI, targetX: -9.8, targetZ: -3.5, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.05, exitX: -9.8, exitZ: -1.45, radius: 1.45 },
+  { id: "sofa-lounge-3", type: "SIT", label: "Sit", x: -8.2, z: -3.5, rot: Math.PI, targetX: -8.2, targetZ: -3.5, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.05, exitX: -8.2, exitZ: -1.45, radius: 1.45 },
   { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.75, exitX: 8.2, exitZ: 2.55, radius: 1.05 },
   { id: "dining-2", type: "SIT", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.75, exitX: 9.7, exitZ: 2.55, radius: 1.05 },
   { id: "dining-3", type: "SIT", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.75, exitX: 11.2, exitZ: 2.55, radius: 1.05 },
@@ -101,7 +101,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = seated ? -0.58 : pose === "drink" ? -1.05 : pose === "eat" ? -0.65 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = seated ? -0.58 : pose === "drink" ? -1.05 : pose === "eat" ? -1.15 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
     }
     if (legs.current[0]) legs.current[0].rotation.x = seated ? -1.28 : moving ? -stride : 0;
@@ -143,6 +143,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   const playerGroup = useRef();
   const motion = useRef({ x: state.x, z: state.z, rot: state.rot, moving: state.moving, speed: state.speed });
   const lastResetKey = useRef(motionResetKey);
+  const facing = useRef(state.rot);
   const dirty = useRef(false);
   const nearbyRef = useRef(null);
   const { camera, gl, size } = useThree();
@@ -225,6 +226,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
       current.x = state.x;
       current.z = state.z;
       current.rot = state.rot;
+      facing.current = state.rot;
       current.moving = false;
       current.speed = 0;
       dirty.current = false;
@@ -288,7 +290,9 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 
     if (playerGroup.current) {
       playerGroup.current.position.set(current.x, 0, current.z);
-      playerGroup.current.rotation.y = current.rot;
+      const angleDelta = Math.atan2(Math.sin(current.rot - facing.current), Math.cos(current.rot - facing.current));
+      facing.current += angleDelta * Math.min(1, safeDt * 14);
+      playerGroup.current.rotation.y = facing.current;
     }
 
     const targetY = (mobile ? 0.95 : 1.05) + Math.sin(pitch.current) * cameraDistance.current;
