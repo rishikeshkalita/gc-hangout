@@ -2,667 +2,225 @@
 
 > **Status:** REBUILD PLANNING / BASELINE  
 > **Repository:** `rishikeshkalita/gc-hangout`  
-> **Default branch:** `main`  
-> **Development deployment rule:** **0 Vercel deployments** until the final release candidate  
-> **Final deployment allowance:** **maximum 1**  
-> **Acceptance standard:** actual runtime behavior, not source-code existence
+> **Canonical branch:** `main`  
+> **Development Vercel deployments:** **0 by default**  
+> **Deployment rule:** deploy only when a real remote/iPhone test is necessary; otherwise stay local.  
+> **Acceptance rule:** runtime behavior, not source-code existence.
+
+## Core rules
+
+- [ ] Rebuild the broken game runtime instead of continuing the old architecture.
+- [ ] Audit and preserve useful infrastructure: Supabase, database/data, auth, environment configuration, Vercel project, GitHub history, working credentials/provider configuration.
+- [ ] Do not delete production data or infrastructure without a specific reason.
+- [ ] One authoritative implementation per system: player, movement, camera, interaction, multiplayer, music, chat, voice, HUD.
+- [ ] No `V2`, `Fallback`, `Restored`, `Legacy`, or competing runtime paths.
+- [ ] Critical player/world assets must be reliable and independently loaded.
+- [ ] Decorative asset failure must never destroy the game.
+- [ ] Local player appears immediately and independently of movement/network callbacks.
+- [ ] Gameplay state and UI state remain separate.
+- [ ] Automated tests do not equal gameplay verification.
+- [ ] Never claim a feature works without observing/testing the behavior.
+- [ ] Required status vocabulary: **PASS / FAIL / NOT VERIFIED / NOT AVAILABLE**.
 
 ---
 
-## 0. Purpose
+# Rebuild Waves
 
-This file is the **living source of truth for the GC Hangout rebuild**.
+We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related systems, gets tested locally, and then becomes a stable checkpoint.
 
-The existing game runtime is **not** to be patched incrementally. The game runtime will be rebuilt cleanly around a small number of independent systems.
+## WAVE 1 — AUDIT + CLEAN FOUNDATION
 
-This roadmap must be updated after every meaningful rebuild wave.
+**Goal:** understand what survives and remove the broken runtime foundation.
 
-### Non-negotiable principles
+### Checklist
 
-- [ ] Rebuild the game runtime rather than continuing the accumulated broken architecture.
-- [ ] Audit infrastructure before destructive changes.
-- [ ] Preserve useful infrastructure: Supabase, database/data, authentication, environment configuration, Vercel project, GitHub repository, working provider/API credentials.
-- [ ] Do not unnecessarily delete production data or infrastructure.
-- [ ] Keep exactly one authoritative implementation of each core system.
-- [ ] Do not create `V2`, `Fallback`, `Restored`, `Legacy`, or competing runtime implementations.
-- [ ] A failed decorative asset must never destroy the player or core world.
-- [ ] Local player initialization must be deterministic and independent of movement/network callbacks.
-- [ ] Gameplay state must remain separate from UI state.
-- [ ] Mobile input must have a deliberate pointer/touch architecture.
-- [ ] Automated tests are necessary but do not constitute gameplay verification.
-- [ ] Browser testing is required when browser automation is available.
-- [ ] Actual iPhone acceptance is required for final verification.
-- [ ] Never report “implemented” as “working.”
-- [ ] Use only **PASS / FAIL / NOT VERIFIED / NOT AVAILABLE** for acceptance status.
+- [ ] Audit repository, branches, recent commits, dependencies and entry points.
+- [ ] Audit Supabase/database/auth/storage/realtime.
+- [ ] Audit Vercel/environment configuration.
+- [ ] Audit music-provider configuration.
+- [ ] Identify infrastructure to KEEP / MODIFY / REMOVE.
+- [ ] Confirm `main` as rebuild base.
+- [ ] Identify unnecessary branches; preserve history, delete only after audit.
+- [ ] Remove obsolete/competing game-runtime paths.
+- [ ] Remove stale references such as `RestoredHuman`.
+- [ ] Remove competing player/camera/movement implementations.
+- [ ] Establish clean GameShell/module boundaries.
+- [ ] Create the new Three.js/R3F scene.
+- [ ] Create large room/floor/walls.
+- [ ] Create deterministic local-player state.
+- [ ] Add one reliable human avatar.
+- [ ] Add basic movement and third-person camera.
+- [ ] Add basic room collision/bounds.
+- [ ] No chat/music/voice/multiplayer yet.
 
----
+### Gate
 
-# 1. Current Repository Baseline
-
-## 1.1 Branch inventory
-
-Current branches identified during initial audit:
-
-- [ ] `main`
-- [ ] `emergency/accidental-main-edit-2026-10-06`
-- [ ] `fix/character-controller-20261006`
-- [ ] `gc-mobile-ux-hardening`
-- [ ] `gc-quality-hardening`
-- [ ] `qa/strict-bug-fix-2026-10-06`
-- [ ] `recovery-candidate-local-human-2026-10-06`
-- [ ] `restore/main-last-known-good-2026-10-06`
-- [ ] `runtime-recovery-2026-10-06`
-
-**Branch cleanup is intentionally NOT performed yet.**
-
-Before deletion:
-
-- [ ] Identify branch head SHA.
-- [ ] Identify whether branch contains unique useful infrastructure/configuration.
-- [ ] Identify whether branch contains unique fixes worth preserving conceptually.
-- [ ] Confirm `main` is the chosen rebuild base.
-- [ ] Preserve Git history.
-- [ ] Delete only branches confirmed unnecessary.
-- [ ] Keep `main` as the canonical rebuild branch unless explicitly changed.
-
-## 1.2 Infrastructure audit
-
-Before changing the runtime:
-
-- [ ] Supabase project identified.
-- [ ] Supabase database schema inspected.
-- [ ] Production data preservation requirements identified.
-- [ ] Authentication configuration inspected.
-- [ ] Realtime configuration inspected.
-- [ ] Storage buckets/policies inspected.
-- [ ] Existing environment variable names documented.
-- [ ] Working API credentials identified without exposing secrets.
-- [ ] Music provider configuration audited.
-- [ ] Vercel project identified.
-- [ ] Vercel environment configuration audited.
-- [ ] Existing deployment/production state recorded.
-- [ ] GitHub Actions/CI configuration inspected.
-- [ ] Existing tests/build scripts inspected.
-- [ ] Existing useful infrastructure marked KEEP / MODIFY / REMOVE.
-
-### Infrastructure rule
-
-**Do not delete Supabase tables, production data, auth configuration, Vercel project, environment variables, or working credentials merely because the game runtime is being rebuilt.**
-
----
-
-# 2. Vercel Deployment Gate
-
-## Development
-
-- [ ] Local development only.
-- [ ] Local static analysis.
-- [ ] Local automated tests.
-- [ ] Local production build.
-- [ ] Local browser testing.
-- [ ] Browser/runtime debugging without Vercel.
-- [ ] No preview deployments.
-- [ ] No debug deployments.
-- [ ] No deployment for individual fixes.
-- [ ] Development Vercel deployment count = **0**.
-
-## Final release
-
-Only after every required gate passes:
-
-- [ ] Final release candidate identified.
-- [ ] Final commit SHA recorded.
-- [ ] Final local build passes.
-- [ ] Automated tests pass.
-- [ ] Browser acceptance passes.
-- [ ] No fatal runtime errors.
-- [ ] Core assets verified.
-- [ ] Full feature checklist passes.
-- [ ] One Vercel deployment created.
-- [ ] Deployment ID recorded.
-- [ ] Deployment URL recorded.
-- [ ] Deployment environment recorded.
-- [ ] Deployed commit SHA verified.
-- [ ] iPhone acceptance performed.
-
-If Vercel quota is unavailable:
-
-- [ ] DO NOT create another deployment.
-- [ ] Record deployment as unavailable.
-- [ ] Diagnose without burning deployment quota.
-
----
-
-# 3. Target Architecture
-
-The rebuilt runtime should be organized around independent responsibilities:
-
-```
-GameShell
-├── World
-│   ├── Room
-│   ├── Furniture
-│   ├── Props
-│   ├── TV
-│   └── Environment
-│
-├── PlayerSystem
-│   ├── LocalPlayer
-│   ├── RemotePlayers
-│   ├── Movement
-│   ├── Animation
-│   └── Interaction
-│
-├── CameraSystem
-├── InteractionSystem
-├── MultiplayerSystem
-├── ChatSystem
-├── VoiceSystem
-├── MusicSystem
-└── MobileHUD
-```
-
-## System uniqueness
-
-- [ ] ONE player renderer.
-- [ ] ONE movement controller.
-- [ ] ONE camera controller.
-- [ ] ONE interaction system.
-- [ ] ONE multiplayer state authority.
-- [ ] ONE music state authority.
-- [ ] ONE chat transport.
-- [ ] ONE voice transport.
-- [ ] ONE mobile HUD.
-- [ ] No duplicate competing implementations.
-
----
-
-# 4. Wave 0 — Repository & Infrastructure Audit
-
-**Goal:** understand what must survive before deleting or replacing runtime code.
-
-- [ ] Audit repository tree.
-- [ ] Audit branches.
-- [ ] Audit recent commits.
-- [ ] Audit package/dependency stack.
-- [ ] Audit app entry points.
-- [ ] Audit player/avatar code.
-- [ ] Audit camera/input code.
-- [ ] Audit world/furniture code.
-- [ ] Audit interaction code.
-- [ ] Audit multiplayer code.
-- [ ] Audit chat.
-- [ ] Audit voice.
-- [ ] Audit music.
-- [ ] Audit Supabase integration.
-- [ ] Audit Vercel integration.
-- [ ] Audit tests.
-- [ ] Audit CI.
-- [ ] Search for stale component names.
-- [ ] Search for unresolved imports/references.
-- [ ] Search for external critical GLB URLs.
-- [ ] Search for duplicate system implementations.
-- [ ] Search for swallowed asset-loading errors.
-- [ ] Record infrastructure KEEP/MODIFY/REMOVE decisions.
-
-### Wave 0 acceptance
-
-- [ ] Infrastructure inventory complete.
-- [ ] Runtime replacement boundaries documented.
-- [ ] No destructive cleanup performed without evidence.
-- [ ] Status: **PASS / FAIL / NOT VERIFIED**
-
----
-
-# 5. Wave 1 — Clean Game Shell
-
-Build the smallest possible working game.
-
-```
-Fullscreen
-→ Three.js canvas
-→ Large floor
-→ Walls
-→ Human player
-→ Camera
-→ Movement
-```
-
-- [ ] Full-screen canvas.
-- [ ] Large playable floor.
-- [ ] Room boundaries.
-- [ ] Human avatar visible.
-- [ ] Deterministic local-player initialization.
-- [ ] Third-person camera.
-- [ ] Desktop movement.
-- [ ] Mobile movement architecture.
-- [ ] Basic collision.
-- [ ] No furniture yet unless needed for collision testing.
-- [ ] No chat.
-- [ ] No music.
-- [ ] No voice.
-- [ ] No multiplayer features yet.
-
-### Hard stop
-
-If the human, movement, camera, or room boundary is broken:
-
-- [ ] STOP.
-- [ ] Do not proceed to feature expansion.
-
-### Acceptance
-
-- [ ] Open game.
 - [ ] Human appears immediately.
-- [ ] Human remains visible.
-- [ ] Human can walk.
-- [ ] Camera follows.
-- [ ] Camera rotates.
-- [ ] Player stays inside room.
-- [ ] No fatal console errors.
-- [ ] Status: **PASS / FAIL / NOT VERIFIED**
+- [ ] Human is not a capsule.
+- [ ] Player walks.
+- [ ] Camera follows/rotates.
+- [ ] Player stays in room.
+- [ ] No fatal runtime errors.
+- [ ] `npm test` passes.
+- [ ] `npm run build` passes.
+- [ ] Browser test performed if available.
+- [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
 
-# 6. Wave 2 — Human Avatar System
+## WAVE 2 — WORLD + PLAYER + CAMERA + INTERACTION FOUNDATION
 
-The avatar must not be a capsule.
+**Goal:** turn the foundation into the actual playable hangout space.
 
-## Avatar
+### World
 
-- [ ] Reliable local/bundled avatar selected.
-- [ ] Avatar loading isolated from environment loading.
-- [ ] Head.
-- [ ] Torso.
-- [ ] Arms.
-- [ ] Hands.
-- [ ] Legs.
-- [ ] Feet.
-- [ ] Believable proportions.
-- [ ] Skeleton/animation rig where appropriate.
-- [ ] No fragile critical dependency on external CDN.
-- [ ] No `RestoredHuman`.
-- [ ] No `RealHuman` + `LocalHuman` + fallback competition.
-- [ ] Exactly one player-renderer implementation.
-
-## Animation
-
-- [ ] Idle.
-- [ ] Walk.
-- [ ] Run if included.
-- [ ] Turn.
-- [ ] Sit.
-- [ ] Sleep.
-- [ ] Eat.
-- [ ] Drink.
-- [ ] Dance.
-- [ ] Wave.
-- [ ] Clap.
-
-## Initialization
-
-```
-JOIN ROOM
-→ CREATE PLAYER STATE
-→ SPAWN PLAYER
-→ RENDER HUMAN
-→ INITIALIZE ANIMATION
-→ ENABLE MOVEMENT
-```
-
-- [ ] Player renders without movement callback.
-- [ ] Player does not depend on another player's presence.
-- [ ] Player does not depend on decorative asset completion.
-- [ ] Player does not disappear when optional assets fail.
-
----
-
-# 7. Wave 3 — Movement Controller
-
-- [ ] One movement controller.
-- [ ] WASD.
-- [ ] Mobile joystick.
-- [ ] Smooth acceleration.
-- [ ] Smooth deceleration.
-- [ ] Natural walking speed.
-- [ ] Optional run.
-- [ ] Smooth turning.
-- [ ] No automatic running.
-- [ ] No snapping.
-- [ ] No jitter.
-- [ ] No vibration.
-- [ ] No conflicting physics velocity.
-- [ ] Movement state derived from actual velocity.
-- [ ] Idle threshold.
-- [ ] Walk threshold.
-- [ ] Run threshold if applicable.
-- [ ] Animation blending.
-- [ ] Interaction state can lock movement cleanly.
-- [ ] Releasing interaction restores movement cleanly.
-
-### Acceptance
-
-- [ ] Walk forward.
-- [ ] Walk backward.
-- [ ] Strafe/turn as designed.
-- [ ] Stop.
-- [ ] Change direction.
-- [ ] Start/stop repeatedly.
-- [ ] No vibration.
-- [ ] No unintended movement.
-- [ ] Status: **PASS / FAIL / NOT VERIFIED**
-
----
-
-# 8. Wave 4 — Camera System
-
-Exactly one camera controller.
-
-## Desktop
-
-- [ ] Mouse drag rotates.
-- [ ] Wheel zooms.
-- [ ] Smooth follow.
-
-## Mobile
-
-- [ ] Gameplay-area drag rotates.
-- [ ] Pinch zoom optional.
-- [ ] Touch architecture documented.
-- [ ] DOM controls do not steal gameplay camera gestures.
-- [ ] Pointer capture/propagation handled deliberately.
-- [ ] `touch-action` configured deliberately.
-
-## Camera behavior
-
-- [ ] Stable third-person distance.
-- [ ] Smooth rotation.
-- [ ] Smooth follow.
-- [ ] Player remains visible.
-- [ ] Minimum zoom.
-- [ ] Maximum zoom.
-- [ ] Room-boundary awareness.
-- [ ] Wall collision.
-- [ ] Major-furniture collision.
-- [ ] Obstacle distance adjustment.
-- [ ] No clipping where practical.
-- [ ] No outside-room view.
-- [ ] No jitter.
-- [ ] No snapping.
-- [ ] No random zoom.
-- [ ] No competing camera paths.
-
-### Acceptance
-
-- [ ] Rotate continuously.
-- [ ] Walk while rotating.
-- [ ] Approach walls.
-- [ ] Approach furniture.
-- [ ] Reach corners.
-- [ ] Test mobile drag.
-- [ ] Confirm UI does not break camera.
-- [ ] Status: **PASS / FAIL / NOT VERIFIED**
-
----
-
-# 9. Wave 5 — Large Hangout Hall
-
-Build the actual social environment.
-
-## Layout
-
-- [ ] Large open central social floor.
-- [ ] TV/entertainment zone.
-- [ ] Sofa zone.
-- [ ] Chair zone.
-- [ ] Dining zone.
-- [ ] Food/snack zone.
-- [ ] Bed/rest zone.
-- [ ] Plants/greenery zone.
-- [ ] Decorations.
-- [ ] Proper room boundaries.
-- [ ] Comfortable walking distances.
-- [ ] Camera rotation space.
-
-## Furniture
-
+- [ ] Large open central hall.
+- [ ] Functional zones: TV, sofas, chairs, dining, food, drinks, beds/rest, greenery/decor.
 - [ ] 2+ sofas.
-- [ ] Several chairs.
+- [ ] Chairs/dining chairs.
 - [ ] Dining table.
-- [ ] Dining chairs.
 - [ ] Coffee tables.
 - [ ] Beds.
-- [ ] TV stand.
-- [ ] TV.
-- [ ] Lamps.
-- [ ] Shelves.
-- [ ] Rugs.
-- [ ] Optional trees/greenery.
+- [ ] TV/stand.
+- [ ] Lamps/shelves/rugs.
+- [ ] Plants/greenery.
+- [ ] Proper room boundaries.
+- [ ] Open walking space.
 
-## Asset strategy
+### Assets/performance
 
-- [ ] Critical assets local/bundled where possible.
-- [ ] No critical dependence on `cdn.3dassets.dev`.
-- [ ] Loading state.
-- [ ] Success state.
-- [ ] Failure state.
-- [ ] Failure isolation.
-- [ ] Decorative failure cannot remove room.
-- [ ] Core-player failure cannot be caused by decoration.
-- [ ] Staged loading.
-- [ ] Core assets first.
-- [ ] Decorations later.
-- [ ] Mobile memory budget considered.
+- [ ] Critical assets local/bundled where practical.
+- [ ] Remove critical dependency on `cdn.3dassets.dev`.
+- [ ] Asset loading has loading/success/failure states.
+- [ ] Decorative failures are isolated.
+- [ ] Core assets load before decoration.
+- [ ] Avoid eager loading of unnecessary GLBs.
+- [ ] Mobile memory/draw-call budget considered.
 
-### Acceptance
+### Player/camera
 
-- [ ] Hall visibly resembles a social game.
-- [ ] Not an empty floor.
-- [ ] Central area is genuinely open.
-- [ ] Furniture is visible.
-- [ ] Player can walk between functional zones.
-- [ ] Camera works around the environment.
-- [ ] Status: **PASS / FAIL / NOT VERIFIED**
+- [ ] Reliable human model.
+- [ ] Idle/walk/turn.
+- [ ] Smooth acceleration/deceleration.
+- [ ] Natural walking speed.
+- [ ] No jitter/vibration/snapping.
+- [ ] One camera controller.
+- [ ] Desktop camera controls.
+- [ ] Mobile gameplay-area drag.
+- [ ] Zoom limits.
+- [ ] Wall/furniture obstacle handling.
+- [ ] Room-boundary camera control.
+- [ ] UI does not steal camera gestures.
 
----
+### Interaction foundation
 
-# 10. Wave 6 — Interaction Anchor System
-
-Create one generic interaction model.
-
-## Anchor fields
-
-- [ ] id
-- [ ] type
-- [ ] position
-- [ ] rotation
-- [ ] occupiedBy
-- [ ] animation
-- [ ] standPosition
-
-## Types
-
-- [ ] SIT
-- [ ] SLEEP
-- [ ] EAT
-- [ ] DRINK
-- [ ] WATCH_TV
-- [ ] INTERACT
-
-## Interaction lifecycle
-
-```
-APPROACH
-→ VERIFY
-→ RESERVE
-→ STOP MOVEMENT
-→ STOP VELOCITY
-→ ALIGN
-→ ROTATE
-→ ANIMATE
-→ SYNCHRONIZE
-→ RELEASE
-→ STAND POSITION
-→ RESTORE MOVEMENT
-```
-
+- [ ] Generic interaction-anchor model.
+- [ ] SIT / SLEEP / EAT / DRINK / WATCH_TV / INTERACT.
+- [ ] Reserve → stop → align → animate → sync → release lifecycle.
 - [ ] No hard-coded button-handler offsets.
-- [ ] Seat reservation is authoritative.
-- [ ] Interaction cannot cause automatic running.
-- [ ] Interaction cannot permanently lock player.
-- [ ] Interaction failure restores normal movement.
+- [ ] Interaction failure restores movement.
+
+### Gate
+
+- [ ] World visibly resembles a real hangout game.
+- [ ] Player can explore all zones.
+- [ ] Camera works throughout the hall.
+- [ ] Core assets survive optional asset failures.
+- [ ] Automated tests/build pass.
+- [ ] Browser test performed if available.
+- [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
 
-# 11. Wave 7 — Sitting
+## WAVE 3 — ALL CORE INTERACTIONS
 
-## Sofas
+**Goal:** make the room genuinely playable before adding social systems.
+
+### Sitting
 
 - [ ] Sofa anchors.
-- [ ] Pelvis/seat alignment.
-- [ ] Correct rotation.
-- [ ] Natural posture.
-- [ ] No floating.
-- [ ] No sinking.
-- [ ] No standing on sofa.
-- [ ] No unexpected movement.
-- [ ] Stand action.
-- [ ] Seat release.
+- [ ] Sofa pelvis/seat alignment.
+- [ ] Correct rotation/posture.
+- [ ] No floating/sinking.
+- [ ] Chair anchors.
+- [ ] Dining-chair anchors.
+- [ ] Correct seat height/pelvis/feet/back alignment.
+- [ ] Stand restores movement.
+- [ ] Seat occupancy/reservation.
 
-## Chairs
-
-- [ ] Normal chair anchors.
-- [ ] Dining chair anchors.
-- [ ] Seat height alignment.
-- [ ] Pelvis alignment.
-- [ ] Feet approximately reach floor.
-- [ ] Back alignment.
-- [ ] Correct rotation.
-- [ ] Stand action.
-
-## Multiplayer
-
-- [ ] Seat ownership.
-- [ ] Reservation race handled authoritatively.
-- [ ] Occupied seat unavailable.
-- [ ] Seat released on stand.
-- [ ] Seat released on disconnect.
-
----
-
-# 12. Wave 8 — Sleeping
+### Sleeping
 
 - [ ] Bed anchor.
-- [ ] Proper lying posture.
-- [ ] Correct body alignment.
+- [ ] Genuine lying posture.
 - [ ] Correct rotation.
-- [ ] Head on pillow.
-- [ ] No floating.
-- [ ] No sinking.
-- [ ] No standing while sleeping.
-- [ ] Multiplayer state synchronization.
+- [ ] Head/pillow alignment.
+- [ ] No floating/sinking.
 - [ ] Exit restores movement.
 
----
+### Food
 
-# 13. Wave 9 — Food & Eating
-
-## Objects
-
-- [ ] Pizza.
-- [ ] Chips.
-- [ ] Sandwiches.
-- [ ] Burgers.
-- [ ] Popcorn.
-- [ ] Cookies.
-- [ ] Fruit.
-- [ ] Additional snacks as useful.
-
-## Interaction
-
-- [ ] Food exists visibly in world.
-- [ ] Food can be selected.
-- [ ] Pick-up/eat interaction.
-- [ ] Hold object.
-- [ ] Raise toward mouth.
+- [ ] Visible pizza/chips/sandwich/burger/popcorn/cookies/fruit or equivalent.
+- [ ] Pick up/eat interaction.
+- [ ] Food reaches mouth.
 - [ ] Eating animation.
 - [ ] Return to idle.
-- [ ] State synchronized to remote players.
-- [ ] Failure restores normal state.
 
----
+### Drinks
 
-# 14. Wave 10 — Drinks
-
-- [ ] Water.
-- [ ] Soda.
-- [ ] Juice.
-- [ ] Coffee.
-- [ ] Visible 3D drink objects.
+- [ ] Water/soda/juice/coffee or equivalent.
 - [ ] Pick up.
 - [ ] Raise.
 - [ ] Drink.
 - [ ] Lower.
 - [ ] Return to idle.
-- [ ] Synchronize interaction state.
 
----
+### TV
 
-# 15. Wave 11 — TV
-
-- [ ] Large visible TV.
-- [ ] TV is interactable where appropriate.
-- [ ] TV displays current track.
+- [ ] TV interaction anchor.
+- [ ] TV can display shared music information.
 - [ ] Title.
 - [ ] Artist.
 - [ ] Playback state.
 - [ ] Progress where appropriate.
-- [ ] TV updates from shared music state.
-- [ ] TV remains functional if optional decoration fails.
+
+### Gate
+
+- [ ] Sofa works repeatedly.
+- [ ] Chair works repeatedly.
+- [ ] Dining works.
+- [ ] Bed works.
+- [ ] Eating works.
+- [ ] Drinking works.
+- [ ] TV works.
+- [ ] No interaction causes runaway movement/stuck state.
+- [ ] Automated tests/build pass.
+- [ ] Browser test performed if available.
+- [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
 
-# 16. Wave 12 — Music Provider & Playback
+## WAVE 4 — MUSIC + CHAT + VOICE + EMOTES
 
-## Provider
+**Goal:** build the complete local social feature set before multiplayer synchronization.
 
-- [ ] Existing legitimate provider audited.
-- [ ] API route implemented cleanly.
-- [ ] No fake URLs.
-- [ ] No fake catalog.
+### Music
+
+- [ ] Existing legitimate provider works.
 - [ ] Search works.
-- [ ] Fallback search strategy works.
-- [ ] Zero-result search does not falsely mean provider unavailable.
-- [ ] Environment configuration verified for the exact deployment.
-
-## Track normalization
-
-Track must contain:
-
-- [ ] stable ID.
-- [ ] title.
-- [ ] artist.
-- [ ] HTTPS audio URL.
-- [ ] positive duration.
-- [ ] license metadata.
-
-## Player
-
-- [ ] Search.
-- [ ] Select.
+- [ ] Verified fallback query works when needed.
+- [ ] Zero-result search does not falsely report provider failure.
+- [ ] Track normalization validates ID/title/artist/HTTPS audio/duration/license.
 - [ ] Play.
 - [ ] Pause.
 - [ ] Next.
 - [ ] Current track.
 - [ ] Playback position.
-- [ ] Playback errors handled cleanly.
+- [ ] Invalid tracks rejected.
+- [ ] No fake URLs/catalog.
 
----
+### Add Song
 
-# 17. Wave 13 — Add Song
-
-- [ ] Add Song UI exists.
-- [ ] Opens actual file picker.
+- [ ] Real audio file picker.
 - [ ] MP3.
 - [ ] WAV.
 - [ ] M4A.
@@ -670,473 +228,239 @@ Track must contain:
 - [ ] OGG.
 - [ ] WebM where supported.
 - [ ] Correct audio MIME handling.
-- [ ] Does not default to image/video-only selection.
-- [ ] Upload works if upload is required.
-- [ ] Track state created.
-- [ ] Audio plays.
-- [ ] Mobile behavior verified.
-- [ ] iPhone-specific behavior verified during final acceptance.
+- [ ] Selected audio uploads/processes/plays.
 
----
-
-# 18. Wave 14 — Synchronized Music
-
-- [ ] One shared music authority.
-- [ ] Shared track.
-- [ ] Shared title.
-- [ ] Shared artist.
-- [ ] Shared play/pause state.
-- [ ] Shared timestamp/reference time.
-- [ ] Room state is authoritative.
-- [ ] Local UI does not invent independent room state.
-- [ ] TV follows shared state.
-- [ ] Multiple clients tested.
-
----
-
-# 19. Wave 15 — Chat
+### Chat
 
 - [ ] Compact composer.
-- [ ] Mobile-safe input font size.
+- [ ] Mobile-safe input size.
 - [ ] No Safari zoom.
-- [ ] Send button.
-- [ ] Blur input after send.
-- [ ] Keyboard handling.
-- [ ] Temporary message notifications.
-- [ ] Player name.
-- [ ] Message.
-- [ ] Stacking.
-- [ ] Automatic expiry.
-- [ ] Does not cover gameplay.
-- [ ] Does not block camera.
-- [ ] Does not block joystick.
-- [ ] Duplicate listeners prevented.
-- [ ] Duplicate messages prevented.
-- [ ] Receiving is independent of movement.
+- [ ] Send.
+- [ ] Blur/keyboard handling.
+- [ ] Temporary stacked notifications.
+- [ ] Notifications do not block gameplay/camera/joystick.
+- [ ] No duplicate listeners/messages.
 
----
-
-# 20. Wave 16 — Voice Chat
-
-## States
+### Voice
 
 - [ ] OFF.
 - [ ] REQUESTING.
-- [ ] LIVE / UNMUTED.
+- [ ] LIVE.
 - [ ] MUTED.
 - [ ] ERROR.
 - [ ] DISCONNECTED.
+- [ ] Actual audio transport.
+- [ ] Permission handling.
+- [ ] Mute/unmute logic.
+- [ ] Clean disconnect.
+- [ ] No giant permission/error overlay.
 
-## Transport
-
-- [ ] Actual audio transport implemented.
-- [ ] Signaling implemented where required.
-- [ ] Client A → client B audio verified.
-- [ ] Mute stops outgoing audio.
-- [ ] Unmute restores audio.
-- [ ] Disconnect cleanup.
-- [ ] Permission error handling.
-- [ ] No giant intrusive error UI.
-- [ ] Developer diagnostics in console.
-- [ ] Actual two-client voice test performed.
-
-**Important:** microphone permission alone does NOT equal voice-chat verification.
-
----
-
-# 21. Wave 17 — Emotes
-
-Initial required emotes:
+### Emotes
 
 - [ ] Dance.
 - [ ] Wave.
 - [ ] Clap.
+- [ ] Movement locking.
+- [ ] Animation completion.
+- [ ] Return to previous state.
 
-For each:
+### Gate
 
-- [ ] Animation actually plays.
-- [ ] Movement locks appropriately.
-- [ ] State synchronizes.
-- [ ] Animation finishes.
-- [ ] Previous state restored.
-- [ ] Animation failure cannot permanently lock player.
-
-Later candidates:
-
-- [ ] Laugh.
-- [ ] Point.
-- [ ] Cheer.
-- [ ] Additional social emotes.
+- [ ] Music actually plays.
+- [ ] Add Song actually selects audio.
+- [ ] Chat works without zoom.
+- [ ] Voice transport is implemented; two-client verification reserved for Wave 6.
+- [ ] Emotes actually animate.
+- [ ] Automated tests/build pass.
+- [ ] Browser test performed if available.
+- [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
 
-# 22. Wave 18 — Multiplayer
+## WAVE 5 — MULTIPLAYER + SHARED STATE
 
-## Player state
+**Goal:** make the room genuinely shared.
 
-- [ ] id.
-- [ ] name.
-- [ ] position.
-- [ ] rotation.
-- [ ] movement/velocity as needed.
-- [ ] animation.
-- [ ] interaction.
-- [ ] seat.
-- [ ] sleeping.
-- [ ] emote.
-- [ ] relevant synchronized state.
+### Multiplayer
 
-## Networking
-
-- [ ] Supabase/shared room state selected.
-- [ ] One multiplayer authority.
-- [ ] Local player responsive.
-- [ ] Remote players interpolated.
-- [ ] No visible snapping.
+- [ ] One multiplayer state authority.
+- [ ] Supabase/shared room state integrated.
+- [ ] Presence.
+- [ ] Real online count.
+- [ ] Join.
+- [ ] Leave.
+- [ ] Reconnect cleanup.
 - [ ] No duplicate remote players.
-- [ ] No stale players.
-- [ ] Join creates remote representation.
-- [ ] Leave removes representation.
-- [ ] Reconnect cleans stale state.
-- [ ] Presence is real.
-- [ ] Room occupancy is real.
+- [ ] No stale remote players.
+- [ ] Remote interpolation.
+- [ ] No visible snapping.
 
-## Remote behavior
+### Synchronized player state
 
-- [ ] Walk visible.
-- [ ] Sit visible.
-- [ ] Sleep visible.
-- [ ] Eat visible.
-- [ ] Drink visible.
-- [ ] Dance visible.
-- [ ] Wave visible.
-- [ ] Clap visible.
-- [ ] Music state visible.
-- [ ] Chat visible.
+- [ ] ID/name.
+- [ ] Position.
+- [ ] Rotation.
+- [ ] Animation.
+- [ ] Interaction.
+- [ ] Seat.
+- [ ] Sleeping.
+- [ ] Eating.
+- [ ] Drinking.
+- [ ] Emote.
+- [ ] Relevant state required by the game.
+
+### Shared social state
+
+- [ ] Chat synchronized.
+- [ ] Music track synchronized.
+- [ ] Music play/pause synchronized.
+- [ ] Music timestamp/reference synchronized.
+- [ ] TV follows shared music state.
+- [ ] Seat ownership authoritative.
+- [ ] Interactions visible remotely.
+
+### Gate
+
+Two-client/local multi-instance testing:
+
+- [ ] Player A sees Player B.
+- [ ] B sees A.
+- [ ] Both walk.
+- [ ] Both see movement smoothly.
+- [ ] Sit synchronizes.
+- [ ] Sleep synchronizes.
+- [ ] Eat/drink synchronize.
+- [ ] Emotes synchronize.
+- [ ] Chat synchronizes.
+- [ ] Music synchronizes.
+- [ ] Occupied seat cannot be double-claimed.
+- [ ] Leave removes player.
+- [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
 
-# 23. Wave 19 — Mobile HUD
+## WAVE 6 — MOBILE UX + PERFORMANCE + FULL QA
 
-3D world must dominate the screen.
+**Goal:** make the game reliable on the target device class before any release deployment.
 
-## Persistent UI
+### Mobile HUD
 
-### Top
-
-- [ ] Room name.
-- [ ] Actual online count.
-
-### Left
-
-- [ ] Compact joystick.
-
-### Right
-
-- [ ] Interaction.
-- [ ] Emote.
-- [ ] Microphone.
-
-### Bottom
-
-- [ ] Compact music controls.
-- [ ] Compact chat controls.
-- [ ] Add Song where appropriate.
-
-## Mobile safety
-
+- [ ] World dominates screen.
+- [ ] Compact top room/online display.
+- [ ] Left joystick.
+- [ ] Right interaction/emote/mic controls.
+- [ ] Compact bottom music/chat.
+- [ ] Add Song accessible.
 - [ ] Safe areas.
-- [ ] Notch.
-- [ ] Dynamic Island.
-- [ ] Safari browser controls.
-- [ ] Small screens.
-- [ ] Landscape layout.
-- [ ] Pointer-event architecture.
+- [ ] Notch/Dynamic Island.
+- [ ] Safari controls.
+- [ ] Small-screen layout.
 - [ ] No giant panels.
 - [ ] No gameplay-blocking errors.
+- [ ] Touch/pointer architecture verified.
 
----
+### Performance
 
-# 24. Wave 20 — Error Handling
-
-## Player-facing
-
-- [ ] Small.
-- [ ] Temporary.
-- [ ] Clear.
-- [ ] Non-blocking.
-
-Examples:
-
-- [ ] “Microphone permission unavailable.”
-- [ ] “Music unavailable.”
-- [ ] Asset failure remains invisible to player when non-critical.
-
-## Developer diagnostics
-
-- [ ] Detailed errors in console.
-- [ ] Asset URL diagnostics.
-- [ ] API diagnostics.
-- [ ] Network diagnostics.
-- [ ] Voice diagnostics.
-- [ ] No swallowed critical failures.
-
----
-
-# 25. Wave 21 — Performance
-
-Target: mobile Safari.
-
-- [ ] Core assets load first.
-- [ ] Decorative assets load later.
-- [ ] No dozens of large GLBs eagerly loaded.
+- [ ] Core assets staged first.
+- [ ] Decorations lazy-loaded.
 - [ ] Reasonable polygon counts.
-- [ ] Compressed textures where appropriate.
-- [ ] Texture reuse.
+- [ ] Compressed/reused textures where appropriate.
 - [ ] Limited dynamic lights.
 - [ ] Optimized shadows.
 - [ ] Reasonable draw calls.
-- [ ] Optional decoration lazy-loaded.
-- [ ] No unnecessary dependency additions.
-- [ ] Memory pressure considered.
-- [ ] Mobile load time measured/observed.
+- [ ] No unnecessary dependencies.
+- [ ] Mobile memory pressure checked.
+
+### Error handling
+
+- [ ] Small temporary player-facing errors.
+- [ ] Detailed diagnostics in console.
+- [ ] Music failure is non-blocking.
+- [ ] Voice failure is non-blocking.
+- [ ] Decorative asset failure is non-blocking.
+- [ ] No swallowed critical failures.
+
+### QA
+
+- [ ] Full automated tests.
+- [ ] `npm test`.
+- [ ] `npm run build`.
+- [ ] Full browser flow.
+- [ ] Console error review.
+- [ ] Regression checklist.
+- [ ] Visual acceptance.
+- [ ] Two-client multiplayer.
+- [ ] Two-client voice.
+- [ ] Mobile input.
+- [ ] Camera around boundaries/furniture.
+- [ ] All interactions.
+
+### Gate
+
+- [ ] Every required feature = PASS.
+- [ ] No required feature = FAIL.
+- [ ] No required feature remains unverified.
+- [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
 
-# 26. Wave 22 — State Separation & Architecture Cleanup
+## WAVE 7 — RELEASE + REAL IPHONE ACCEPTANCE
 
-- [ ] Gameplay state independent of UI state.
-- [ ] Opening chat does not reset player.
-- [ ] Opening chat does not affect camera.
-- [ ] Opening music menu does not affect movement.
-- [ ] Opening emote menu does not reset player.
-- [ ] UI visibility cannot destroy room state.
-- [ ] No giant game component.
-- [ ] Clear module boundaries.
-- [ ] No dead recovery components.
-- [ ] No stale experimental components.
-- [ ] No temporary production hacks.
-- [ ] No duplicate listeners.
-- [ ] No duplicate state authorities.
-- [ ] No unresolved imports.
-- [ ] No stale references.
-- [ ] No unused competing runtime paths.
+**Goal:** use deployment only when a remote/iPhone test is genuinely required.
 
----
+### Before deployment
 
-# 27. Wave 23 — Automated Testing
-
-Required automated coverage:
-
-- [ ] Player initialization.
-- [ ] Room initialization.
-- [ ] Seat ownership.
-- [ ] Seat release.
-- [ ] Chat state/transport.
-- [ ] Music normalization.
-- [ ] Music state.
-- [ ] Interaction state.
-- [ ] Emote state.
-- [ ] Microphone state.
-- [ ] Multiplayer state.
-- [ ] Disconnect/reconnect cleanup where practical.
-
-Commands:
-
-- [ ] `npm test`
-- [ ] `npm run build`
-
-### Rule
-
-**TEST PASS ≠ GAME PASS.**
-
----
-
-# 28. Wave 24 — Browser Verification
-
-Use browser automation if available.
-
-Required flow:
-
-- [ ] LOAD → human visible.
-- [ ] WALK → smooth.
-- [ ] CAMERA → drag works.
-- [ ] ROOM → furniture visible.
-- [ ] SOFA → sit.
-- [ ] CHAIR → sit.
-- [ ] BED → sleep.
-- [ ] FOOD → eat.
-- [ ] DRINK → drink.
-- [ ] TV → music visible.
-- [ ] CHAT → send.
-- [ ] MIC → toggle.
-- [ ] EMOTE → dance/wave/clap.
-- [ ] MULTIPLAYER → second player visible.
-- [ ] No fatal console errors.
-
-If browser automation is unavailable:
-
-**BROWSER = NOT AVAILABLE**
-
-Never claim browser verification without actually performing it.
-
----
-
-# 29. Wave 25 — Visual Acceptance
-
-The first screen must communicate:
-
-> **People are hanging out together in a large shared room.**
-
-Reject if it resembles:
-
-- [ ] Empty Three.js scene.
-- [ ] Debug scene.
-- [ ] Capsule prototype.
-- [ ] UI prototype.
-- [ ] Floating furniture.
-- [ ] Cramped room.
-- [ ] Broken camera.
-- [ ] Giant error panels.
-- [ ] Empty fallback world.
-
-Acceptance:
-
-- [ ] Large furnished hall.
-- [ ] Human clearly visible.
-- [ ] Functional zones readable.
-- [ ] Central social floor open.
-- [ ] UI subordinate to world.
-- [ ] Overall experience resembles a real social 3D game.
-
----
-
-# 30. Wave 26 — Full Pre-Deployment Gate
-
-Every required item must be **PASS** or deployment is prohibited.
-
-## Code
-
-- [ ] CODE = PASS
-
-## Build/test
-
-- [ ] BUILD = PASS
-- [ ] AUTOMATED TESTS = PASS
-
-## Core
-
-- [ ] PLAYER INITIALIZATION = PASS
-- [ ] HUMAN AVATAR = PASS
-- [ ] WORLD = PASS
-- [ ] FURNITURE = PASS
-- [ ] CAMERA = PASS
-- [ ] MOVEMENT = PASS
-
-## Interactions
-
-- [ ] SOFA = PASS
-- [ ] CHAIR = PASS
-- [ ] DINING = PASS
-- [ ] BED = PASS
-- [ ] EATING = PASS
-- [ ] DRINKING = PASS
-- [ ] TV = PASS
-
-## Social systems
-
-- [ ] MUSIC API = PASS
-- [ ] MUSIC PLAYBACK = PASS
-- [ ] ADD SONG = PASS
-- [ ] CHAT = PASS
-- [ ] VOICE = PASS
-- [ ] MUTE/UNMUTE = PASS
-- [ ] EMOTES = PASS
-- [ ] MULTIPLAYER = PASS
-
-## Mobile/reliability
-
-- [ ] MOBILE UI = PASS
-- [ ] NO FATAL RUNTIME ERRORS = PASS
-- [ ] CORE ASSETS RELIABLE = PASS
-
-## Browser
-
-- [ ] BROWSER = PASS
-- [ ] OR BROWSER = NOT AVAILABLE, explicitly recorded
-
-### Deployment decision
-
-- [ ] No FAIL.
-- [ ] No unresolved NOT VERIFIED for required functionality.
-- [ ] Final release candidate SHA recorded.
-- [ ] Only now is Vercel deployment permitted.
-
----
-
-# 31. Wave 27 — Single Vercel Release
-
-Before deployment:
-
-- [ ] Confirm development deployment count = 0.
-- [ ] Confirm final candidate is frozen.
+- [ ] Freeze release candidate.
 - [ ] Record commit SHA.
-- [ ] Record branch.
-- [ ] Record environment.
-- [ ] Verify environment variables.
-- [ ] Verify music provider configuration.
-- [ ] Verify Supabase configuration.
-- [ ] Verify build locally.
-- [ ] Verify tests locally.
-- [ ] Verify browser locally.
+- [ ] Confirm local build passes.
+- [ ] Confirm tests pass.
+- [ ] Confirm browser QA passes.
+- [ ] Confirm environment variables.
+- [ ] Confirm Supabase configuration.
+- [ ] Confirm music provider configuration.
+- [ ] Confirm no fatal runtime errors.
+- [ ] Confirm development deployment count.
 
-Then:
+### Deployment
 
-- [ ] Create ONE Vercel deployment.
+- [ ] Deploy to Vercel only if remote/iPhone testing requires it.
 - [ ] Record deployment ID.
-- [ ] Record deployment URL.
-- [ ] Record deployed SHA.
-- [ ] Confirm deployed SHA matches candidate.
-- [ ] Do not create another deployment for ordinary debugging.
-- [ ] If quota is unavailable, record NOT VERIFIED and stop.
+- [ ] Record URL.
+- [ ] Record environment.
+- [ ] Verify deployed SHA.
+- [ ] **Do not deploy merely to debug local problems.**
+- [ ] **Do not create repeated preview deployments.**
 
----
+### Real iPhone acceptance
 
-# 32. Wave 28 — Real iPhone Acceptance
+- [ ] Open game.
+- [ ] Human appears.
+- [ ] Large hall appears.
+- [ ] Camera drag works.
+- [ ] Walk.
+- [ ] Sofa.
+- [ ] Chair.
+- [ ] Dining.
+- [ ] Bed.
+- [ ] Eat.
+- [ ] Drink.
+- [ ] TV/music.
+- [ ] Add Song.
+- [ ] Chat without zoom.
+- [ ] Mic ON.
+- [ ] Mic MUTED.
+- [ ] Mic ON again.
+- [ ] Dance.
+- [ ] Wave.
+- [ ] Clap.
+- [ ] Second player joins.
+- [ ] Movement synchronizes.
+- [ ] Interactions synchronize.
+- [ ] Music synchronizes.
+- [ ] Chat synchronizes.
+- [ ] Voice works.
 
-Actual iPhone test:
-
-1. [ ] Open game.
-2. [ ] Human appears.
-3. [ ] Large furnished hall appears.
-4. [ ] Camera drag works.
-5. [ ] Walk around.
-6. [ ] Camera remains usable.
-7. [ ] Sit on sofa.
-8. [ ] Stand.
-9. [ ] Sit on chair.
-10. [ ] Sit at dining table.
-11. [ ] Sleep on bed.
-12. [ ] Eat.
-13. [ ] Drink.
-14. [ ] Open TV/music.
-15. [ ] Play music.
-16. [ ] Add a song.
-17. [ ] Chat.
-18. [ ] Microphone ON.
-19. [ ] Microphone MUTED.
-20. [ ] Microphone ON again.
-21. [ ] Dance.
-22. [ ] Wave.
-23. [ ] Clap.
-24. [ ] Second player joins.
-25. [ ] Both players see each other.
-26. [ ] Walk simultaneously.
-27. [ ] Sit.
-28. [ ] Emote.
-29. [ ] Music synchronizes.
-30. [ ] Chat synchronizes.
-31. [ ] Voice works.
+### Release gate
 
 If anything required fails:
 
@@ -1144,505 +468,167 @@ If anything required fails:
 
 ---
 
-# 33. Final Acceptance Report
+# Deployment Policy
 
-At completion, report exactly:
+This replaces the previous overly rigid “one deployment only” wording.
 
-| System | Status |
-|---|---|
-| PLAYER | PASS / FAIL / NOT VERIFIED |
-| WORLD | PASS / FAIL / NOT VERIFIED |
-| CAMERA | PASS / FAIL / NOT VERIFIED |
-| MOVEMENT | PASS / FAIL / NOT VERIFIED |
-| FURNITURE | PASS / FAIL / NOT VERIFIED |
-| SITTING | PASS / FAIL / NOT VERIFIED |
-| SLEEPING | PASS / FAIL / NOT VERIFIED |
-| EATING | PASS / FAIL / NOT VERIFIED |
-| DRINKING | PASS / FAIL / NOT VERIFIED |
-| TV | PASS / FAIL / NOT VERIFIED |
-| MUSIC | PASS / FAIL / NOT VERIFIED |
-| ADD SONG | PASS / FAIL / NOT VERIFIED |
-| CHAT | PASS / FAIL / NOT VERIFIED |
-| VOICE | PASS / FAIL / NOT VERIFIED |
-| EMOTES | PASS / FAIL / NOT VERIFIED |
-| MULTIPLAYER | PASS / FAIL / NOT VERIFIED |
-| MOBILE UX | PASS / FAIL / NOT VERIFIED |
-| BUILD | PASS / FAIL |
-| TESTS | PASS / FAIL |
-| BROWSER | PASS / FAIL / NOT AVAILABLE |
-| CORE ASSETS | PASS / FAIL / NOT VERIFIED |
-| VERCEL DEVELOPMENT DEPLOYMENTS | 0 |
-| FINAL VERCEL DEPLOYMENTS | 0 / 1 |
-| GAME | VERIFIED / NOT VERIFIED |
+### Default
+
+**No Vercel deployment during development.**
+
+Use:
+
+- local dev server
+- local production build
+- automated tests
+- browser automation
+- local multi-client testing
+- console/runtime diagnostics
+
+### Deployment is allowed only when it adds information we cannot obtain locally
+
+Examples:
+
+- [ ] Real iPhone/Safari testing requires HTTPS/deployed environment.
+- [ ] Vercel-specific runtime/environment behavior must be verified.
+- [ ] Production integration needs one final remote test.
+
+### Deployment is NOT justified for
+
+- [ ] Checking whether a button renders.
+- [ ] Checking a local TypeScript error.
+- [ ] Checking a local build.
+- [ ] Checking a camera change.
+- [ ] Checking a CSS change.
+- [ ] Checking an interaction that can be browser-tested locally.
+- [ ] Debugging ordinary runtime errors.
+
+**Deployment count is tracked in every wave log.**
 
 ---
 
-# 34. Known Previous Problems — Regression Checklist
-
-The following problems must not return:
+# Regression Checklist
 
 ## World
-
-- [ ] No empty fallback floor.
-- [ ] No debug-looking minimal environment.
-- [ ] No cramped two-room layout.
-- [ ] No missing furniture caused by one failed asset.
-- [ ] No critical dependence on `cdn.3dassets.dev`.
-- [ ] No swallowed asset failure that silently produces an empty scene.
-- [ ] No eager loading of the entire asset catalog.
+- [ ] No empty/debug floor.
+- [ ] No cramped hall.
+- [ ] No missing furniture from one asset failure.
+- [ ] No critical external GLB dependency.
+- [ ] No eager asset overload.
 
 ## Player
+- [ ] No capsule fallback as normal avatar.
+- [ ] No unresolved `RestoredHuman`.
+- [ ] No duplicate avatar implementations.
+- [ ] Immediate local-player render.
+- [ ] Decorative assets cannot destroy player.
 
-- [ ] No capsule as the normal player.
-- [ ] No `RestoredHuman` unresolved reference.
-- [ ] No competing human components.
-- [ ] No player visibility dependent on movement callback.
-- [ ] No player visibility dependent on remote presence.
-- [ ] No player destruction from decorative asset failure.
-
-## Movement
-
-- [ ] No shaking.
-- [ ] No vibration.
-- [ ] No slow/unnatural animation.
+## Movement/camera
+- [ ] No jitter/vibration.
 - [ ] No automatic running.
-- [ ] No interaction-induced runaway movement.
 - [ ] No snapping.
-
-## Camera
-
 - [ ] No outside-room camera.
-- [ ] No unusable angle.
 - [ ] No competing camera controllers.
-- [ ] No UI stealing gameplay camera gestures.
-- [ ] No random zoom.
-- [ ] No snapping/jitter.
+- [ ] UI cannot steal gameplay gestures.
 
 ## Interactions
-
-- [ ] Sit works reliably.
-- [ ] Sofa pelvis alignment correct.
-- [ ] Chair alignment correct.
+- [ ] Sitting reliable.
+- [ ] Correct pelvis/seat alignment.
 - [ ] Bed posture correct.
-- [ ] No floating.
-- [ ] No sinking.
-- [ ] No stuck interaction state.
+- [ ] No floating/sinking.
+- [ ] No stuck interaction.
 - [ ] Seat ownership authoritative.
 
 ## Music
-
-- [ ] No fake track URLs.
-- [ ] No fake catalog.
-- [ ] Zero search results do not incorrectly mean provider unavailable.
-- [ ] Exact environment configuration verified.
-- [ ] Preview/production mismatch explicitly checked.
+- [ ] No fake tracks/URLs.
+- [ ] Provider search/fallback verified.
+- [ ] Exact environment checked.
+- [ ] Playback actually tested.
 
 ## Add Song
-
 - [ ] Audio picker, not image/video picker.
-- [ ] Supported audio formats accepted.
-- [ ] Selected audio actually processes/plays.
+- [ ] Supported formats work.
+- [ ] Selected audio actually plays.
 
 ## Chat
-
-- [ ] No Safari input zoom.
-- [ ] No giant chat panel.
-- [ ] No gameplay-blocking notifications.
+- [ ] No Safari zoom.
+- [ ] No giant panel.
+- [ ] Notifications don't block gameplay.
 - [ ] No duplicate listeners/messages.
 
 ## Voice
-
-- [ ] Permission is not mistaken for voice transport.
-- [ ] OFF/REQUESTING/LIVE/MUTED/ERROR/DISCONNECTED states exist.
+- [ ] Permission != voice verification.
+- [ ] All voice states represented.
 - [ ] Two-client audio verified.
-- [ ] Mute actually stops audio.
-
-## Emotes
-
-- [ ] Buttons are not merely decorative.
-- [ ] Dance works.
-- [ ] Wave works.
-- [ ] Clap works.
-- [ ] Movement restores after emote.
+- [ ] Mute actually stops outgoing audio.
 
 ## Multiplayer
-
-- [ ] Local player appears immediately.
 - [ ] Remote players interpolate.
-- [ ] No duplicate remote objects.
-- [ ] No stale players after leave.
-- [ ] Interaction state synchronizes.
+- [ ] No duplicates/stale players.
+- [ ] Interactions synchronize.
+- [ ] Presence/online count is real.
 
-## Deployment/QA
-
-- [ ] No deployment used as a debugging loop.
-- [ ] Deployed SHA verified before interpreting deployment behavior.
-- [ ] Environment verified before interpreting deployment behavior.
-- [ ] Source existence never treated as gameplay verification.
+## QA
+- [ ] Source existence never counted as gameplay verification.
+- [ ] Deployed SHA/environment verified before diagnosing deployment behavior.
 
 ---
 
-# 35. Rebuild Wave Log — KEEP UPDATED
+# Living Wave Log
 
-Every rebuild wave must append an entry here.
+**Update this section after every completed wave. Keep only one entry per wave.**
 
-## Wave 0 — Audit
+| Wave | Scope | Commit | Tests | Browser | Deployment | Status |
+|---|---|---|---|---|---:|---|
+| 1 | Audit + clean foundation | TBD | TBD | TBD | 0 | NOT STARTED |
+| 2 | World + player + camera + interaction foundation | TBD | TBD | TBD | 0 | NOT STARTED |
+| 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
+| 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
+| 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
+| 6 | Mobile UX + performance + full QA | TBD | TBD | TBD | 0 | NOT STARTED |
+| 7 | Release + iPhone acceptance | TBD | TBD | TBD | 0 / 1 | NOT STARTED |
 
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** Repository/infrastructure audit  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
+### Wave update format
 
-## Wave 1 — Game Shell
+For every wave, record:
 
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 2 — Human Avatar
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 3 — Movement
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 4 — Camera
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 5 — Hangout Hall
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 6 — Interaction Anchors
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 7 — Sitting
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 8 — Sleeping
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 9 — Food
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 10 — Drinks
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 11 — TV
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 12 — Music
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 13 — Add Song
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 14 — Synchronized Music
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 15 — Chat
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 16 — Voice
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 17 — Emotes
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 18 — Multiplayer
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 19 — Mobile HUD
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 20 — Error Handling
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 21 — Performance
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 22 — Architecture Cleanup
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 23 — Automated Testing
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 24 — Browser Verification
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 25 — Visual Acceptance
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 26 — Pre-Deployment Gate
-
-**Date:** TBD  
-**Commit:** TBD  
-**Scope:** TBD  
-**Changes:** TBD  
-**Tests:** TBD  
-**Browser:** TBD  
-**Deployment:** 0  
-**Status:** NOT STARTED
-
-## Wave 27 — Vercel Release
-
-**Date:** TBD  
-**Commit:** TBD  
-**Deployment ID:** TBD  
-**Deployment URL:** TBD  
-**Environment:** TBD  
-**Deployment count:** 0 / 1  
-**Status:** NOT STARTED
-
-## Wave 28 — iPhone Acceptance
-
-**Date:** TBD  
-**Commit:** TBD  
-**Deployment:** TBD  
-**Tests:** TBD  
-**iPhone:** TBD  
-**Failures:** TBD  
-**Status:** NOT STARTED
+- **Commit**
+- **What changed**
+- **Tests**
+- **Browser result**
+- **Deployment count**
+- **Known failures**
+- **What is actually verified**
+- **Next wave**
 
 ---
 
-# 36. Final Definition of Done
+# Final Definition of Done
 
-The rebuild is complete only when:
-
-- [ ] Human player appears immediately.
-- [ ] Large furnished hangout hall appears.
-- [ ] Camera is smooth and controllable.
-- [ ] Movement is smooth and natural.
-- [ ] Player can explore the room.
-- [ ] Sofa sitting works.
-- [ ] Chair sitting works.
-- [ ] Dining interaction works.
-- [ ] Bed sleeping works.
-- [ ] Eating works.
-- [ ] Drinking works.
-- [ ] TV works.
-- [ ] Music search/playback works.
-- [ ] Add Song works.
-- [ ] Music synchronizes.
-- [ ] Chat works without mobile zoom.
-- [ ] Voice transport works between real clients.
-- [ ] Mute/unmute works.
-- [ ] Dance works.
-- [ ] Wave works.
-- [ ] Clap works.
-- [ ] Multiplayer presence works.
-- [ ] Remote movement works.
-- [ ] Remote interactions work.
-- [ ] Mobile HUD is compact and usable.
-- [ ] Core assets are reliable.
-- [ ] Decorative failures are isolated.
+- [ ] Human appears immediately.
+- [ ] Large furnished hall appears.
+- [ ] Smooth movement.
+- [ ] Smooth camera.
+- [ ] Sofa/chair/dining interactions.
+- [ ] Bed/sleep.
+- [ ] Food/eating.
+- [ ] Drinks/drinking.
+- [ ] TV.
+- [ ] Music playback.
+- [ ] Add Song.
+- [ ] Synchronized music.
+- [ ] Chat without mobile zoom.
+- [ ] Actual voice transport.
+- [ ] Mute/unmute.
+- [ ] Dance/wave/clap.
+- [ ] Multiplayer presence.
+- [ ] Remote movement/interactions.
+- [ ] Compact mobile HUD.
+- [ ] Reliable core assets.
 - [ ] Automated tests pass.
 - [ ] Production build passes.
-- [ ] Browser acceptance passes or is explicitly unavailable.
-- [ ] Final Vercel deployment count is no more than 1.
-- [ ] Actual iPhone acceptance passes.
-- [ ] Final report contains no unsupported “working” claims.
+- [ ] Browser verification passes or is explicitly unavailable.
+- [ ] iPhone acceptance passes.
+- [ ] No unsupported “working” claims.
 
-## Final product definition
-
-> **A human player inside a large, beautiful hangout hall with smooth camera and movement, where people can actually hang out together.**
+> **Finish line:** A human player inside a large, beautiful hangout hall with smooth camera and movement, where people can actually hang out together.
