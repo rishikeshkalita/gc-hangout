@@ -121,7 +121,14 @@ button { border: 0; cursor: pointer; }
 }
 .interaction-hint strong { color: #fff; font-size: 12px; }
 .interaction-hint span { color: #aeb5c4; font-size: 10px; }
-.interaction-hint.active { background: rgba(74,61,122,.92); }
+.interaction-hint.active {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  min-width: 150px;
+  background: rgba(74,61,122,.92);
+}
 
 .touch-controls {
   position: fixed;
