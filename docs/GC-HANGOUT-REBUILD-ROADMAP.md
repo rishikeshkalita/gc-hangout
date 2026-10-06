@@ -735,7 +735,7 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | `b2f15d2aeda89c26aafdac7cbd6921f216c13f71` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT VERIFIED — fresh device build still required | 2 attempted / 1 successful | NOT VERIFIED |
+| 2 | World + player + camera + interaction foundation | `fb09cb656baf4ed2ca3d0ffb17cd95bccf5e0795` | `npm test` PASS; `npm run build` PASS; dependency audit PASS (CI run 37516254203) | NOT VERIFIED — latest iPhone correction still needs fresh device build | 2 attempted / 1 successful | NOT VERIFIED |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
@@ -786,7 +786,7 @@ Examples:
 - **Correction PR:** #9 — fix/wave2-interactions-movement-20261007.
 - **Correction head:** f0e643723c1f35aeab9b80817094a308d699762e.
 - **Changes:** separated trigger positions from interaction targets; added three seat anchors per sofa; added all six dining-chair anchors; moved the bed trigger outside the bed collision; separated Eat and Drink trigger zones from Sit; added visible food/drink props; improved seated pose and seat-facing rotation; increased normal speed to 3.8 units/sec and Shift speed to 5.2; stopped touch movement from continuously rotating the avatar.
-- **Automated verification:** PR CI status pending at the time of this roadmap update.
+- **Automated verification:** GitHub Actions run `37516254203` on the implementation head `f0e643723c1f35aeab9b80817094a308d699762e` completed PASS for dependency audit, `npm test`, and `npm run build`. The final merge commit also contains the roadmap-only update.
 - **Browser result:** **NOT VERIFIED** for the correction. These screenshots are the current device evidence that drove the fix.
 - **Deployment:** no new Vercel deployment attempted; deployment quota remains exhausted.
 - **Current gate:** Wave 2 remains **NOT VERIFIED**. Do not start Wave 3 until the corrected build passes the full furniture/joystick regression matrix.
