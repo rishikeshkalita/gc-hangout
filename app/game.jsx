@@ -702,7 +702,7 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
 
 
     <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
-    <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
+    <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
     <div className="chat">
       <div className="chatHead"><b>💬 GC CHAT</b><span>{Object.keys(players).length} online</span></div>
