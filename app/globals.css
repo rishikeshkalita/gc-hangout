@@ -20,3 +20,6 @@ button,input{font:inherit}
   .card{padding:25px}.card h1{font-size:36px}.avatars{gap:6px}.avatars button{padding:8px 3px}
 }
 @media(min-width:701px){.joystick,.fight,.mobileAction{display:none}}
+
+.interactionPrompt{position:absolute;left:50%;bottom:88px;transform:translateX(-50%);z-index:9;border:1px solid #ffffff28;background:#111722e8;color:#fff;padding:10px 15px;border-radius:14px;box-shadow:0 14px 40px #0009;backdrop-filter:blur(14px);font-weight:800;font-size:13px;cursor:pointer}.interactionPrompt span{display:inline-block;margin-right:7px;color:#b7a8ff}
+@media(max-width:700px){.interactionPrompt{bottom:205px;padding:9px 13px;border-radius:13px;font-size:12px;max-width:70vw;white-space:nowrap}}
