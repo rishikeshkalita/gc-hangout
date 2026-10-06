@@ -411,36 +411,69 @@ function DigitalSignage() {
 function LocalHuman({player,me,liveRef}) {
   const ref=useRef();
   const phase=useRef(Math.random()*Math.PI*2);
-  const seated=player.action==="sit";
-  const sleeping=player.action==="sleep";
-  const live=liveRef?.current||player;
   useFrame((_,dt)=>{
     if(!ref.current)return;
+    const live=liveRef?.current||player;
+    const seated=player.action==="sit";
+    const sleeping=player.action==="sleep";
+    const emote=player.emote||null;
     const tx=live.x??player.x??0,tz=live.z??player.z??0,rot=live.rot??player.rot??0;
+    const targetY=seated?(player.seatY??-.34):(sleeping?.02:0);
     const a=1-Math.exp(-18*dt);
     ref.current.position.x+=(tx-ref.current.position.x)*a;
     ref.current.position.z+=(tz-ref.current.position.z)*a;
+    ref.current.position.y+=(targetY-ref.current.position.y)*a;
     ref.current.rotation.y+=Math.atan2(Math.sin(rot-ref.current.rotation.y),Math.cos(rot-ref.current.rotation.y))*a;
-    const moving=!seated&&!sleeping&&(live.speed??player.speed??0)>.08;
+
     const t=performance.now()/1000+phase.current;
-    const swing=moving?Math.sin(t*8)*.55:0;
-    const armSwing=moving?Math.sin(t*8)*.32:0;
-    const pose=seated?1:0;
-    const sleepPose=sleeping?1:0;
+    const moving=!seated&&!sleeping&&!emote&&(live.speed??player.speed??0)>.08;
+    let leftLeg=0,rightLeg=0,leftArm=0,rightArm=0,torso=0;
+    if(sleeping){
+      leftLeg=rightLeg=-.18;
+      torso=-1.12;
+      leftArm=rightArm=-.22;
+    }else if(seated){
+      const chair=player.poseType==="chair";
+      leftLeg=rightLeg=chair?-1.38:-1.58;
+      torso=chair?.015:.035;
+      leftArm=rightArm=-.07;
+    }else if(emote){
+      if(emote==="wave"){
+        rightArm=-1.0+Math.sin(t*9)*.35;
+      }else if(emote==="clap"){
+        leftArm=-1.0+Math.sin(t*8)*.18;
+        rightArm=-1.0-Math.sin(t*8)*.18;
+      }else if(emote==="laugh"){
+        torso=Math.sin(t*7)*.08;
+        leftArm=-1.05;
+        rightArm=-1.05;
+      }else{
+        torso=Math.sin(t*4)*.12;
+        leftArm=-.45+Math.sin(t*5)*.28;
+        rightArm=-.45-Math.sin(t*5)*.28;
+      }
+    }else if(moving){
+      const swing=Math.sin(t*8)*.55;
+      leftLeg=swing;
+      rightLeg=-swing;
+      leftArm=-swing*.58;
+      rightArm=swing*.58;
+    }
+
     if(ref.current.userData){
-      ref.current.userData.leftLeg.rotation.x=swing*(1-pose);
-      ref.current.userData.rightLeg.rotation.x=-swing*(1-pose);
-      ref.current.userData.leftArm.rotation.x=-armSwing*(1-pose);
-      ref.current.userData.rightArm.rotation.x=armSwing*(1-pose);
-      ref.current.userData.torso.rotation.x=seated?.08:sleepPose?-1.15:0;
-      ref.current.userData.leftLeg.rotation.x=seated?-1.25+swing*.08:sleepPose?-.2:swing;
-      ref.current.userData.rightLeg.rotation.x=seated?-1.25-swing*.08:sleepPose?-.2:-swing;
+      const smooth=1-Math.exp(-16*dt);
+      const lerpRotation=(node,target)=>{if(node)node.rotation.x+=(target-node.rotation.x)*smooth};
+      lerpRotation(ref.current.userData.leftLeg,leftLeg);
+      lerpRotation(ref.current.userData.rightLeg,rightLeg);
+      lerpRotation(ref.current.userData.leftArm,leftArm);
+      lerpRotation(ref.current.userData.rightArm,rightArm);
+      lerpRotation(ref.current.userData.torso,torso);
     }
   });
   const skin=["#8d5524","#c68642","#e0ac69","#f1c27d","#ffdbac"][Number(player.avatarIndex)||0];
   const shirt=["#5146a8","#d45a7a","#2d8a76","#c98a40","#4d6b9a"][Number(player.avatarIndex)||0];
   return <group ref={ref} position={[player.x||0,0,player.z||0]} scale={[.98,.98,.98]}>
-    <group ref={g=>{if(!g)return;ref.current.userData.torso=g}}>
+    <group ref={g=>{if(g&&ref.current)ref.current.userData.torso=g}}>
       <RoundedBox castShadow args={[.52,.72,.34]} radius={.08} smoothness={5} position={[0,1.05,0]}><meshStandardMaterial color={shirt} roughness={.82}/></RoundedBox>
     </group>
     <mesh castShadow position={[0,1.68,0]}><sphereGeometry args={[.29,24,18]}/><meshStandardMaterial color={skin} roughness={.9}/></mesh>
@@ -449,11 +482,13 @@ function LocalHuman({player,me,liveRef}) {
     <mesh castShadow position={[.16,1.67,.25]}><sphereGeometry args={[.026,10,8]}/><meshStandardMaterial color="#fff"/></mesh>
     <mesh castShadow position={[-.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
     <mesh castShadow position={[.16,1.67,.275]}><sphereGeometry args={[.011,8,8]}/><meshStandardMaterial color="#222"/></mesh>
-    <group ref={g=>{if(g)ref.current.userData.leftArm=g}} position={[-.38,1.15,0]}><mesh castShadow rotation={[0,0,.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
-    <group ref={g=>{if(g)ref.current.userData.rightArm=g}} position={[.38,1.15,0]}><mesh castShadow rotation={[0,0,-.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
-    <group ref={g=>{if(g)ref.current.userData.leftLeg=g}} position={[-.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
-    <group ref={g=>{if(g)ref.current.userData.rightLeg=g}} position={[.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
+    <group ref={g=>{if(g&&ref.current)ref.current.userData.leftArm=g}} position={[-.38,1.15,0]}><mesh castShadow rotation={[0,0,.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
+    <group ref={g=>{if(g&&ref.current)ref.current.userData.rightArm=g}} position={[.38,1.15,0]}><mesh castShadow rotation={[0,0,-.1]}><capsuleGeometry args={[.075,.42,8,12]}/><meshStandardMaterial color={shirt}/></mesh><mesh castShadow position={[0,-.33,0]}><sphereGeometry args={[.085,12,8]}/><meshStandardMaterial color={skin}/></mesh></group>
+    <group ref={g=>{if(g&&ref.current)ref.current.userData.leftLeg=g}} position={[-.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
+    <group ref={g=>{if(g&&ref.current)ref.current.userData.rightLeg=g}} position={[.14,.68,0]}><mesh castShadow><capsuleGeometry args={[.09,.48,8,12]}/><meshStandardMaterial color="#26344c"/></mesh><mesh castShadow position={[0,-.43,.06]}><capsuleGeometry args={[.085,.22,8,12]}/><meshStandardMaterial color="#15171c"/></mesh></group>
     <Text position={[0,2.08,0]} fontSize={.14} color={me?"#bbaeff":"#fff"} anchorX="center" outlineWidth={.01}>{player.name}{me?" • you":""}</Text>
+    {player.attacking&&<Text position={[0,2.32,0]} fontSize={.16} color="#ffd36b" anchorX="center">POW!</Text>}
+    {player.hit&&<Text position={[0,2.32,0]} fontSize={.16} color="#ff8797" anchorX="center">OUCH!</Text>}
   </group>;
 }
 function Football({players,localId,ballState,onBallState}) {
