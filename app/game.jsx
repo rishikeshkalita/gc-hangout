@@ -1138,7 +1138,16 @@ export default function Home(){
     subscribe();
     cleanup=()=>{
       const active=localRef.current?.interactionId;
+      const heldSnack=active&&snackStatesRef.current[active]?.heldBy===id&&!snackStatesRef.current[active]?.consumed;
       if(active)supabase.rpc("gc_release_interaction",{p_object_id:active,p_holder_id:id}).catch(()=>{});
+      // If a player disconnects while holding food, return it to the table instead
+      // of leaving every other client with a permanently floating/locked item.
+      if(heldSnack){
+        const restored={id:active,heldBy:null,consumed:false};
+        snackStatesRef.current={...snackStatesRef.current,[active]:restored};
+        channel.send({type:"broadcast",event:"snack_state",payload:restored}).catch(()=>{});
+        channel.send({type:"broadcast",event:"interaction_lock",payload:{objectId:active,userId:id,locked:false}}).catch(()=>{});
+      }
       if(reconnectTimer)clearTimeout(reconnectTimer);
       voiceRef.current?.destroy();voiceRef.current=null;
       channel.unsubscribe();channelRef.current=null;
