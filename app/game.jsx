@@ -515,7 +515,7 @@ export default function Game() {
       </Canvas>
       <div className="hud">
         <div className="hud-title">GC HANGOUT</div>
-        <div className="hud-subtitle">Shared home foundation</div>
+        <div className="hud-subtitle">Shared home</div>
         <div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div>
       {nearby && !interaction && (
         <button className="interaction-hint" onClick={beginInteraction}>
@@ -527,11 +527,14 @@ export default function Game() {
           <strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span>
         </button>
       )}
+
+      </div>
       <div
         className="touch-controls"
         aria-label="Touch movement controls"
         onPointerDown={(event) => {
           event.preventDefault();
+          event.stopPropagation();
           event.currentTarget.setPointerCapture?.(event.pointerId);
           const rect = event.currentTarget.getBoundingClientRect();
           const max = 38;
@@ -542,6 +545,8 @@ export default function Game() {
           setJoystick({ x: dx / max * scale, y: -dy / max * scale, active: true });
         }}
         onPointerMove={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
           if (!joystick.active) return;
           const rect = event.currentTarget.getBoundingClientRect();
           const max = 38;
@@ -551,11 +556,14 @@ export default function Game() {
           const scale = Math.min(1, max / length);
           setJoystick({ x: dx / max * scale, y: -dy / max * scale, active: true });
         }}
-        onPointerUp={() => setJoystick({ x: 0, y: 0, active: false })}
+        onPointerUp={(event) => {
+          event.preventDefault();
+          setJoystick({ x: 0, y: 0, active: false });
+        }}
         onPointerCancel={() => setJoystick({ x: 0, y: 0, active: false })}
+        onLostPointerCapture={() => setJoystick({ x: 0, y: 0, active: false })}
       >
         <div className="joystick"><span style={{ transform: `translate(${joystick.x * 30}px, ${-joystick.y * 30}px)` }} /></div>
-      </div>
       </div>
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
