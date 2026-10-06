@@ -483,21 +483,28 @@ function Furniture() {
 function Room({ player, onMove, onNearby, interaction, joystickRef }) {
   return (
     <>
-      <ambientLight intensity={1.35} />
-      <hemisphereLight args={["#f5ead9", "#1d2531", 1.0]} />
-      <directionalLight position={[5, 10, 4]} intensity={0.95} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-      <color attach="background" args={["#0e1118"]} />
-      <fog attach="fog" args={["#0e1118", 24, 46]} />
+      <ambientLight intensity={1.55} />
+      <hemisphereLight args={["#fff2dc", "#303847", 1.1]} />
+      <directionalLight position={[5, 10, 4]} intensity={0.72} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <pointLight position={[0, 4.5, 0]} intensity={1.8} distance={18} color="#fff1d5" />
+      <pointLight position={[-9, 3.6, -3]} intensity={1.0} distance={10} color="#e2e8ff" />
+      <pointLight position={[9, 3.6, 4]} intensity={1.0} distance={10} color="#ffe5c2" />
+      <color attach="background" args={["#141821"]} />
+      <fog attach="fog" args={["#141821", 24, 46]} />
 
       <mesh receiveShadow position={[0, -0.12, 0]}>
         <boxGeometry args={[30, 0.24, 20]} />
         <meshStandardMaterial color="#343b46" roughness={0.92} />
       </mesh>
 
-      <mesh position={[0, 2.5, -10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#1d222b" /></mesh>
-      <mesh position={[0, 2.5, 10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#1d222b" /></mesh>
-      <mesh position={[-15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#1d222b" /></mesh>
-      <mesh position={[15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#1d222b" /></mesh>
+      <mesh position={[0, 2.5, -10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
+      <mesh position={[0, 2.5, 10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
+      <mesh position={[-15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
+      <mesh position={[15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
+      <mesh position={[0, 4.85, 0]} rotation={[0, 0, 0]}>
+        <boxGeometry args={[28.5, 0.12, 18.5]} />
+        <meshStandardMaterial color="#1d222c" roughness={1} />
+      </mesh>
 
       <Furniture />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow>
