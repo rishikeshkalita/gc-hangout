@@ -116,3 +116,6 @@ input,textarea{ -webkit-user-select:text; user-select:text }
 .controls button.voiceState{font-size:11px;min-width:110px;width:auto;padding:0 10px;line-height:1.1;font-weight:700;letter-spacing:.01em}
 .controls button.voiceState.muted{background:#4a2630;color:#fff}
 @media (max-width:720px){.controls button.voiceState{font-size:10px;min-width:104px;width:104px;padding:0 7px}}
+
+.controls button.voiceState.error{background:#4b2229;color:#ffd8df}
+.controls button.voiceState.disconnected{background:#3b3130;color:#ffe1c2}
