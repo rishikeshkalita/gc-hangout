@@ -1007,7 +1007,7 @@ export default function Home(){
       const {error:positionError}=await supabase.rpc("gc_update_combat_position",{p_x:0,p_z:0,p_rot:0});
       if(positionError)console.warn("Initial combat position sync unavailable",positionError);
       setId(playerId);
-      setPlayers(prev=>upsertPlayer(prev,p));
+      setPlayers({[playerId]:p});
       setJoined(true);
     }catch(e){
       console.error("Unable to join GC Hangout",e);
