@@ -709,8 +709,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     const dx=e.clientX-s.x,dy=e.clientY-s.y;
     s.x=e.clientX;s.y=e.clientY;
     viewRef.current.lastManualCamera=performance.now();
-    viewRef.current.targetYaw-=dx*.011;
-    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.009,-.48,1.05);
+    viewRef.current.targetYaw-=dx*.015;
+    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.012,-.60,1.12);
   };
   const endCamera=e=>{
     if(!cameraDrag.current)return;
@@ -777,7 +777,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
-    <div className="cameraGesture" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} onPointerLeave={endCamera} aria-label="Swipe to rotate camera" />
+    <div className="cameraGesture" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
     <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
