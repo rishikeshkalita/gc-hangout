@@ -735,7 +735,7 @@ Examples:
 | Wave | Scope | Commit | Tests | Browser | Deployment | Status |
 |---|---|---|---|---|---:|---|
 | 1 | Audit + clean foundation | `bb7acb62816a8d0339ebea73395487c567de3a1c` | `npm test` PASS; `npm run build` PASS | NOT AVAILABLE | 0 | NOT VERIFIED |
-| 2 | World + player + camera + interaction foundation | `c129582aa289a420b263d45af0c87e959a5f2ec5` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT VERIFIED — fresh device build still required | 2 attempted / 1 successful | NOT VERIFIED |
+| 2 | World + player + camera + interaction foundation | `b2f15d2aeda89c26aafdac7cbd6921f216c13f71` | `npm test` PASS; `npm run build` PASS; dependency audit PASS | NOT VERIFIED — fresh device build still required | 2 attempted / 1 successful | NOT VERIFIED |
 | 3 | Core interactions | TBD | TBD | TBD | 0 | NOT STARTED |
 | 4 | Music + chat + voice + emotes | TBD | TBD | TBD | 0 | NOT STARTED |
 | 5 | Multiplayer + shared state | TBD | TBD | TBD | 0 | NOT STARTED |
@@ -754,8 +754,8 @@ Examples:
 ### Wave 2 completion record
 
 - **Implementation commit:** 16e2cac9f7b598286bc6a716a7575755a7199568.
-- **What changed:** corrected the mobile camera framing, moved and hardened the touch joystick, fixed the dining table coordinate bug, removed per-frame proximity and movement React churn, moved the player transform to refs with throttled state synchronization, improved the human avatar/name presentation and local poses, improved the TV surface, softened lighting, and consolidated mobile-safe CSS.
-- **Tests:** GitHub Actions run 37506902593: npm test PASS; npm run build PASS; dependency audit PASS.
+- **What changed:** corrected the mobile camera framing, moved and hardened the touch joystick, made joystick movement camera-relative and ref-driven, fixed the dining table coordinate bug, removed per-frame proximity and movement React churn, moved the player transform to refs with throttled state synchronization, made the avatar name a camera-facing billboard, moved the interaction prompt outside the HUD stacking context, improved the TV surface, brightened the room walls/lighting, and consolidated mobile-safe CSS.
+- **Tests:** Previous Wave 2 CI runs PASS; final post-screenshot hardening CI is pending.
 - **Browser result:** NOT VERIFIED. The supplied iPhone Safari screenshot remains the evidence that exposed the defects; no fresh device build has been exercised after these source fixes.
 - **Deployment count:** 1 successful production deployment; 1 additional production deployment attempt was blocked by Vercel's daily deployment quota. No further deployment was attempted for local debugging.
 - **Known failures:** none remain confirmed by source inspection or CI. Real-device behavior of the new camera/joystick/layout/visual fixes is still unverified.
