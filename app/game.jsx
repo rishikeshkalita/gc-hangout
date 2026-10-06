@@ -44,16 +44,6 @@ const PLANT_ASSETS={
 
 
 
-const FURNITURE={
- sofa:"https://cdn.3dassets.dev/assets/26141/v1/model.glb",
- armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
- diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
- coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
- diningTable:"https://cdn.3dassets.dev/assets/38791/v1/model.glb",
- bed:"https://cdn.3dassets.dev/assets/38770/v1/model.glb",
- lamp:"https://cdn.3dassets.dev/assets/38797/v1/model.glb"
-};
-
 const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
@@ -109,13 +99,6 @@ const INTERACTABLES=[ ...SEATS, ...BEDS,
  {id:"tv",label:"Watch TV",type:"tv",position:[0,0,-7.25],rotation:0},
  {id:"music-system",label:"Use music system",type:"music",position:[4.7,0,-7.55],rotation:0}
 ];
-function RealFurniture({url,position=[0,0,0],rotation=0,scale=1}){
- const gltf=useGLTF(url);
- const scene=useMemo(()=>{const s=SkeletonUtils.clone(gltf.scene);s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});runtimeDiag("asset-loaded",{kind:"furniture",url});return s},[gltf.scene,url]);
- return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
-}
-
-
 const OBSTACLES=[
   {x:-10,z:-7.28,rx:1.14,rz:.62,vault:false,name:"livingSofaNorth"},
   {x:-10,z:-3.62,rx:1.14,rz:.62,vault:false,name:"livingSofaSouth"},
@@ -179,15 +162,43 @@ class ErrorBoundary extends React.Component {
   render(){return this.state.failed?this.props.fallback:this.props.children}
 }
 
-function SafeFurniture(props){
-  const {url}=props;
-  return <AssetBoundary url={url} label={url} fallback={<AssetFailureMarker url={url} label="Furniture"/>}><RealFurniture {...props}/></AssetBoundary>;
+function Sofa({position=[0,0,0],rotation=0,width=3.4}) {
+  return <group position={position} rotation={[0,rotation,0]}>
+    <RoundedBox castShadow args={[width,.48,1.0]} radius={.16} smoothness={6} position={[0,.48,0]}><meshStandardMaterial color="#3e4859" roughness={.82}/></RoundedBox>
+    <RoundedBox castShadow args={[width,1.05,.28]} radius={.12} smoothness={5} position={[0,1.02,-.36]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
+    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[-width/2+.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
+    <RoundedBox castShadow args={[.28,.92,.92]} radius={.1} smoothness={5} position={[width/2-.18,.88,0]}><meshStandardMaterial color="#465366" roughness={.85}/></RoundedBox>
+  </group>;
 }
-function Sofa({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.0}/>} 
-function Chair({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
-function CoffeeTable({x,z}){return <SafeFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
-function DiningTable(){return <group position={[10,0,5.8]}><SafeFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><SafeFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
-function Bed({x,z,rotation=0}){return <SafeFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
+function Chair({position=[0,0,0],rotation=0}) {
+  return <group position={position} rotation={[0,rotation,0]}>
+    <RoundedBox castShadow args={[.82,.38,.82]} radius={.12} smoothness={5} position={[0,.48,0]}><meshStandardMaterial color="#4b5666" roughness={.84}/></RoundedBox>
+    <RoundedBox castShadow args={[.82,.85,.22]} radius={.1} smoothness={5} position={[0,.96,-.3]}><meshStandardMaterial color="#566274" roughness={.84}/></RoundedBox>
+    {[[-.28,.23,-.28],[.28,.23,-.28],[-.28,.23,.28],[.28,.23,.28]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.045,.045,.45,10]}/><meshStandardMaterial color="#262b34" metalness={.55}/></mesh>)}
+  </group>;
+}
+function CoffeeTable({x,z}) {
+  return <group position={[x,0,z]}>
+    <RoundedBox castShadow args={[2.0,.16,1.0]} radius={.08} smoothness={5} position={[0,.52,0]}><meshStandardMaterial color="#8a664e" roughness={.58}/></RoundedBox>
+    {[[-.75,.25,-.32],[.75,.25,-.32],[-.75,.25,.32],[.75,.25,.32]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.055,.07,.5,12]}/><meshStandardMaterial color="#302a28" metalness={.4}/></mesh>)}
+  </group>;
+}
+function DiningTable() {
+  return <group position={[10,0,5.8]}>
+    <RoundedBox castShadow args={[4.4,.22,2.2]} radius={.12} smoothness={5} position={[0,.82,0]}><meshStandardMaterial color="#705443" roughness={.6}/></RoundedBox>
+    {[[-1.55,.4,-.75],[1.55,.4,-.75],[-1.55,.4,.75],[1.55,.4,.75],[0,.4,-.75],[0,.4,.75]].map((p,i)=><mesh key={i} castShadow position={p}><cylinderGeometry args={[.08,.1,.75,14]}/><meshStandardMaterial color="#2b2a2e" metalness={.35}/></mesh>)}
+    {[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><Chair key={i} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI}/>)}
+    <Text position={[0,1.25,0]} rotation={[-Math.PI/2,0,0]} fontSize={.2} color="#d7c1a6">DINING</Text>
+  </group>;
+}
+function Bed({x,z,rotation=0}) {
+  return <group position={[x,0,z]} rotation={[0,rotation,0]}>
+    <RoundedBox castShadow args={[2.6,.35,4.2]} radius={.1} smoothness={5} position={[0,.42,0]}><meshStandardMaterial color="#313847" roughness={.8}/></RoundedBox>
+    <RoundedBox castShadow args={[2.45,.28,2.6]} radius={.1} smoothness={5} position={[0,.72,.45]}><meshStandardMaterial color="#d6d1c8" roughness={.95}/></RoundedBox>
+    <RoundedBox castShadow args={[2.3,.42,.55]} radius={.12} smoothness={5} position={[0,.86,-1.55]}><meshStandardMaterial color="#ebe7df" roughness={.9}/></RoundedBox>
+    <RoundedBox castShadow args={[2.8,1.5,.16]} radius={.05} smoothness={4} position={[0,1.0,-2.0]}><meshStandardMaterial color="#3a4250" roughness={.7}/></RoundedBox>
+  </group>;
+}
 
 function SnackUnsafe({item,state,players}){
   const ref=useRef();
@@ -211,7 +222,7 @@ function SnackUnsafe({item,state,players}){
   return <group ref={ref} position={item.position} scale={scale}><primitive object={scene}/></group>;
 }
 
-function Snack({item,state,players}){const url=FOOD_ASSETS[item.kind];return <AssetBoundary url={url} label={item.name} fallback={<AssetFailureMarker url={url} label={item.name}/>}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
+function Snack({item,state,players}){const url=FOOD_ASSETS[item.kind];return <AssetBoundary url={url} label={item.name} fallback={null}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
 function Snacks({players,snackStates}){
   return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
 }
@@ -234,11 +245,26 @@ function Kitchen() {
   </group>
 }
 
-function FloorLamp({x,z}){return <SafeFurniture url={FURNITURE.lamp} position={[x,0,z]} scale={1}/>}
+function FloorLamp({x,z}) {
+  return <group position={[x,0,z]}>
+    <mesh castShadow position={[0,1.65,0]}><cylinderGeometry args={[.035,.035,3.3,12]}/><meshStandardMaterial color="#252932" metalness={.65} roughness={.32}/></mesh>
+    <mesh castShadow position={[0,3.25,0]}><coneGeometry args={[.42,.5,24]}/><meshStandardMaterial color="#e5d7bd" emissive="#fff1cf" emissiveIntensity={.22}/></mesh>
+    <pointLight position={[0,3,0]} intensity={1.2} distance={5.5} color="#ffe7be"/>
+  </group>;
+}
 
+function OptionalGLTF({url,position=[0,0,0],rotation=0,scale=1}) {
+  const gltf=useGLTF(url);
+  const scene=useMemo(()=>{
+    const s=SkeletonUtils.clone(gltf.scene);
+    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    return s;
+  },[gltf.scene]);
+  return <primitive object={scene} position={position} rotation={[0,rotation,0]} scale={scale}/>;
+}
 function Plant({x,z,s=1,variant="palm",rotation=0}) {
   const url=PLANT_ASSETS[variant]||PLANT_ASSETS.palm;
-  return <SafeFurniture url={url} position={[x,0,z]} rotation={rotation} scale={s}/>;
+  return <AssetBoundary url={url} label={variant} fallback={null}><OptionalGLTF url={url} position={[x,0,z]} rotation={rotation} scale={s}/></AssetBoundary>;
 }
 
 function Rug({x,z,w,d}) {
@@ -430,20 +456,6 @@ function LocalHuman({player,me,liveRef}) {
     <Text position={[0,2.08,0]} fontSize={.14} color={me?"#bbaeff":"#fff"} anchorX="center" outlineWidth={.01}>{player.name}{me?" • you":""}</Text>
   </group>;
 }
-function FallbackHuman({player,me}) {
-  const ref=useRef();
-  useFrame((_,dt)=>{
-    if(!ref.current)return;
-    ref.current.position.x+=(player.x-ref.current.position.x)*Math.min(1,10*dt);
-    ref.current.position.z+=(player.z-ref.current.position.z)*Math.min(1,10*dt);
-  });
-  return <group ref={ref} position={[player.x||0,0,player.z||0]}>
-    <mesh castShadow position={[0,.72,0]}><capsuleGeometry args={[.24,.55,8,16]}/><meshStandardMaterial color="#5967b8"/></mesh>
-    <mesh castShadow position={[0,1.34,0]}><sphereGeometry args={[.28,20,14]}/><meshStandardMaterial color="#c78e69"/></mesh>
-    <Text position={[0,1.8,0]} fontSize={.13} color={me?"#bbaeff":"#fff"} anchorX="center">{player.name}{me?" • you":""}</Text>
-  </group>
-}
-
 function Football({players,localId,ballState,onBallState}) {
   const body=useRef(null),lastHit=useRef({}),lastBroadcast=useRef(0);
   const gltf=useGLTF(FOOTBALL_URL);
