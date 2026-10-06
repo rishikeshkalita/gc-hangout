@@ -531,7 +531,15 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
+  const lastPropStateRef=useRef({...local});
   const interactionRef=useRef(null);
+  useEffect(()=>{
+    const previous=lastPropStateRef.current;
+    const distance=Math.hypot((local?.x??0)-(previous?.x??0),(local?.z??0)-(previous?.z??0));
+    const stateChanged=local?.action!==previous?.action||local?.interactionId!==previous?.interactionId;
+    if(distance>1.5||stateChanged)posRef.current={...local};
+    lastPropStateRef.current={...local};
+  },[local?.x,local?.z,local?.action,local?.interactionId,local?.rot,local?.seatY,local?.poseType]);
   useEffect(()=>{
     const audio=audioRef.current;
     if(!audio)return;
