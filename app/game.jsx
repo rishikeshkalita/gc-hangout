@@ -4,13 +4,11 @@ import { Physics, RigidBody, CuboidCollider, BallCollider } from "@react-three/r
 import { Ecctrl } from "ecctrl";
 import React from "react";
 import {
-  PerspectiveCamera,
-  Text,
+   Text,
   RoundedBox,
   Environment,
   ContactShadows,
   useGLTF,
-  useAnimations,
 } from "@react-three/drei";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
