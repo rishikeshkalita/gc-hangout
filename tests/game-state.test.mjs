@@ -44,7 +44,6 @@ test("room position clamps to the playable boundary", () => {
   assert.deepEqual(clampRoomPosition({ x: 2, z: 3 }), { x: 2, z: 3 });
 });
 
-
 test("interaction anchors accept only supported shared interaction types", async () => {
   const { createInteractionAnchor, INTERACTION_TYPES } = await import("../lib/game-state.mjs");
   assert.ok(INTERACTION_TYPES.includes("SIT"));
@@ -66,16 +65,16 @@ test("nearest interaction anchor is deterministic", async () => {
   assert.equal(anchor.id, "near");
 });
 
-
-test("interaction lifecycle is explicit and deterministic", () => {
+test("interaction lifecycle locks movement until explicit release", () => {
   const anchor = createInteractionAnchor({ id: "seat", type: "SIT", x: 1, z: 2, rot: 0 });
   const reserved = createInteractionState(anchor, "player-1");
   assert.equal(reserved.phase, "reserve");
-  assert.equal(advanceInteraction(reserved, "align").phase, "align");
-  assert.equal(advanceInteraction(reserved, "sync").status, "active");
-  assert.equal(advanceInteraction(reserved, "release").status, "released");
+  assert.equal(reserved.movementLocked, true);
+  assert.equal(advanceInteraction(reserved, "align").movementLocked, true);
+  const released = advanceInteraction(reserved, "release");
+  assert.equal(released.status, "released");
+  assert.equal(released.movementLocked, false);
 });
-
 
 test("interaction anchors include DRINK and generic INTERACT types", () => {
   assert.ok(INTERACTION_TYPES.includes("DRINK"));
