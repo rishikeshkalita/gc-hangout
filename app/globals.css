@@ -33,3 +33,4 @@ button,input{font:inherit}
   .chatForm input{height:38px}
   .voiceError{right:10px;bottom:210px}
 }
+.musicSelect{max-width:190px;background:#141923;color:#eef0f6;border:1px solid #2a3040;border-radius:10px;padding:7px 9px;font-size:11px;outline:none}.musicSelect:focus{border-color:#6d62c8}@media(max-width:700px){.musicSelect{max-width:150px;font-size:10px}}
