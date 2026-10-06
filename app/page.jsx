@@ -496,7 +496,8 @@ function EcctrlLocalController({posRef,moveRef,onMove,viewRef,interactionRef,onI
         posRef.current=next;interactionRef.current=null;onMove(next);onInteractionArrive?.(target);
       }
     }else if(!locked){
-      c.setMovement({joystick:{x:m.x,y:-m.z},run:false,jump:false});
+      c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:m.x,y:-m.z},run:false,jump:false});
+      if(Math.abs(m.x)<0.001&&Math.abs(m.z)<0.001){const lv=c.body.linvel();c.body.setLinvel({x:0,y:lv.y,z:0},true);}
       const q=c.currQuat,pos=c.currPos;
       const yaw=Math.atan2(2*(q.w*q.y+q.x*q.z),1-2*(q.y*q.y+q.z*q.z));
       const speed=c.moveSpeed||0;
@@ -690,24 +691,39 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     el.style.setProperty("--jx",px+"px");el.style.setProperty("--jz",pz+"px");
   };
   const joystickPointer=e=>{e.preventDefault();joystickAt(e.currentTarget,e.clientX,e.clientY)};
-  const stop=e=>{e.preventDefault();setMoveImmediate({x:0,z:0});e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px")};
+  const stop=e=>{
+    e?.preventDefault?.();
+    setMoveImmediate({x:0,z:0});
+    if(e?.currentTarget){e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px");}
+  };
   const beginCamera=e=>{
     if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
-    cameraDrag.current={x:e.clientX,y:e.clientY};
+    e.preventDefault();
+    cameraDrag.current={x:e.clientX,y:e.clientY,id:e.pointerId};
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const moveCamera=e=>{
     const s=cameraDrag.current;
-    if(!s)return;
+    if(!s||e.pointerId!==s.id)return;
+    e.preventDefault();
     const dx=e.clientX-s.x,dy=e.clientY-s.y;
     s.x=e.clientX;s.y=e.clientY;
-    // PUBG-style direct swipe: horizontal orbit + vertical look, with smoothing in PlayerController.
     viewRef.current.lastManualCamera=performance.now();
     viewRef.current.targetYaw-=dx*.011;
-    // Natural mobile-game convention: drag up -> look up, drag down -> look down.
     viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.009,-.48,1.05);
   };
-  const endCamera=()=>{cameraDrag.current=null};
+  const endCamera=e=>{
+    if(!cameraDrag.current)return;
+    if(e?.pointerId!=null&&cameraDrag.current.id!==e.pointerId)return;
+    cameraDrag.current=null;
+  };
+  useEffect(()=>{
+    const release=()=>setMoveImmediate({x:0,z:0});
+    window.addEventListener("pointerup",release);
+    window.addEventListener("pointercancel",release);
+    window.addEventListener("blur",release);
+    return()=>{window.removeEventListener("pointerup",release);window.removeEventListener("pointercancel",release);window.removeEventListener("blur",release)};
+  },[]);
 
   return <div className="room">
     <Canvas
@@ -761,8 +777,8 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
-    <div className="cameraGesture" onPointerDown={e=>{e.preventDefault();beginCamera(e)}} onPointerMove={e=>{e.preventDefault();moveCamera(e)}} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
-    <div className="joystick" onPointerDown={e=>{e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
+    <div className="cameraGesture" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} onPointerLeave={endCamera} aria-label="Swipe to rotate camera" />
+    <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
   </div>
