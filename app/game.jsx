@@ -14,20 +14,21 @@ const AVATARS = [
 ];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
 const INTERACTION_ANCHORS = Object.freeze([
-  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -12.0, z: -6.2, rot: Math.PI / 2, radius: 1.35 },
-  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -7.6, z: -6.2, rot: -Math.PI / 2, radius: 1.35 },
-  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -12.0, z: -3.5, rot: Math.PI / 2, radius: 1.35 },
-  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -7.6, z: -3.5, rot: -Math.PI / 2, radius: 1.35 },
-  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, radius: 1.15 },
-  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, radius: 1.15 },
-  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, radius: 1.15 },
-  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, radius: 1.15 },
-  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, radius: 1.65 },
-  { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, radius: 2.2 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 8.0, z: 5.8, rot: Math.PI, radius: 2.6 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 11.0, z: 5.8, rot: Math.PI, radius: 2.0 },
-  { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, radius: 1.35 },
+  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -12.0, z: -6.2, rot: Math.PI / 2, targetX: -12.0, targetZ: -6.2, exitX: -12.0, exitZ: -4.65, radius: 1.35 },
+  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -7.6, z: -6.2, rot: -Math.PI / 2, targetX: -7.6, targetZ: -6.2, exitX: -7.6, exitZ: -4.65, radius: 1.35 },
+  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -12.0, z: -3.5, rot: Math.PI / 2, targetX: -12.0, targetZ: -3.5, exitX: -12.0, exitZ: -1.95, radius: 1.35 },
+  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -7.6, z: -3.5, rot: -Math.PI / 2, targetX: -7.6, targetZ: -3.5, exitX: -7.6, exitZ: -1.95, radius: 1.35 },
+  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, targetX: 8.2, targetZ: 3.45, targetRot: 0, exitX: 8.2, exitZ: 2.95, radius: 1.15 },
+  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, targetX: 11.2, targetZ: 3.45, targetRot: 0, exitX: 11.2, exitZ: 2.95, radius: 1.15 },
+  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, targetX: 8.2, targetZ: 8.15, targetRot: Math.PI, exitX: 8.2, exitZ: 9.0, radius: 1.15 },
+  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, targetX: 11.2, targetZ: 8.15, targetRot: Math.PI, exitX: 11.2, exitZ: 9.0, radius: 1.15 },
+  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, targetX: 8.7, targetZ: -6.0, exitX: 5.8, exitZ: -6.0, radius: 1.65 },
+  { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.2 },
+  { id: "food-table", type: "EAT", label: "Eat", x: 8.0, z: 5.8, rot: Math.PI, targetX: 8.0, targetZ: 3.45, targetRot: Math.PI, exitX: 8.0, exitZ: 2.75, radius: 2.6 },
+  { id: "drink-table", type: "DRINK", label: "Drink", x: 11.0, z: 5.8, rot: Math.PI, targetX: 11.0, targetZ: 3.45, targetRot: Math.PI, exitX: 11.0, exitZ: 2.75, radius: 2.0 },
+  { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
 function findNearestAnchor(x, z) {
@@ -103,75 +104,27 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
 
   return (
     <group ref={group}>
-      <mesh position={[0, 1.62, 0]} castShadow>
-        <sphereGeometry args={[0.31, 20, 16]} />
-        <meshStandardMaterial color={skin} roughness={0.72} />
-      </mesh>
-      <mesh position={[0, 1.82, 0]} castShadow scale={[1.05, 0.62, 1.05]}>
-        <sphereGeometry args={[0.31, 20, 16]} />
-        <meshStandardMaterial color={hair} roughness={0.9} />
-      </mesh>
-      <mesh position={[-0.11, 1.63, 0.285]} castShadow>
-        <sphereGeometry args={[0.045, 10, 8]} />
-        <meshStandardMaterial color="#f6f3ef" roughness={0.45} />
-      </mesh>
-      <mesh position={[0.11, 1.63, 0.285]} castShadow>
-        <sphereGeometry args={[0.045, 10, 8]} />
-        <meshStandardMaterial color="#f6f3ef" roughness={0.45} />
-      </mesh>
-      <mesh position={[-0.11, 1.63, 0.322]}>
-        <sphereGeometry args={[0.019, 8, 6]} />
-        <meshStandardMaterial color="#161922" />
-      </mesh>
-      <mesh position={[0.11, 1.63, 0.322]}>
-        <sphereGeometry args={[0.019, 8, 6]} />
-        <meshStandardMaterial color="#161922" />
-      </mesh>
-      <mesh position={[0, 1.54, 0.315]}>
-        <sphereGeometry args={[0.035, 8, 6]} />
-        <meshStandardMaterial color={skin} />
-      </mesh>
-      <RoundedBox position={[0, 1.02, 0]} args={[0.66, 0.78, 0.38]} radius={0.1} smoothness={4} castShadow>
-        <meshStandardMaterial color={shirt} roughness={0.82} />
-      </RoundedBox>
-      <mesh position={[0, 1.38, 0.02]} castShadow>
-        <sphereGeometry args={[0.16, 16, 12]} />
-        <meshStandardMaterial color={skin} roughness={0.72} />
-      </mesh>
-      <mesh ref={(node) => { arms.current[0] = node; }} position={[-0.45, 1.08, 0]} castShadow>
-        <capsuleGeometry args={[0.08, 0.48, 6, 10]} />
-        <meshStandardMaterial color={skin} roughness={0.76} />
-      </mesh>
-      <mesh ref={(node) => { arms.current[1] = node; }} position={[0.45, 1.08, 0]} castShadow>
-        <capsuleGeometry args={[0.08, 0.48, 6, 10]} />
-        <meshStandardMaterial color={skin} roughness={0.76} />
-      </mesh>
-      <mesh ref={(node) => { legs.current[0] = node; }} position={[-0.18, 0.45, 0]} castShadow>
-        <capsuleGeometry args={[0.095, 0.52, 6, 10]} />
-        <meshStandardMaterial color={pants} roughness={0.84} />
-      </mesh>
-      <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow>
-        <capsuleGeometry args={[0.095, 0.52, 6, 10]} />
-        <meshStandardMaterial color={pants} roughness={0.84} />
-      </mesh>
-      <mesh position={[-0.18, 0.12, 0.1]} castShadow>
-        <capsuleGeometry args={[0.11, 0.22, 6, 10]} />
-        <meshStandardMaterial color="#171b24" roughness={0.72} />
-      </mesh>
-      <mesh position={[0.18, 0.12, 0.1]} castShadow>
-        <capsuleGeometry args={[0.11, 0.22, 6, 10]} />
-        <meshStandardMaterial color="#171b24" roughness={0.72} />
-      </mesh>
-      <Billboard position={[0, 2.18, 0]} follow>
-        <Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">
-          {displayName}
-        </Text>
-      </Billboard>
+      <mesh position={[0, 1.62, 0]} castShadow><sphereGeometry args={[0.31, 20, 16]} /><meshStandardMaterial color={skin} roughness={0.72} /></mesh>
+      <mesh position={[0, 1.82, 0]} castShadow scale={[1.05, 0.62, 1.05]}><sphereGeometry args={[0.31, 20, 16]} /><meshStandardMaterial color={hair} roughness={0.9} /></mesh>
+      <mesh position={[-0.11, 1.63, 0.285]} castShadow><sphereGeometry args={[0.045, 10, 8]} /><meshStandardMaterial color="#f6f3ef" roughness={0.45} /></mesh>
+      <mesh position={[0.11, 1.63, 0.285]} castShadow><sphereGeometry args={[0.045, 10, 8]} /><meshStandardMaterial color="#f6f3ef" roughness={0.45} /></mesh>
+      <mesh position={[-0.11, 1.63, 0.322]}><sphereGeometry args={[0.019, 8, 6]} /><meshStandardMaterial color="#161922" /></mesh>
+      <mesh position={[0.11, 1.63, 0.322]}><sphereGeometry args={[0.019, 8, 6]} /><meshStandardMaterial color="#161922" /></mesh>
+      <mesh position={[0, 1.54, 0.315]}><sphereGeometry args={[0.035, 8, 6]} /><meshStandardMaterial color={skin} /></mesh>
+      <RoundedBox position={[0, 1.02, 0]} args={[0.66, 0.78, 0.38]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color={shirt} roughness={0.82} /></RoundedBox>
+      <mesh position={[0, 1.38, 0.02]} castShadow><sphereGeometry args={[0.16, 16, 12]} /><meshStandardMaterial color={skin} roughness={0.72} /></mesh>
+      <mesh ref={(node) => { arms.current[0] = node; }} position={[-0.45, 1.08, 0]} castShadow><capsuleGeometry args={[0.08, 0.48, 6, 10]} /><meshStandardMaterial color={skin} roughness={0.76} /></mesh>
+      <mesh ref={(node) => { arms.current[1] = node; }} position={[0.45, 1.08, 0]} castShadow><capsuleGeometry args={[0.08, 0.48, 6, 10]} /><meshStandardMaterial color={skin} roughness={0.76} /></mesh>
+      <mesh ref={(node) => { legs.current[0] = node; }} position={[-0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
+      <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
+      <mesh position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
+      <mesh position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
+      <Billboard position={[0, 2.18, 0]} follow><Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">{displayName}</Text></Billboard>
     </group>
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
+function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -181,6 +134,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
   const cameraPosition = useRef(new THREE.Vector3(0, 3.6, 7.8));
   const playerGroup = useRef();
   const motion = useRef({ x: state.x, z: state.z, rot: state.rot, moving: state.moving, speed: state.speed });
+  const lastResetKey = useRef(motionResetKey);
   const dirty = useRef(false);
   const nearbyRef = useRef(null);
   const { camera, gl, size } = useThree();
@@ -191,10 +145,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
     const up = (event) => keys.current.delete(event.key.toLowerCase());
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-    };
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
   }, []);
 
   useEffect(() => {
@@ -244,18 +195,16 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
   }, [mobile]);
 
   useEffect(() => {
+    motion.current = { x: state.x, z: state.z, rot: state.rot, moving: false, speed: 0 };
+    dirty.current = false;
+  }, [motionResetKey]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       if (!dirty.current) return;
       dirty.current = false;
       const snapshot = motion.current;
-      onMove((current) => ({
-        ...current,
-        x: snapshot.x,
-        z: snapshot.z,
-        rot: snapshot.rot,
-        moving: snapshot.moving,
-        speed: snapshot.speed,
-      }));
+      onMove((current) => ({ ...current, x: snapshot.x, z: snapshot.z, rot: snapshot.rot, moving: snapshot.moving, speed: snapshot.speed }));
     }, 50);
     return () => window.clearInterval(timer);
   }, [onMove]);
@@ -263,6 +212,15 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
   useFrame((_, dt) => {
     const safeDt = Math.min(dt, 0.05);
     const current = motion.current;
+    if (lastResetKey.current !== motionResetKey) {
+      lastResetKey.current = motionResetKey;
+      current.x = state.x;
+      current.z = state.z;
+      current.rot = state.rot;
+      current.moving = false;
+      current.speed = 0;
+      dirty.current = false;
+    }
     const keyboardForward = Number(keys.current.has("w") || keys.current.has("arrowup")) - Number(keys.current.has("s") || keys.current.has("arrowdown"));
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
@@ -270,14 +228,12 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
     const strafe = touch.active ? touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
-    if (!interaction) {
+    if (!interaction || interaction.phase === "release") {
       if (magnitude > 0.08) {
         const speed = keys.current.has("shift") ? 4.0 : 2.6;
         const inputLength = Math.hypot(strafe, forward);
         const f = forward / inputLength;
         const s = strafe / inputLength;
-        // Screen-relative mobile controls: stick-up follows the camera's forward vector,
-        // stick-right follows camera-right. This keeps controls stable after camera rotation.
         const forwardX = Math.sin(yaw.current);
         const forwardZ = Math.cos(yaw.current);
         const rightX = Math.cos(yaw.current);
@@ -311,10 +267,13 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
     }
 
     if (interaction && (interaction.phase === "align" || interaction.phase === "animate" || interaction.phase === "sync")) {
-      if (Math.hypot(interaction.anchor.x - current.x, interaction.anchor.z - current.z) > 0.02) {
-        current.x = interaction.anchor.x;
-        current.z = interaction.anchor.z;
-        current.rot = interaction.anchor.rot;
+      const targetX = interaction.anchor.targetX ?? interaction.anchor.x;
+      const targetZ = interaction.anchor.targetZ ?? interaction.anchor.z;
+      const targetRot = interaction.anchor.targetRot ?? interaction.anchor.rot;
+      if (Math.hypot(targetX - current.x, targetZ - current.z) > 0.02) {
+        current.x = targetX;
+        current.z = targetZ;
+        current.rot = targetRot;
         dirty.current = true;
       }
     }
@@ -326,11 +285,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
 
     const targetY = (mobile ? 0.95 : 1.05) + Math.sin(pitch.current) * cameraDistance.current;
     const horizontal = Math.cos(pitch.current) * cameraDistance.current;
-    const desired = cameraTarget.current.set(
-      current.x - Math.sin(yaw.current) * horizontal,
-      targetY,
-      current.z - Math.cos(yaw.current) * horizontal
-    );
+    const desired = cameraTarget.current.set(current.x - Math.sin(yaw.current) * horizontal, targetY, current.z - Math.cos(yaw.current) * horizontal);
     cameraPosition.current.lerp(desired, 1 - Math.exp(-8 * safeDt));
     cameraPosition.current.x = clamp(cameraPosition.current.x, -WORLD.halfX + 1.0, WORLD.halfX - 1.0);
     cameraPosition.current.z = clamp(cameraPosition.current.z, -WORLD.halfZ + 1.0, WORLD.halfZ - 1.0);
@@ -338,12 +293,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
     camera.lookAt(current.x, mobile ? 0.9 : 1.0, current.z);
   });
 
-  const pose = interaction?.anchor?.type === "SLEEP" ? "sleep"
-    : interaction?.anchor?.type === "SIT" ? "sit"
-    : interaction?.anchor?.type === "EAT" ? "eat"
-    : interaction?.anchor?.type === "DRINK" ? "drink"
-    : interaction?.anchor?.type === "WATCH_TV" ? "watch"
-    : "idle";
+  const pose = interaction?.anchor?.type === "SLEEP" ? "sleep" : interaction?.anchor?.type === "SIT" ? "sit" : interaction?.anchor?.type === "EAT" ? "eat" : interaction?.anchor?.type === "DRINK" ? "drink" : interaction?.anchor?.type === "WATCH_TV" ? "watch" : "idle";
 
   return (
     <group ref={playerGroup}>
@@ -356,17 +306,9 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef }) {
 function Sofa({ position = [0, 0, 0] }) {
   return (
     <group position={position}>
-      <RoundedBox args={[5.4, 0.55, 1.05]} position={[0, 0.52, 0]} radius={0.14} smoothness={5} castShadow>
-        <meshStandardMaterial color="#3f4b61" roughness={0.85} />
-      </RoundedBox>
-      <RoundedBox args={[5.4, 1.0, 0.3]} position={[0, 1.0, -0.38]} radius={0.12} smoothness={5} castShadow>
-        <meshStandardMaterial color="#48556c" roughness={0.85} />
-      </RoundedBox>
-      {[-2.35, 2.35].map((x) => (
-        <RoundedBox key={x} args={[0.32, 0.85, 0.9]} position={[x, 0.9, 0]} radius={0.1} smoothness={4} castShadow>
-          <meshStandardMaterial color="#48556c" />
-        </RoundedBox>
-      ))}
+      <RoundedBox args={[5.4, 0.55, 1.05]} position={[0, 0.52, 0]} radius={0.14} smoothness={5} castShadow><meshStandardMaterial color="#3f4b61" roughness={0.85} /></RoundedBox>
+      <RoundedBox args={[5.4, 1.0, 0.3]} position={[0, 1.0, -0.38]} radius={0.12} smoothness={5} castShadow><meshStandardMaterial color="#48556c" roughness={0.85} /></RoundedBox>
+      {[-2.35, 2.35].map((x) => <RoundedBox key={x} args={[0.32, 0.85, 0.9]} position={[x, 0.9, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#48556c" /></RoundedBox>)}
     </group>
   );
 }
@@ -374,36 +316,22 @@ function Sofa({ position = [0, 0, 0] }) {
 function Chair({ position = [0, 0, 0], rotation = 0 }) {
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <RoundedBox args={[0.8, 0.36, 0.8]} position={[0, 0.48, 0]} radius={0.1} smoothness={4} castShadow>
-        <meshStandardMaterial color="#556071" />
-      </RoundedBox>
-      <RoundedBox args={[0.8, 0.9, 0.22]} position={[0, 0.95, -0.3]} radius={0.08} smoothness={4} castShadow>
-        <meshStandardMaterial color="#606c7f" />
-      </RoundedBox>
+      <RoundedBox args={[0.8, 0.36, 0.8]} position={[0, 0.48, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#556071" /></RoundedBox>
+      <RoundedBox args={[0.8, 0.9, 0.22]} position={[0, 0.95, -0.3]} radius={0.08} smoothness={4} castShadow><meshStandardMaterial color="#606c7f" /></RoundedBox>
     </group>
   );
 }
 
 function CoffeeTable({ position }) {
-  return (
-    <RoundedBox args={[2.0, 0.16, 1.0]} position={[position[0], 0.55, position[2]]} radius={0.08} smoothness={4} castShadow>
-      <meshStandardMaterial color="#7a5946" />
-    </RoundedBox>
-  );
+  return <RoundedBox args={[2.0, 0.16, 1.0]} position={[position[0], 0.55, position[2]]} radius={0.08} smoothness={4} castShadow><meshStandardMaterial color="#7a5946" /></RoundedBox>;
 }
 
 function Bed({ position }) {
   return (
     <group position={position}>
-      <RoundedBox args={[3.0, 0.38, 4.2]} position={[0, 0.45, 0]} radius={0.1} smoothness={4} castShadow>
-        <meshStandardMaterial color="#303746" />
-      </RoundedBox>
-      <RoundedBox args={[2.8, 0.24, 3.3]} position={[0, 0.72, 0.2]} radius={0.1} smoothness={4} castShadow>
-        <meshStandardMaterial color="#d9d3c8" />
-      </RoundedBox>
-      <RoundedBox args={[2.8, 0.42, 0.35]} position={[0, 0.92, -1.65]} radius={0.1} smoothness={4} castShadow>
-        <meshStandardMaterial color="#ece7dd" />
-      </RoundedBox>
+      <RoundedBox args={[3.0, 0.38, 4.2]} position={[0, 0.45, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#303746" /></RoundedBox>
+      <RoundedBox args={[2.8, 0.24, 3.3]} position={[0, 0.72, 0.2]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#d9d3c8" /></RoundedBox>
+      <RoundedBox args={[2.8, 0.42, 0.35]} position={[0, 0.92, -1.65]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#ece7dd" /></RoundedBox>
     </group>
   );
 }
@@ -412,12 +340,7 @@ function Plant({ position, scale = 1 }) {
   return (
     <group position={position} scale={scale}>
       <mesh position={[0, 0.22, 0]} castShadow><cylinderGeometry args={[0.28, 0.34, 0.44, 14]} /><meshStandardMaterial color="#5a4334" /></mesh>
-      {[0, 1.8, 3.6, 5.4].map((a) => (
-        <mesh key={a} position={[Math.cos(a) * 0.42, 1.15, Math.sin(a) * 0.42]} rotation={[0.25, a, 0.45]} castShadow>
-          <sphereGeometry args={[0.55, 10, 7]} />
-          <meshStandardMaterial color="#4b8549" roughness={0.95} />
-        </mesh>
-      ))}
+      {[0, 1.8, 3.6, 5.4].map((a) => <mesh key={a} position={[Math.cos(a) * 0.42, 1.15, Math.sin(a) * 0.42]} rotation={[0.25, a, 0.45]} castShadow><sphereGeometry args={[0.55, 10, 7]} /><meshStandardMaterial color="#4b8549" roughness={0.95} /></mesh>)}
       <mesh position={[0, 1.0, 0]} castShadow><cylinderGeometry args={[0.06, 0.09, 1.6, 10]} /><meshStandardMaterial color="#315e39" /></mesh>
     </group>
   );
@@ -433,6 +356,59 @@ function Lamp({ position }) {
   );
 }
 
+function GraffitiWall() {
+  const words = [
+    ["Maksudai", -11.8, 3.7, -9.76, -0.08, 0.54],
+    ["Boineksudai", -7.0, 3.05, -9.76, 0.05, 0.46],
+    ["Rendi", -3.3, 3.65, -9.76, -0.12, 0.62],
+    ["sutamareni", 1.3, 3.05, -9.76, 0.08, 0.5],
+    ["koti mara", 5.4, 3.7, -9.76, -0.08, 0.52],
+    ["buskarpu", 9.2, 3.15, -9.76, 0.1, 0.48],
+    ["suor", -12.3, 2.55, -9.76, 0.12, 0.62],
+    ["kukur", -8.6, 2.2, -9.76, -0.05, 0.58],
+    ["notisuda", -4.6, 2.55, -9.76, 0.1, 0.46],
+    ["boinerlalak", 0.1, 2.35, -9.76, -0.1, 0.44],
+    ["renda", 4.2, 2.5, -9.76, 0.08, 0.55],
+    ["johra", 7.3, 2.35, -9.76, -0.1, 0.6],
+    ["sudhirbhai", 10.2, 2.45, -9.76, 0.06, 0.46],
+  ];
+  const splashes = [
+    [-11.7, 4.05, 0.08, 0.32], [-7.0, 3.45, -0.1, 0.28], [-3.2, 4.0, 0.06, 0.25],
+    [1.0, 3.45, -0.06, 0.3], [5.2, 4.02, 0.08, 0.27], [9.1, 3.55, -0.04, 0.26],
+    [-9.5, 2.0, 0.12, 0.22], [0.0, 2.0, -0.08, 0.24], [6.7, 2.0, 0.1, 0.2],
+  ];
+  return (
+    <group>
+      <mesh position={[0, 3.0, -9.79]}>
+        <planeGeometry args={[27.5, 3.8]} />
+        <meshBasicMaterial color="#17111d" transparent opacity={0.82} />
+      </mesh>
+      {splashes.map(([x, y, r, s], index) => (
+        <mesh key={index} position={[x, y, -9.745]} rotation={[0, 0, r]} scale={[s, s * 0.55, 1]}>
+          <circleGeometry args={[0.9, 12]} />
+          <meshBasicMaterial color="#8f46cf" transparent opacity={0.5} depthWrite={false} />
+        </mesh>
+      ))}
+      {words.map(([word, x, y, z, rotation, fontSize], index) => (
+        <Text
+          key={word}
+          position={[x, y, z]}
+          rotation={[0, 0, rotation]}
+          fontSize={fontSize}
+          maxWidth={4.2}
+          color={index % 3 === 0 ? "#ff62d5" : index % 3 === 1 ? "#b56cff" : "#7be7ff"}
+          outlineWidth={0.025}
+          outlineColor="#241129"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {word}
+        </Text>
+      ))}
+    </group>
+  );
+}
+
 function Furniture() {
   return (
     <group>
@@ -442,36 +418,20 @@ function Furniture() {
         <CoffeeTable position={[0, 0, 1.35]} />
       </group>
       <group position={[0, 0, -9.15]}>
-        <RoundedBox args={[9.0, 3.35, 0.38]} position={[0, 2.2, 0]} radius={0.18} smoothness={5} castShadow>
-          <meshStandardMaterial color="#10141c" roughness={0.32} metalness={0.15} />
-        </RoundedBox>
-        <mesh position={[0, 2.2, 0.22]}>
-          <planeGeometry args={[8.45, 2.72]} />
-          <meshStandardMaterial color="#17182a" emissive="#433a78" emissiveIntensity={0.55} roughness={0.55} />
-        </mesh>
+        <RoundedBox args={[9.0, 3.35, 0.38]} position={[0, 2.2, 0]} radius={0.18} smoothness={5} castShadow><meshStandardMaterial color="#10141c" roughness={0.32} metalness={0.15} /></RoundedBox>
+        <mesh position={[0, 2.2, 0.22]}><planeGeometry args={[8.45, 2.72]} /><meshStandardMaterial color="#17182a" emissive="#433a78" emissiveIntensity={0.55} roughness={0.55} /></mesh>
         <Text position={[-3.75, 2.85, 0.25]} fontSize={0.28} color="#e2dcff" anchorX="left">GC HANGOUT</Text>
         <Text position={[-3.75, 2.45, 0.25]} fontSize={0.18} color="#aaa2d8" anchorX="left">TV / MUSIC</Text>
-        <RoundedBox args={[5.4, 0.22, 0.9]} position={[0, 0.58, 0]} radius={0.08} smoothness={4} castShadow>
-          <meshStandardMaterial color="#2a303c" roughness={0.78} />
-        </RoundedBox>
-        <mesh position={[0, 0.9, 0.02]}>
-          <cylinderGeometry args={[0.11, 0.11, 0.22, 16]} />
-          <meshStandardMaterial color="#1a1e27" />
-        </mesh>
+        <RoundedBox args={[5.4, 0.22, 0.9]} position={[0, 0.58, 0]} radius={0.08} smoothness={4} castShadow><meshStandardMaterial color="#2a303c" roughness={0.78} /></RoundedBox>
+        <mesh position={[0, 0.9, 0.02]}><cylinderGeometry args={[0.11, 0.11, 0.22, 16]} /><meshStandardMaterial color="#1a1e27" /></mesh>
       </group>
       <group position={[9.7, 0, 5.8]}>
-        <RoundedBox args={[4.8, 0.25, 2.4]} position={[0, 0.95, 0]} radius={0.12} smoothness={5} castShadow>
-          <meshStandardMaterial color="#72513f" />
-        </RoundedBox>
+        <RoundedBox args={[4.8, 0.25, 2.4]} position={[0, 0.95, 0]} radius={0.12} smoothness={5} castShadow><meshStandardMaterial color="#72513f" /></RoundedBox>
         {[-1.5, 0, 1.5].map((x) => <Chair key={x} position={[x, 0, -1.85]} />)}
         {[-1.5, 0, 1.5].map((x) => <Chair key={x} position={[x, 0, 1.85]} rotation={Math.PI} />)}
       </group>
       <group position={[8.7, 0, -6.5]}><Bed position={[0, 0, 0]} /></group>
-      <group position={[13.25, 0, 0.7]}>
-        <RoundedBox args={[1.4, 1.1, 6.2]} position={[0, 0.6, 0]} radius={0.12} smoothness={4}>
-          <meshStandardMaterial color="#343941" />
-        </RoundedBox>
-      </group>
+      <group position={[13.25, 0, 0.7]}><RoundedBox args={[1.4, 1.1, 6.2]} position={[0, 0.6, 0]} radius={0.12} smoothness={4}><meshStandardMaterial color="#343941" /></RoundedBox></group>
       <Plant position={[-13.1, 0, 7.5]} />
       <Plant position={[13.0, 0, -7.7]} scale={1.15} />
       <Lamp position={[-5.7, 0, 6.8]} />
@@ -480,7 +440,7 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef }) {
+function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
   return (
     <>
       <ambientLight intensity={1.55} />
@@ -492,49 +452,25 @@ function Room({ player, onMove, onNearby, interaction, joystickRef }) {
       <color attach="background" args={["#141821"]} />
       <fog attach="fog" args={["#141821", 24, 46]} />
 
-      <mesh receiveShadow position={[0, -0.12, 0]}>
-        <boxGeometry args={[30, 0.24, 20]} />
-        <meshStandardMaterial color="#343b46" roughness={0.92} />
-      </mesh>
-
+      <mesh receiveShadow position={[0, -0.12, 0]}><boxGeometry args={[30, 0.24, 20]} /><meshStandardMaterial color="#343b46" roughness={0.92} /></mesh>
       <mesh position={[0, 2.5, -10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
       <mesh position={[0, 2.5, 10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
       <mesh position={[-15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
       <mesh position={[15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
-      <mesh position={[0, 4.85, 0]} rotation={[0, 0, 0]}>
-        <boxGeometry args={[28.5, 0.12, 18.5]} />
-        <meshStandardMaterial color="#1d222c" roughness={1} />
-      </mesh>
+      <mesh position={[0, 4.85, 0]}><boxGeometry args={[28.5, 0.12, 18.5]} /><meshStandardMaterial color="#1d222c" roughness={1} /></mesh>
 
       <Furniture />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow>
-        <circleGeometry args={[4.7, 64]} />
-        <meshStandardMaterial color="#303845" roughness={0.98} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
-        <ringGeometry args={[4.7, 4.82, 64]} />
-        <meshBasicMaterial color="#7a8190" transparent opacity={0.28} />
-      </mesh>
-      <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">
-        OPEN SOCIAL FLOOR
-      </Text>
-
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} />
+      <GraffitiWall />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
+      <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} />
     </>
   );
 }
 
 export default function Game() {
-  const [player, setPlayer] = useState(() => ({
-    id: "local",
-    name: "You",
-    avatar: AVATARS[0],
-    x: 0,
-    z: 1.5,
-    rot: Math.PI,
-    moving: false,
-    speed: 0,
-  }));
+  const [player, setPlayer] = useState(() => ({ id: "local", name: "You", avatar: AVATARS[0], x: 0, z: 1.5, rot: Math.PI, moving: false, speed: 0 }));
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -542,21 +478,45 @@ export default function Game() {
   const [interaction, setInteraction] = useState(null);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
+  const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
+  const motionResetKey = useRef(0);
+
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
+
   const beginInteraction = () => {
     if (!nearby || interaction) return;
+    restoreMotion.current = { x: player.x, z: player.z, rot: player.rot };
     setInteraction({ status: "reserved", phase: "reserve", anchor: nearby, startedAt: Date.now() });
   };
-  const endInteraction = () => setInteraction(null);
+
+  const endInteraction = () => {
+    const current = interaction;
+    if (!current) return;
+    const anchor = current.anchor;
+    const exit = anchor.exitX != null && anchor.exitZ != null
+      ? { x: anchor.exitX, z: anchor.exitZ }
+      : restoreMotion.current;
+    setInteraction({ ...current, status: "released", phase: "release" });
+    setPlayer((state) => ({ ...state, x: exit.x, z: exit.z, rot: state.rot, moving: false, speed: 0 }));
+    joystickRef.current = { x: 0, y: 0, active: false };
+    setJoystick(joystickRef.current);
+    motionResetKey.current += 1;
+    const key = motionResetKey.current;
+    window.setTimeout(() => {
+      setInteraction((state) => state?.startedAt === current.startedAt ? null : state);
+    }, 0);
+    void key;
+  };
+
   useEffect(() => {
-    if (!interaction) return undefined;
+    if (!interaction || interaction.phase === "release") return undefined;
     const phases = [["stop", 80], ["align", 160], ["animate", 320], ["sync", 700]];
     let timer;
     let index = 0;
     const advance = () => {
       if (index >= phases.length) return;
       const [phase, delay] = phases[index++];
-      setInteraction((current) => current ? { ...current, phase, status: phase === "sync" ? "active" : "reserved" } : current);
+      setInteraction((state) => state ? { ...state, phase, status: phase === "sync" ? "active" : "reserved" } : state);
       timer = window.setTimeout(advance, delay);
     };
     timer = window.setTimeout(advance, 40);
@@ -570,23 +530,13 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} />
       </Canvas>
-      <div className="hud">
-        <div className="hud-title">GC HANGOUT</div>
-        <div className="hud-subtitle">Shared home</div>
-        <div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div>
-      </div>
-      {nearby && !interaction && (
-        <button className="interaction-hint" onPointerDown={(event) => event.stopPropagation()} onClick={beginInteraction}>
-          <strong>{nearby.label}</strong><span>Tap to interact</span>
-        </button>
-      )}
-      {interaction && (
-        <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}>
-          <strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span>
-        </button>
-      )}
+
+      <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
+      {nearby && !interaction && <button className="interaction-hint" onPointerDown={(event) => event.stopPropagation()} onClick={beginInteraction}><strong>{nearby.label}</strong><span>Tap to interact</span></button>}
+      {interaction && <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}><strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span></button>}
+
       <div
         className="touch-controls"
         aria-label="Touch movement controls"
@@ -637,16 +587,13 @@ export default function Game() {
       >
         <div className="joystick"><span style={{ transform: `translate(${joystick.x * 30}px, ${-joystick.y * 30}px)` }} /></div>
       </div>
+
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
         <div className="settings-panel">
           <label>Your name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={18} /></label>
           <div className="avatar-picker">
-            {AVATARS.map((item) => (
-              <button key={item.id} className={item.id === avatarId ? "selected" : ""} onClick={() => setAvatarId(item.id)}>
-                {item.label}
-              </button>
-            ))}
+            {AVATARS.map((item) => <button key={item.id} className={item.id === avatarId ? "selected" : ""} onClick={() => setAvatarId(item.id)}>{item.label}</button>)}
           </div>
           <button onClick={() => setSettingsOpen(false)}>Done</button>
         </div>
