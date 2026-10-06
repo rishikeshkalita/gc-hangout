@@ -40,34 +40,34 @@ const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-10+x,0,-6.88],standPosition:[-10+x,0,-6.40],approachPosition:[-10+x,0,-6.40],
-   rotation:0,seatY:-.48
+   rotation:0,seatY:-.58,poseType:"sofa"
  })),
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-s-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-10+x,0,-4.02],standPosition:[-10+x,0,-4.92],approachPosition:[-10+x,0,-4.92],
-   rotation:Math.PI,seatY:-.48
+   rotation:Math.PI,seatY:-.58,poseType:"sofa"
  })),
  ...[[-.62],[0],[.62]].map(([z],i)=>({
    id:"sofa-w-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-12.55,0,-5.45+z],standPosition:[-11.70,0,-5.45+z],approachPosition:[-11.70,0,-5.45+z],
-   rotation:-Math.PI/2,seatY:-.48
+   rotation:-Math.PI/2,seatY:-.58,poseType:"sofa"
  })),
  ...[[-.62],[0],[.62]].map(([z],i)=>({
    id:"sofa-e-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-7.45,0,-5.45+z],standPosition:[-8.30,0,-5.45+z],approachPosition:[-8.30,0,-5.45+z],
-   rotation:Math.PI/2,seatY:-.48
+   rotation:Math.PI/2,seatY:-.58,poseType:"sofa"
  })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.82:1.82)],
    standPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
    approachPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
-   rotation:side<0?0:Math.PI,seatY:-.48
+   rotation:side<0?0:Math.PI,seatY:-.42,poseType:"chair"
  }))
 ];
 const BEDS=[
- {id:"bed-a",label:"Sleep",type:"bed",finalAction:"sleep",position:[8.7,0,-6.2],rotation:Math.PI/2},
- {id:"bed-b",label:"Sleep",type:"bed",finalAction:"sleep",position:[12.2,0,-6.2],rotation:Math.PI/2}
+ {id:"bed-a",label:"Sleep",type:"bed",finalAction:"sleep",position:[8.7,0,-6.2],rotation:Math.PI/2,seatY:.02,poseType:"bed"},
+ {id:"bed-b",label:"Sleep",type:"bed",finalAction:"sleep",position:[12.2,0,-6.2],rotation:Math.PI/2,seatY:.02,poseType:"bed"}
 ];
 const FOOD_ASSETS={
  burgerTray:"https://cdn.3dassets.dev/assets/34314/v1/model.glb",
@@ -263,7 +263,7 @@ function Hall({musicPlaying,players,snackStates}) {
     {[[-15,5.9,0],[15,5.9,0],[0,5.9,-10],[0,5.9,10]].map((p,i)=><mesh key={i} position={p}><boxGeometry args={i<2?[.3,.5,19.8]:[29.8,.5,.3]}/><meshStandardMaterial color="#5b6370" metalness={.25}/></mesh>)}
 
     <Rug x={-10} z={-6.0} w={7.5} d={5.2}/>
-    <Sofa position={[-10,0,-7.28]} rotation={Math.PI}/>
+    <Sofa position={[-10,0,-7.28]} rotation={0}/>
     <Sofa position={[-10,0,-3.62]} rotation={Math.PI}/>
     <Sofa position={[-12.58,0,-5.45]} rotation={-Math.PI/2}/>
     <Sofa position={[-7.42,0,-5.45]} rotation={Math.PI/2}/>
@@ -334,6 +334,7 @@ function RealHuman({player,me}) {
   const sleeping=player.action==="sleep";
   const locked=seated||sleeping;
   const targetRot=player.poseRotation??player.rot??0;
+  const poseType=player.poseType??(sleeping?"bed":"sofa");
 
   const bones=useMemo(()=>{
     const b={thighL:null,thighR:null,shinL:null,shinR:null,footL:null,footR:null,spine:null,upperArmL:null,upperArmR:null,forearmL:null,forearmR:null};
@@ -397,12 +398,31 @@ function RealHuman({player,me}) {
         if(!b||!r)return;
         b.rotation.x=r.x+x*p;b.rotation.y=r.y+y*p;b.rotation.z=r.z+z*p;
       };
-      set("thighL",-1.50);set("thighR",-1.50);
-      set("shinL",1.76);set("shinR",1.76);
-      set("footL",-0.28);set("footR",-0.28);
-      set("spine",0.04);
-      set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
-      set("forearmL",-0.28);set("forearmR",-0.28);
+      if(sleeping){
+        // Bed: reclined posture rather than the upright chair/sofa pose.
+        set("thighL",-0.18);set("thighR",-0.18);
+        set("shinL",0.22);set("shinR",0.22);
+        set("footL",-0.08);set("footR",-0.08);
+        set("spine",-1.12);
+        set("upperArmL",-0.22,0.02,-0.06);set("upperArmR",-0.22,-0.02,0.06);
+        set("forearmL",-0.42);set("forearmR",-0.42);
+      }else if(poseType==="chair"){
+        // Dining chair: more upright hips/knees and arms relaxed beside the torso.
+        set("thighL",-1.38);set("thighR",-1.38);
+        set("shinL",1.60);set("shinR",1.60);
+        set("footL",-0.18);set("footR",-0.18);
+        set("spine",0.015);
+        set("upperArmL",-0.07,0.02,-0.02);set("upperArmR",-0.07,-0.02,0.02);
+        set("forearmL",-0.18);set("forearmR",-0.18);
+      }else{
+        // Sofa/armchair: deeper, relaxed sit with knees raised to the cushion.
+        set("thighL",-1.58);set("thighR",-1.58);
+        set("shinL",1.88);set("shinR",1.88);
+        set("footL",-0.30);set("footR",-0.30);
+        set("spine",0.035);
+        set("upperArmL",-0.10,0.02,-0.03);set("upperArmR",-0.10,-0.02,0.03);
+        set("forearmL",-0.28);set("forearmR",-0.28);
+      }
       wasSeated.current=true;    }else if(wasSeated.current){
       for(const [name,r] of Object.entries(restBones)){
         const b=bones[name];
@@ -459,7 +479,7 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
         const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
       }else{
         const finalPosition=target.position;
-        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id,seatY:target.seatY??null};
+        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id,seatY:target.seatY??null,poseType:target.poseType??target.type??null};
         velocity.current.x=0;velocity.current.z=0;posRef.current=next;interactionRef.current=null;
         onMove(next);onInteractionArrive?.(target);
       }
@@ -593,7 +613,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       }
     }
     const safe=candidates.find(q=>!blocked(q[0],q[2],.34))||[clamp(p.x,-HALL_HALF_X+.5,HALL_HALF_X-.5),0,clamp(p.z,-HALL_HALF_Z+.5,HALL_HALF_Z-.5)];
-    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null};
+    const clear={...p,x:safe[0],z:safe[2],action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0,seatY:null,poseType:null};
     interactionRef.current=null;
     posRef.current=clear;
     setCandidate(null);
