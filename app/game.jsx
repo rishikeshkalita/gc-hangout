@@ -20,14 +20,14 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "sofa-left-2", type: "SIT", label: "Sit", x: -7.6, z: -6.2, rot: -Math.PI / 2, targetX: -7.6, targetZ: -6.2, exitX: -7.6, exitZ: -4.65, radius: 1.35 },
   { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -12.0, z: -3.5, rot: Math.PI / 2, targetX: -12.0, targetZ: -3.5, exitX: -12.0, exitZ: -1.95, radius: 1.35 },
   { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -7.6, z: -3.5, rot: -Math.PI / 2, targetX: -7.6, targetZ: -3.5, exitX: -7.6, exitZ: -1.95, radius: 1.35 },
-  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, targetX: 8.2, targetZ: 3.95, exitX: 8.2, exitZ: 2.95, radius: 1.15 },
-  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, targetX: 11.2, targetZ: 3.95, exitX: 11.2, exitZ: 2.95, radius: 1.15 },
-  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, targetX: 8.2, targetZ: 7.65, exitX: 8.2, exitZ: 8.65, radius: 1.15 },
-  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, targetX: 11.2, targetZ: 7.65, exitX: 11.2, exitZ: 8.65, radius: 1.15 },
-  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, targetX: 8.7, targetZ: -6.0, exitX: 5.9, exitZ: -6.0, radius: 1.65 },
+  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: 0, targetX: 8.2, targetZ: 3.45, targetRot: 0, exitX: 8.2, exitZ: 2.95, radius: 1.15 },
+  { id: "dining-2", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: 0, targetX: 11.2, targetZ: 3.45, targetRot: 0, exitX: 11.2, exitZ: 2.95, radius: 1.15 },
+  { id: "dining-3", type: "SIT", label: "Sit", x: 8.2, z: 5.8, rot: Math.PI, targetX: 8.2, targetZ: 8.15, targetRot: Math.PI, exitX: 8.2, exitZ: 9.0, radius: 1.15 },
+  { id: "dining-4", type: "SIT", label: "Sit", x: 11.2, z: 5.8, rot: Math.PI, targetX: 11.2, targetZ: 8.15, targetRot: Math.PI, exitX: 11.2, exitZ: 9.0, radius: 1.15 },
+  { id: "bed", type: "SLEEP", label: "Rest", x: 8.7, z: -6.0, rot: 0, targetX: 8.7, targetZ: -6.0, exitX: 5.8, exitZ: -6.0, radius: 1.65 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.2 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 8.0, z: 5.8, rot: Math.PI, targetX: 8.0, targetZ: 3.85, exitX: 8.0, exitZ: 2.8, radius: 2.6 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 11.0, z: 5.8, rot: Math.PI, targetX: 11.0, targetZ: 3.85, exitX: 11.0, exitZ: 2.8, radius: 2.0 },
+  { id: "food-table", type: "EAT", label: "Eat", x: 8.0, z: 5.8, rot: Math.PI, targetX: 8.0, targetZ: 3.45, targetRot: Math.PI, exitX: 8.0, exitZ: 2.75, radius: 2.6 },
+  { id: "drink-table", type: "DRINK", label: "Drink", x: 11.0, z: 5.8, rot: Math.PI, targetX: 11.0, targetZ: 3.45, targetRot: Math.PI, exitX: 11.0, exitZ: 2.75, radius: 2.0 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -134,7 +134,6 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   const cameraPosition = useRef(new THREE.Vector3(0, 3.6, 7.8));
   const playerGroup = useRef();
   const motion = useRef({ x: state.x, z: state.z, rot: state.rot, moving: state.moving, speed: state.speed });
-  const lastResetKey = useRef(motionResetKey);
   const dirty = useRef(false);
   const nearbyRef = useRef(null);
   const { camera, gl, size } = useThree();
@@ -195,11 +194,9 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   }, [mobile]);
 
   useEffect(() => {
-    if (lastResetKey.current === motionResetKey) return;
-    lastResetKey.current = motionResetKey;
     motion.current = { x: state.x, z: state.z, rot: state.rot, moving: false, speed: 0 };
     dirty.current = false;
-  }, [motionResetKey, state.x, state.z, state.rot]);
+  }, [motionResetKey]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -214,6 +211,15 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   useFrame((_, dt) => {
     const safeDt = Math.min(dt, 0.05);
     const current = motion.current;
+    if (lastResetKey.current !== motionResetKey) {
+      lastResetKey.current = motionResetKey;
+      current.x = state.x;
+      current.z = state.z;
+      current.rot = state.rot;
+      current.moving = false;
+      current.speed = 0;
+      dirty.current = false;
+    }
     const keyboardForward = Number(keys.current.has("w") || keys.current.has("arrowup")) - Number(keys.current.has("s") || keys.current.has("arrowdown"));
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
@@ -494,9 +500,11 @@ export default function Game() {
     joystickRef.current = { x: 0, y: 0, active: false };
     setJoystick(joystickRef.current);
     motionResetKey.current += 1;
+    const key = motionResetKey.current;
     window.setTimeout(() => {
       setInteraction((state) => state?.startedAt === current.startedAt ? null : state);
     }, 0);
+    void key;
   };
 
   useEffect(() => {
