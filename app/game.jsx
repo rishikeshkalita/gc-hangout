@@ -131,7 +131,7 @@ function HumanAvatar({ avatar, moving, local, pose = "idle" }) {
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, onInteract, interaction }) {
+function LocalPlayer({ state, onMove, onNearby, onInteract, interaction, joystickVector }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
