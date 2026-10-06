@@ -472,10 +472,10 @@ function WorldColliders(){
     </RigidBody>)}
   </>;
 }
-function EcctrlLocalController({posRef,moveRef,onMove,viewRef,interactionRef,onInteractionArrive}){
+function EcctrlLocalController({posRef,moveRef,onMove,interactionRef,onInteractionArrive}){
   const ctrl=useRef(null),lastSend=useRef(0);
   useFrame(({camera},dt)=>{
-    const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current,c=ctrl.current;
+    const d=Math.min(dt,.05),m=moveRef.current,c=ctrl.current;
     if(!c)return;
     const p=posRef.current;
     const locked=p.action==="sit"||p.action==="sleep"||p.action==="moving"||!!interactionRef.current;
@@ -508,85 +508,8 @@ function EcctrlLocalController({posRef,moveRef,onMove,viewRef,interactionRef,onI
       c.setMovement({forward:false,backward:false,leftward:false,rightward:false,joystick:{x:0,y:0},jump:false});
       if(p.action==="sit"||p.action==="sleep")c.body.setTranslation({x:p.x,y:1,z:p.z},true);
     }
-    const t=posRef.current,dist=v.distance,horizontal=Math.cos(v.pitch)*dist;
-    const rawX=t.x+Math.sin(v.yaw)*horizontal,rawZ=t.z+Math.cos(v.yaw)*horizontal,rawY=1.05+Math.sin(v.pitch)*dist;
-    const camX=clamp(rawX,-HALL_HALF_X+1.65,HALL_HALF_X-1.65),camZ=clamp(rawZ,-HALL_HALF_Z+1.65,HALL_HALF_Z-1.65),camY=clamp(rawY,.75,6.8),follow=Math.min(1,8.5*d);
-    camera.position.x+=(camX-camera.position.x)*follow;camera.position.y+=(camY-camera.position.y)*follow;camera.position.z+=(camZ-camera.position.z)*follow;camera.lookAt(t.x,t.y+.9,t.z);
   });
-  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxVelLimit={4.2} />;
-}
-function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onInteractionArrive}) {
-  const velocity=useRef({x:0,z:0}),lastSend=useRef(0),hopRef=useRef(0);
-  useFrame(({camera},dt)=>{
-    const d=Math.min(dt,.05),m=moveRef.current,v=viewRef.current;
-
-    if(interactionRef.current){
-      const target=interactionRef.current;
-      const p=posRef.current;
-      const movePosition=target.movePosition||target.approachPosition||target.position;
-      const dx=movePosition[0]-p.x,dz=movePosition[2]-p.z;
-      const dist=Math.hypot(dx,dz);
-      if(dist>.055){
-        const speed=4.6,step=Math.min(dist,speed*d),nx=p.x+dx/dist*step,nz=p.z+dz/dist*step;
-        const next={...p,x:nx,z:nz,rot:target.rotation,moving:true,speed:step/Math.max(d,.001),action:"moving",poseRotation:target.rotation};
-        velocity.current.x=dx/dist*speed;velocity.current.z=dz/dist*speed;
-        posRef.current=next;
-        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
-      }else{
-        const finalPosition=target.position;
-        const next={...p,x:finalPosition[0],z:finalPosition[2],rot:target.rotation,moving:false,speed:0,action:target.finalAction,poseRotation:target.rotation,interactionId:target.id,seatY:target.seatY??null,poseType:target.poseType??target.type??null};
-        velocity.current.x=0;velocity.current.z=0;posRef.current=next;interactionRef.current=null;
-        onMove(next);onInteractionArrive?.(target);
-      }
-    } else {
-      const d2=Math.min(dt,.05),m2=moveRef.current,v2=viewRef.current;
-      const viewLerp=1-Math.exp(-18*d2);
-      v2.yaw+=Math.atan2(Math.sin(v2.targetYaw-v2.yaw),Math.cos(v2.targetYaw-v2.yaw))*viewLerp;
-      v2.pitch+=(v2.targetPitch-v2.pitch)*viewLerp;
-      const forward={x:-Math.sin(v2.yaw),z:-Math.cos(v2.yaw)},right={x:Math.cos(v2.yaw),z:-Math.sin(v2.yaw)};
-      const inputForward=-m2.z;
-      const ix=m2.x*right.x+inputForward*forward.x,iz=m2.x*right.z+inputForward*forward.z,len=Math.hypot(ix,iz)||1;
-      const lockedPose=posRef.current.action==="sit"||posRef.current.action==="sleep";
-      const movingInput=!lockedPose&&Math.abs(m2.x)+Math.abs(m2.z)>.05,targetSpeed=3.9;
-      const tx=lockedPose?0:ix/len*targetSpeed,tz=lockedPose?0:iz/len*targetSpeed;
-      velocity.current.x+=(tx-velocity.current.x)*Math.min(1,(movingInput?14:18)*d2);
-      velocity.current.z+=(tz-velocity.current.z)*Math.min(1,(movingInput?14:18)*d2);
-      if(!movingInput){velocity.current.x*=Math.max(0,1-10*d2);velocity.current.z*=Math.max(0,1-10*d2)}
-      const speed=Math.hypot(velocity.current.x,velocity.current.z);
-      if(speed>.025){
-        const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d2,velocity.current.z*d2);
-        if(step.hop)hopRef.current=performance.now()+420;
-        // The controller already produces camera-relative world velocity.
-        // Keep the model facing that same direction; adding PI makes joystick        // movement visually run backwards.
-        const moveRot=Math.atan2(velocity.current.x,velocity.current.z);
-        const next={...before,x:step.x,z:step.z,rot:moveRot,moving:speed>.06,speed,hopUntil:hopRef.current,poseRotation:moveRot};
-        const movementYaw=next.rot;
-        const forwardInput=-m2.z;
-        if(Math.abs(forwardInput)>.58 && performance.now()-v2.lastManualCamera>850){
-          const desiredYaw=movementYaw-Math.PI;
-          v2.targetYaw+=Math.atan2(Math.sin(desiredYaw-v2.targetYaw),Math.cos(desiredYaw-v2.targetYaw))*Math.min(1,1.35*d2);
-        }
-        posRef.current=next;
-        const now=performance.now();if(now-lastSend.current>33){lastSend.current=now;onMove(next)}
-      }else if(posRef.current.moving){
-        const next={...posRef.current,moving:false,speed:0,hopUntil:0};posRef.current=next;onMove(next);
-      }
-    }
-    const t=posRef.current,dist=v.distance;
-    const horizontal=Math.cos(v.pitch)*dist;
-    const rawX=t.x+Math.sin(v.yaw)*horizontal;
-    const rawZ=t.z+Math.cos(v.yaw)*horizontal;
-    const rawY=1.05+Math.sin(v.pitch)*dist;
-    const camX=clamp(rawX,-HALL_HALF_X+1.65,HALL_HALF_X-1.65);
-    const camZ=clamp(rawZ,-HALL_HALF_Z+1.65,HALL_HALF_Z-1.65);
-    const camY=clamp(rawY,.75,6.8);
-    const follow=Math.min(1,8.5*d);
-    camera.position.x+=(camX-camera.position.x)*follow;
-    camera.position.y+=(camY-camera.position.y)*follow;
-    camera.position.z+=(camZ-camera.position.z)*follow;
-    camera.lookAt(t.x,t.y+.9,t.z);
-  });
-  return null;
+  return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
 function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onInteract,onInteractionArrive,locks,snackStates}) {
   const [move,setMove]=useState({x:0,z:0});
@@ -595,8 +518,6 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
   const posRef=useRef({...local});
   const interactionRef=useRef(null);
-  const viewRef=useRef({yaw:0,pitch:.28,distance:6.8,targetYaw:0,targetPitch:.28,lastManualCamera:0});
-  const cameraDrag=useRef(null);
 
   const requestInteraction=(item)=>{
     // Stand is handled by Room so its authoritative controller state is
@@ -696,27 +617,6 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     setMoveImmediate({x:0,z:0});
     if(e?.currentTarget){e.currentTarget.style.setProperty("--jx","0px");e.currentTarget.style.setProperty("--jz","0px");}
   };
-  const beginCamera=e=>{
-    if(e.pointerType!=="touch"&&e.pointerType!=="mouse")return;
-    e.preventDefault();
-    cameraDrag.current={x:e.clientX,y:e.clientY,id:e.pointerId};
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
-  const moveCamera=e=>{
-    const s=cameraDrag.current;
-    if(!s||e.pointerId!==s.id)return;
-    e.preventDefault();
-    const dx=e.clientX-s.x,dy=e.clientY-s.y;
-    s.x=e.clientX;s.y=e.clientY;
-    viewRef.current.lastManualCamera=performance.now();
-    viewRef.current.targetYaw-=dx*.015;
-    viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.012,-.60,1.12);
-  };
-  const endCamera=e=>{
-    if(!cameraDrag.current)return;
-    if(e?.pointerId!=null&&cameraDrag.current.id!==e.pointerId)return;
-    cameraDrag.current=null;
-  };
   useEffect(()=>{
     const release=()=>setMoveImmediate({x:0,z:0});
     window.addEventListener("pointerup",release);
@@ -729,25 +629,10 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     <Canvas
       shadows dpr={[1,1.25]} performance={{min:.55}}
       camera={{position:[0,2.2,6.8],fov:58,near:.1,far:80}}
-      onWheel={e=>{viewRef.current.distance=clamp(viewRef.current.distance+(e.deltaY>0?.4:-.4),4.2,8.6)}}
-      onPointerDown={e=>{        if(e.pointerType!=="mouse")return;
-        cameraDrag.current={x:e.clientX,y:e.clientY};
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-      }}
-      onPointerMove={e=>{
-        const s=cameraDrag.current;
-        if(!s||e.pointerType!=="mouse")return;
-        const dx=e.clientX-s.x,dy=e.clientY-s.y;s.x=e.clientX;s.y=e.clientY;
-        viewRef.current.lastManualCamera=performance.now();
-        viewRef.current.targetYaw-=dx*.0065;
-        viewRef.current.targetPitch=clamp(viewRef.current.targetPitch+dy*.007,-.48,1.05);
-      }}
-      onPointerUp={()=>{cameraDrag.current=null}}
-      onPointerCancel={()=>{cameraDrag.current=null}}    >
-      <PerspectiveCamera makeDefault position={[0,2.2,6.8]} fov={58}/>
+    >
       <Physics gravity={[0,-9.81,0]}>
         <WorldColliders/>
-        <EcctrlLocalController posRef={posRef} moveRef={moveRef} onMove={onMove} viewRef={viewRef} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
+        <EcctrlLocalController posRef={posRef} moveRef={moveRef} onMove={onMove} interactionRef={interactionRef} onInteractionArrive={onInteractionArrive}/>
       <color attach="background" args={["#0b0e14"]}/>
       <fog attach="fog" args={["#0b0e14",24,55]}/>
       <ambientLight intensity={.78}/>
@@ -777,7 +662,6 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       <button onClick={onAttack}>🥊 Fight</button>
       <button>💬 Chat</button>
     </div>
-    <div className="cameraGesture" onPointerDown={beginCamera} onPointerMove={moveCamera} onPointerUp={endCamera} onPointerCancel={endCamera} aria-label="Swipe to rotate camera" />
     <div className="joystick" onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);joystickPointer(e)}} onPointerMove={joystickPointer} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}><div className="stick"/></div>
     <button className="mobileAction" onClick={()=>candidate&&requestInteraction(candidate)}>✦</button>
     <button className="fight" onClick={onAttack}>🥊</button>
