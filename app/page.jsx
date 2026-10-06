@@ -440,9 +440,10 @@ function PlayerController({posRef,moveRef,onMove,viewRef,interactionRef,onIntera
       if(speed>.025){
         const before=posRef.current,step=tryMove(before.x,before.z,velocity.current.x*d2,velocity.current.z*d2);
         if(step.hop)hopRef.current=performance.now()+420;
-        // Rotate the human to the actual world movement direction. The asset
-        // faces +Z in its rest orientation, hence the half-turn correction.
-        const moveRot=Math.atan2(velocity.current.x,velocity.current.z)+Math.PI;
+        // The controller already produces camera-relative world velocity.
+        // Keep the model facing that same direction; adding PI makes joystick
+        // movement visually run backwards.
+        const moveRot=Math.atan2(velocity.current.x,velocity.current.z);
         const next={...before,x:step.x,z:step.z,rot:moveRot,moving:speed>.06,speed,hopUntil:hopRef.current,poseRotation:moveRot};
         const movementYaw=next.rot;
         const forwardInput=-m2.z;
@@ -533,15 +534,30 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
   const standUp=()=>{
     const p=posRef.current;
     if(p.action!=="sit"&&p.action!=="sleep")return false;
-    const stand={id:p.interactionId,type:"stand",position:[p.x,0,p.z],rotation:p.poseRotation||p.rot,label:"Stand up"};
+    const objectId=p.interactionId;
+    if(!objectId)return false;
+
+    // Clear the Room's authoritative controller state immediately. Previously
+    // Home cleared localRef, but Room's posRef stayed "sit", so the controller
+    // re-entered the seated lock on the next frame.
+    const clear={...p,action:null,interactionId:null,poseRotation:p.rot,moving:false,speed:0};
     interactionRef.current=null;
-    onInteract(stand);
+    posRef.current=clear;
+    setCandidate(null);
+    setMoveImmediate({x:0,z:0});
+    onMove(clear);
+    onInteract({
+      id:objectId,
+      type:"stand",
+      position:[p.x,0,p.z],
+      rotation:p.poseRotation||p.rot,
+      label:"Stand up"
+    });
     return true;
   };
 
   const joystickAt=(el,x,y)=>{
     if(standUp()){
-      setMoveImmediate({x:0,z:0});
       el.style.setProperty("--jx","0px");
       el.style.setProperty("--jz","0px");
       return;
