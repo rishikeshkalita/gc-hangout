@@ -57,10 +57,10 @@ const FOOD_ASSETS={
  chocolate:"https://cdn.3dassets.dev/assets/24429/v1/model.glb"
 };
 const SNACKS=[
- {id:"burger-tray",name:"Burger & chips",kind:"burgerTray",position:[9.35,.86,5.8],action:"eat",label:"Eat burger & chips"},
- {id:"snack-basket",name:"Fries",kind:"snackBasket",position:[10.65,.82,5.8],action:"eat",label:"Eat fries"},
- {id:"soda",name:"Soda",kind:"sodaCan",position:[9.0,.82,5.55],action:"drink",label:"Drink soda"},
- {id:"water",name:"Water",kind:"waterBottle",position:[11.0,.84,5.55],action:"drink",label:"Drink water"},
+ {id:"burger-tray",name:"Burger & chips",kind:"burgerTray",position:[9.35,1.55,5.8],action:"eat",label:"Eat burger & chips"},
+ {id:"snack-basket",name:"Fries",kind:"snackBasket",position:[10.65,1.52,5.8],action:"eat",label:"Eat fries"},
+ {id:"soda",name:"Soda",kind:"sodaCan",position:[9.0,1.50,5.55],action:"drink",label:"Drink soda"},
+ {id:"water",name:"Water",kind:"waterBottle",position:[11.0,1.52,5.55],action:"drink",label:"Drink water"},
  {id:"chocolate",name:"Chocolate",kind:"chocolate",position:[-9.65,.72,-5.55],action:"eat",label:"Eat chocolate"},
  {id:"fries-2",name:"Fries",kind:"snackBasket",position:[-10.35,.82,-5.55],action:"eat",label:"Eat fries"},
  {id:"soda-2",name:"Soda",kind:"sodaCan",position:[-9.05,.82,-5.55],action:"drink",label:"Drink soda"},
@@ -327,7 +327,9 @@ function RealHuman({player,me}) {
     const run=names.find(n=>/run/i.test(n))||walk;
     const grasp=names.find(n=>/grasp/i.test(n))||idle;
     const locked=player.action==="sit"||player.action==="sleep";
-    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:(player.speed||0)>3.15?run:(player.speed||0)>.08?walk:idle);
+    // The asset's walk cycle is the stable locomotion clip. Do not switch to the
+    // authored run clip at normal joystick speed; it makes the gait look broken.
+    const desired=locked?null:(player.action==="eat"||player.action==="drink"?grasp:(player.speed||0)>.08?walk:idle);
     if(desired===clipRef.current)return;
     const prev=clipRef.current?actions[clipRef.current]:null;
     if(prev)prev.fadeOut(.2);
@@ -354,15 +356,20 @@ function RealHuman({player,me}) {
     poseRef.current+=(targetPose-poseRef.current)*(1-Math.exp(-10*dt));
     const p=poseRef.current;
 
-    if(bones.thighL)bones.thighL.rotation.x=-1.05*p;
-    if(bones.thighR)bones.thighR.rotation.x=-1.05*p;
-    if(bones.shinL)bones.shinL.rotation.x=1.25*p;
-    if(bones.shinR)bones.shinR.rotation.x=1.25*p;
-    if(bones.footL)bones.footL.rotation.x=-.22*p;
-    if(bones.footR)bones.footR.rotation.x=-.22*p;
-    if(bones.spine)bones.spine.rotation.x=.12*p;
-    if(bones.upperArmL)bones.upperArmL.rotation.x=-.08*p;
-    if(bones.upperArmR)bones.upperArmR.rotation.x=-.08*p;
+    // Procedural bone offsets are ONLY applied while the locomotion clips are
+    // stopped. Previously these were written as zero every frame while walking,
+    // fighting the animation mixer and producing the distorted gait.
+    if(seated||sleeping){
+      if(bones.thighL)bones.thighL.rotation.x=-1.05*p;
+      if(bones.thighR)bones.thighR.rotation.x=-1.05*p;
+      if(bones.shinL)bones.shinL.rotation.x=1.25*p;
+      if(bones.shinR)bones.shinR.rotation.x=1.25*p;
+      if(bones.footL)bones.footL.rotation.x=-.22*p;
+      if(bones.footR)bones.footR.rotation.x=-.22*p;
+      if(bones.spine)bones.spine.rotation.x=.12*p;
+      if(bones.upperArmL)bones.upperArmL.rotation.x=-.08*p;
+      if(bones.upperArmR)bones.upperArmR.rotation.x=-.08*p;
+    }
 
     const active=clipRef.current?actions[clipRef.current]:null;
     if(active){
@@ -508,6 +515,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
       }
       if(!"wasd".includes(k)&&!["arrowup","arrowdown","arrowleft","arrowright"].includes(k))return;
       e.preventDefault();
+      if(posRef.current.action==="sit"||posRef.current.action==="sleep")return;
       const next={x:k==="a"||k==="arrowleft"? -1:k==="d"||k==="arrowright"?1:moveRef.current.x,z:k==="w"||k==="arrowup"?-1:k==="s"||k==="arrowdown"?1:moveRef.current.z};setMoveImmediate(next);
     };
     const up=e=>{
@@ -523,6 +531,7 @@ function Room({local,players,onMove,onAttack,musicPlaying,onToggleMusic,onIntera
     if(posRef.current.action==="sit"||posRef.current.action==="sleep"){
       const stand={id:posRef.current.interactionId,type:"stand",position:[posRef.current.x,0,posRef.current.z],rotation:posRef.current.poseRotation||posRef.current.rot,label:"Stand up"};
       requestInteraction(stand);
+      return;
     }
     const r=el.getBoundingClientRect(),dx=x-r.left-r.width/2,dz=y-r.top-r.height/2;
     const len=Math.hypot(dx,dz),max=42,k=len>max?max/len:1;
@@ -704,6 +713,7 @@ export default function Home(){
 
     if(candidate.type==="stand"){
       const objectId=p.interactionId;
+      interactionRef.current=null;
       const clear={...p,action:null,interactionId:null,poseRotation:p.rot,speed:0,moving:false};
       localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
       channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
@@ -785,15 +795,9 @@ export default function Home(){
     localRef.current=payload;setPlayers(prev=>({...prev,[id]:payload}));
     channelRef.current?.send({type:"broadcast",event:"player_state",payload});
     setAction(finalAction);
-    setTimeout(()=>{
-      if(localRef.current?.interactionId===candidate.id&&localRef.current?.action===finalAction){
-        const clear={...localRef.current,action:null,interactionId:null,poseRotation:localRef.current.rot};
-        localRef.current=clear;setPlayers(prev=>({...prev,[id]:clear}));
-        channelRef.current?.send({type:"broadcast",event:"player_state",payload:clear});
-        setLocks(prev=>{const next={...prev};delete next[candidate.id];return next});
-        channelRef.current?.send({type:"broadcast",event:"interaction_lock",payload:{objectId:candidate.id,userId:id,locked:false}});
-      }
-    },7000);
+    // Stay seated/asleep until the user explicitly presses Stand up or moves
+    // the joystick/keyboard. The old 7s timer was making the interaction state
+    // race with input and could leave the client looking locked.
   };
 
   if(joined)return <Room local={localRef.current} players={players} locks={locks} snackStates={snackStates} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived}/>;
