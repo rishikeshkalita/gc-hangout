@@ -44,6 +44,16 @@ const PLANT_ASSETS={
 
 
 
+const FURNITURE={
+ sofa:"https://cdn.3dassets.dev/assets/26141/v1/model.glb",
+ armchair:"https://cdn.3dassets.dev/assets/38780/v1/model.glb",
+ diningChair:"https://cdn.3dassets.dev/assets/38785/v1/model.glb",
+ coffee:"https://cdn.3dassets.dev/assets/38790/v1/model.glb",
+ diningTable:"https://cdn.3dassets.dev/assets/38791/v1/model.glb",
+ bed:"https://cdn.3dassets.dev/assets/38770/v1/model.glb",
+ lamp:"https://cdn.3dassets.dev/assets/38797/v1/model.glb"
+};
+
 const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
@@ -173,11 +183,39 @@ function SafeFurniture(props){
   const {url}=props;
   return <AssetBoundary url={url} label={url} fallback={<AssetFailureMarker url={url} label="Furniture"/>}><RealFurniture {...props}/></AssetBoundary>;
 }
-function Sofa({position=[0,0,0],rotation=0,width=3.4}){return <RealFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={width/2.5}/>}
-function Chair({position=[0,0,0],rotation=0}){return <RealFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
-function CoffeeTable({x,z}){return <RealFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
-function DiningTable(){return <group position={[10,0,5.8]}><RealFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><RealFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
-function Bed({x,z,rotation=0}){return <RealFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
+function Sofa({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.sofa} position={position} rotation={rotation} scale={1.0}/>} 
+function Chair({position=[0,0,0],rotation=0}){return <SafeFurniture url={FURNITURE.armchair} position={position} rotation={rotation} scale={1.18}/>}
+function CoffeeTable({x,z}){return <SafeFurniture url={FURNITURE.coffee} position={[x,0,z]} scale={1.67}/>}
+function DiningTable(){return <group position={[10,0,5.8]}><SafeFurniture url={FURNITURE.diningTable} scale={2.2}/>{[[-1.45,0,-1.9],[0,0,-1.9],[1.45,0,-1.9],[-1.45,0,1.9],[0,0,1.9],[1.45,0,1.9]].map((p,i)=><SafeFurniture key={i} url={FURNITURE.diningChair} position={[p[0],0,p[2]]} rotation={p[2]<0?0:Math.PI} scale={1.7}/>)}</group>}
+function Bed({x,z,rotation=0}){return <SafeFurniture url={FURNITURE.bed} position={[x,0,z]} rotation={rotation} scale={1.65}/>}
+
+function SnackUnsafe({item,state,players}){
+  const ref=useRef();
+  const holder=state?.heldBy?players[state.heldBy]:null;
+  const consumed=!!state?.consumed;
+  const gltf=useGLTF(FOOD_ASSETS[item.kind]);
+  const scene=useMemo(()=>{
+    const s=SkeletonUtils.clone(gltf.scene);    s.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    return s;  },[gltf.scene]);
+  useFrame((_,dt)=>{
+    if(!ref.current)return;
+    const target=holder?[holder.x,.98,holder.z]:item.position;
+    const a=1-Math.exp(-16*dt);
+    ref.current.position.x+=(target[0]-ref.current.position.x)*a;
+    ref.current.position.y+=(target[1]-ref.current.position.y)*a;
+    ref.current.position.z+=(target[2]-ref.current.position.z)*a;
+    if(holder)ref.current.rotation.y+=dt*3.2;
+  });
+  if(consumed)return null;
+  const scale=item.kind==="burgerTray"?.9:item.kind==="snackBasket"?.9:item.kind==="waterBottle"?1.5:item.kind==="sodaCan"?1.7:2.0;
+  return <group ref={ref} position={item.position} scale={scale}><primitive object={scene}/></group>;
+}
+
+function Snack({item,state,players}){const url=FOOD_ASSETS[item.kind];return <AssetBoundary url={url} label={item.name} fallback={<AssetFailureMarker url={url} label={item.name}/>}><SnackUnsafe item={item} state={state} players={players}/></AssetBoundary>}
+function Snacks({players,snackStates}){
+  return <group>{SNACKS.map(item=><Snack key={item.id} item={item} state={snackStates[item.id]} players={players}/>)}</group>;
+}
+
 function Kitchen() {
   return <group position={[13.0,0,1.0]}>
     <RoundedBox castShadow args={[1.5,1.15,6.0]} radius={.12} smoothness={5} position={[0,.65,0]}>
