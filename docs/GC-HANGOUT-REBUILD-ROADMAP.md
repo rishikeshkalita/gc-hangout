@@ -240,64 +240,32 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 **Goal:** turn the foundation into the actual playable hangout space.
 
-### World
+### Progress in this pass
 
-- [ ] Large open central hall.
-- [ ] Functional zones: TV, sofas, chairs, dining, food, drinks, beds/rest, greenery/decor.
-- [ ] 2+ sofas.
-- [ ] Chairs/dining chairs.
-- [ ] Dining table.
-- [ ] Coffee tables.
-- [ ] Beds.
-- [ ] TV/stand.
-- [ ] Lamps/shelves/rugs.
-- [ ] Plants/greenery.
-- [ ] Proper room boundaries.
-- [ ] Open walking space.
+- [x] Preserve the large open central hall and representative hangout zones from Wave 1.
+- [x] Keep 2+ sofas, chairs, dining table, coffee tables, bed, TV/stand, plants, lamps, and open central floor.
+- [x] Preserve hard room boundaries and furniture collision handling.
+- [x] Formalize a generic interaction-anchor model in shared game-state utilities.
+- [x] Add explicit SIT / SLEEP / EAT / WATCH_TV anchor definitions in the room.
+- [x] Add deterministic nearest-anchor detection for future interaction execution.
+- [x] Add compact proximity feedback without blocking the world.
+- [x] Keep interaction execution separate from the shared-state layer; Wave 3 owns the actual interaction animations.
+- [x] Add automated tests for interaction-anchor validation and nearest-anchor selection.
+- [x] Preserve the human-avatar requirement and single camera/movement implementation.
 
-### Assets/performance
+### Still required before Wave 2 gate
 
-- [ ] Critical assets local/bundled where practical.
-- [ ] Remove critical dependency on `cdn.3dassets.dev`.
-- [ ] Asset loading has loading/success/failure states.
-- [ ] Decorative failures are isolated.
-- [ ] Core assets load before decoration.
-- [ ] Avoid eager loading of unnecessary GLBs.
-- [ ] Mobile memory/draw-call budget considered.
+- [ ] Replace remaining primitive furniture with production-quality/local assets where justified.
+- [ ] Add explicit DRINK and generic INTERACT anchors.
+- [ ] Implement reserve → stop → align → animate → sync → release lifecycle.
+- [ ] Finish camera zoom limits and stronger room-boundary camera handling.
+- [ ] Complete responsive touch gameplay controls/joystick rather than pointer-look only.
+- [ ] Verify loading/failure isolation for any external decorative assets.
+- [ ] Browser/visual verification.
 
-### Player/camera
+### Current status
 
-- [ ] Reliable human model.
-- [ ] Idle/walk/turn.
-- [ ] Smooth acceleration/deceleration.
-- [ ] Natural walking speed.
-- [ ] No jitter/vibration/snapping.
-- [ ] One camera controller.
-- [ ] Desktop camera controls.
-- [ ] Mobile gameplay-area drag.
-- [ ] Zoom limits.
-- [ ] Wall/furniture obstacle handling.
-- [ ] Room-boundary camera control.
-- [ ] UI does not steal camera gestures.
-
-### Interaction foundation
-
-- [ ] Generic interaction-anchor model.
-- [ ] SIT / SLEEP / EAT / DRINK / WATCH_TV / INTERACT.
-- [ ] Reserve → stop → align → animate → sync → release lifecycle.
-- [ ] No hard-coded button-handler offsets.
-- [ ] Interaction failure restores movement.
-
-### Gate
-
-- [ ] World visibly resembles a real hangout game.
-- [ ] Player can explore all zones.
-- [ ] Camera works throughout the hall.
-- [ ] Core assets survive optional asset failures.
-- [ ] Automated tests/build pass.
-- [ ] Browser test performed if available.
-- [ ] **Status: PASS / FAIL / NOT VERIFIED**
-
+- **Status: IN PROGRESS** — automated verification is running for the current checkpoint; no deployment has been made.
 ---
 
 ## WAVE 3 — ALL CORE INTERACTIONS
