@@ -228,7 +228,7 @@ function Rug({x,z,w,d}) {
   </mesh>
 }
 
-function TV({playing}) {
+function TV({playing,track}) {
   const bars=Array.from({length:18},(_,i)=>.15+.12*((i*7)%5));
   return <group position={[0,4.05,-9.2]}>
     <RoundedBox castShadow args={[9.2,4.6,.28]} radius={.22} smoothness={6}>
@@ -236,8 +236,8 @@ function TV({playing}) {
     </RoundedBox>
     <mesh position={[0,0,.18]}><planeGeometry args={[8.65,4.05]}/><meshStandardMaterial color={playing?"#17162e":"#090c12"} emissive={playing?"#4a3b99":"#0b0e15"} emissiveIntensity={playing?1.3:.25}/></mesh>
     <Text position={[-3.65,1.45,.23]} fontSize={.26} color="#a99bff" anchorX="left">GC RADIO</Text>
-    <Text position={[-3.65,.78,.23]} fontSize={.42} color="#ffffff" anchorX="left">{playing?TRACK.title:"HANGOUT DISPLAY"}</Text>
-    <Text position={[-3.65,.30,.23]} fontSize={.2} color="#aaa5b9" anchorX="left">{playing?TRACK.artist:"Press Music to start the room mix"}</Text>
+    <Text position={[-3.65,.78,.23]} fontSize={.42} color="#ffffff" anchorX="left">{playing?(track?.title||"GC RADIO"):"HANGOUT DISPLAY"}</Text>
+    <Text position={[-3.65,.30,.23]} fontSize={.2} color="#aaa5b9" anchorX="left">{playing?(track?.artist||"Jamendo"):"Select a track to start the room mix"}</Text>
     <group position={[-3.62,-1.15,.23]}>{bars.map((h,i)=><mesh key={i} position={[i*.34,0,0]}><boxGeometry args={[.18,playing?h:0.12,.02]}/><meshStandardMaterial color={playing?"#7e6bff":"#343341"} emissive={playing?"#4f40b0":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>)}</group>
     <mesh position={[2.55,.95,.24]}><circleGeometry args={[.72,32]}/><meshStandardMaterial color={playing?"#715bff":"#272b36"} emissive={playing?"#5b48c7":"#000000"} emissiveIntensity={playing?1.4:0}/></mesh>
     <Text position={[2.55,.95,.28]} fontSize={.32} color="#ffffff" anchorX="center" anchorY="middle">{playing?"▶":"Ⅱ"}</Text>
@@ -258,7 +258,7 @@ function OpenFloorMark() {
   </group>
 }
 
-function Hall({musicPlaying,players,snackStates}) {
+function Hall({musicPlaying,musicTrack,players,snackStates}) {
   return <group>
     <mesh receiveShadow position={[0,-.08,0]}><boxGeometry args={[30.4,.16,20.4]}/><meshStandardMaterial color="#252a32" roughness={.94}/></mesh>
     <mesh receiveShadow position={[0,7.5,0]}><boxGeometry args={[30.4,.2,20.4]}/><meshStandardMaterial color="#1c2028" roughness={.9}/></mesh>
@@ -279,7 +279,7 @@ function Hall({musicPlaying,players,snackStates}) {
     <FloorLamp x={-13.8} z={-7.7}/>
     <Plant x={-13.9} z={-3.0} s={1.1}/>
 
-    <TV playing={musicPlaying}/>
+    <TV playing={musicPlaying} track={musicTrack}/>
     <Speakers playing={musicPlaying}/>
 
     <Rug x={10} z={5.8} w={7.2} d={5.8}/>
@@ -523,8 +523,9 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.18} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.2} maxRunVel={4.2} accDeltaTime={.14} decDeltaTime={.10} maxVelLimit={4.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.2} camZoomSpeed={1} camCollision={true} camListenerTarget="domElement" />;
 }
-function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,onToggleMusic,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
-  const [move,setMove]=useState({x:0,z:0});\n  const runRef=useRef(false);
+function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,musicTracks,locks,snackStates,chatMessages,onSendChat,voiceEnabled,onToggleVoice,voiceError}) {
+  const [move,setMove]=useState({x:0,z:0});
+  const audioRef=useRef(null);\n  const runRef=useRef(false);
   const [candidate,setCandidate]=useState(null);
   const moveRef=useRef(move);moveRef.current=move;
   const setMoveImmediate=v=>{moveRef.current=v;setMove(v)};
@@ -661,7 +662,7 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
       <directionalLight position={[2,10,5]} intensity={1.35} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
       <directionalLight position={[-8,5,-6]} intensity={.55} color="#9aa9ff"/>
       <Environment preset="warehouse" environmentIntensity={.35}/>
-      <Hall musicPlaying={musicPlaying} players={players} snackStates={snackStates}/>
+      <Hall musicPlaying={musicPlaying} musicTrack={musicTrack} players={players} snackStates={snackStates}/>
       <ContactShadows position={[0,0,0]} opacity={.18} scale={24} blur={3.2} far={11}/>
         {Object.values(players).map(p=>
           <Suspense key={p.id} fallback={null}>
@@ -672,6 +673,7 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
     </Canvas>
 
 
+    <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div>
     <div className="chat">
@@ -684,7 +686,7 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
     {candidate&&<button className="interactionPrompt" onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
     <div className="controls">
       <button onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
-      <button className={musicPlaying?"active":""} onClick={onToggleMusic}>🎵 Music</button>
+      <button className={musicPlaying?"active":""} onClick={onToggleMusic} disabled={!musicTracks.length}>🎵 Music</button>{musicTracks.length>0&&<select className="musicSelect" value={musicTrack?.id||""} onChange={e=>onSelectMusic?.(e.target.value)} aria-label="Choose room music">{musicTracks.map(t=><option key={t.id} value={t.id}>{t.title} — {t.artist}</option>)}</select>}
       <button onClick={onAttack}>🥊 Fight</button>
       <button className={voiceEnabled?"active":""} onClick={onToggleVoice}>{voiceEnabled?"🎙️":"🎤"} Voice</button>
       <button onClick={()=>onEmote?.("dance")}>💃 Emote</button>
@@ -698,14 +700,15 @@ function Room({local,players,onMove,onAttack,onEmote,onInteract,onInteractionArr
 
 export default function Home(){
   const [joined,setJoined]=useState(false),[name,setName]=useState(""),[avatarId,setAvatarId]=useState("maya");
+  const [musicTracks,setMusicTracks]=useState([]),[musicTrack,setMusicTrack]=useState(null),[musicStartedAt,setMusicStartedAt]=useState(null),[musicPosition,setMusicPosition]=useState(0);
   const [id]=useState(makeId),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const [chatMessages,setChatMessages]=useState([]),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceError,setVoiceError]=useState("");
-  const musicRef=useRef(false);
+  const musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
   const attackCooldownRef=useRef(0);
   const chatMessagesRef=useRef([]);
   const playersRef=useRef({});
-  musicRef.current=musicPlaying;
+  musicRef.current=musicPlaying;musicTrackRef.current=musicTrack;musicStartedAtRef.current=musicStartedAt;musicPositionRef.current=musicPosition;
   chatMessagesRef.current=chatMessages;
   playersRef.current=players;
   const locksRef=useRef({}),snackStatesRef=useRef({});
@@ -746,12 +749,12 @@ export default function Home(){
     channel.on("presence",{event:"leave"},reconcilePresence);
     channel.on("broadcast",{event:"player_state"},({payload})=>payload?.id&&setPlayers(prev=>({...prev,[payload.id]:payload})));
     channel.on("broadcast",{event:"request_state"},()=>localRef.current&&send(localRef.current));
-    channel.on("broadcast",{event:"room_state"},({payload})=>{if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying)});
+    channel.on("broadcast",{event:"room_state"},({payload})=>{if(typeof payload?.musicPlaying==="boolean")setMusicPlaying(payload.musicPlaying);if(payload?.musicTrack)setMusicTrack(payload.musicTrack);if(typeof payload?.musicStartedAt==="number")setMusicStartedAt(payload.musicStartedAt);if(typeof payload?.musicPosition==="number")setMusicPosition(payload.musicPosition)});
     channel.on("broadcast",{event:"chat_message"},({payload})=>{
       if(!payload?.id||!payload?.text)return;
       setChatMessages(prev=>prev.some(m=>m.id===payload.id)?prev:[...prev,payload].slice(-80));
     });
-    channel.on("broadcast",{event:"request_chat"},()=>{
+    channel.on("broadcast",{event:"request_room_state"},()=>{channel.send({type:"broadcast",event:"room_state",payload:{musicPlaying:musicRef.current,musicTrack:musicTrackRef.current,musicStartedAt:musicStartedAtRef.current,musicPosition:musicPositionRef.current}})});\n    channel.on("broadcast",{event:"request_chat"},()=>{
       if(chatMessagesRef.current.length)channel.send({type:"broadcast",event:"chat_history",payload:{messages:chatMessagesRef.current}});
     });
     channel.on("broadcast",{event:"chat_history"},({payload})=>{
@@ -870,6 +873,8 @@ export default function Home(){
     const next=!musicPlaying;setMusicPlaying(next);
     channelRef.current?.send({type:"broadcast",event:"room_state",payload:{musicPlaying:next}});
   };
+
+  useEffect(()=>{if(!joined)return;fetch("/api/music?search=instrumental%20lounge").then(r=>r.json()).then(data=>{if(Array.isArray(data.tracks)&&data.tracks.length){setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0])}}).catch(e=>console.warn("music catalog unavailable",e))},[joined]);
 
   const onAttack=()=>{
     if(!localRef.current)return;
@@ -1005,7 +1010,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined)return <Room local={localRef.current} players={players} onEmote={onEmote} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
+  if(joined)return <Room local={localRef.current} players={players} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} musicPlaying={musicPlaying} onToggleMusic={toggleMusic} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceError={voiceError}/>;
 
   return <main className="join">
     <div className="card">
