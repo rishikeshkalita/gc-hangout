@@ -913,7 +913,7 @@ export default function Home(){
             reconnecting=false;
             if(disposed)return;
             const {data:{session}}=await supabase.auth.getSession();
-            if(session?.access_token)await supabase.realtime.setAuth();
+            if(session?.access_token)await supabase.realtime.setAuth(session.access_token);
             subscribe();
           },1500);
         }
