@@ -16,7 +16,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ensureAnonymousSession, getSupabase } from "../lib/supabase";
 import { VoiceMesh } from "../lib/voice";
-import { applyPlayerState, arriveInteraction, beginInteraction, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, upsertPlayer } from "../lib/game-state.mjs";
+import { applyPlayerState, arriveInteraction, beginInteraction, classifyMusicResponse, createLocalPlayer, finishEmote, mergeChatMessages, normalizeChatMessage, releaseInteraction, startEmote, upsertPlayer } from "../lib/game-state.mjs";
 
 const PRESETS = [
   {id:"maya",label:"Maya"}, {id:"noah",label:"Noah"}, {id:"riya",label:"Riya"},
@@ -669,7 +669,7 @@ function EcctrlLocalController({posRef,moveRef,runRef,onMove,interactionRef,onIn
   });
   return <Ecctrl ref={ctrl} position={[posRef.current.x,1,posRef.current.z]} capsuleHalfHeight={.42} capsuleRadius={.30} floatHeight={.16} canJump={false} enableToggleRun={false} autoBalance={true} maxWalkVel={2.55} maxRunVel={4.6} accDeltaTime={.16} decDeltaTime={.12} maxVelLimit={4.6} rejectVelFactor={1.2} mode="CameraBasedMovement" camInitDis={-6.8} camMinDis={-4.2} camMaxDis={-8.6} camUpLimit={1.12} camLowLimit={-0.60} camMoveSpeed={1.35} camZoomSpeed={1} camCollision={true} camCollisionOffset={.65} camCollisionSpeedMult={4} camListenerTarget="domElement" />;
 }
-function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,onMusicAutoplayBlocked}) {
+function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInteract,onInteractionArrive,onTouchInteraction,musicPlaying,musicTrack,musicStartedAt,musicPosition,onToggleMusic,onSelectMusic,onNextMusic,onUploadMusic,musicTracks,musicError,locks,snackStates,chatMessages,chatError,onSendChat,voiceEnabled,onToggleVoice,voiceMuted,voiceOpen,onToggleMute,voiceDevices,voiceDevice,onVoiceDeviceChange,voiceVolume,onVoiceVolumeChange,voiceError,musicStatus,onMusicAutoplayBlocked}) {
   const [move,setMove]=useState({x:0,z:0});
   const audioRef=useRef(null);
   const musicPlayBlockedRef=useRef(false);
@@ -881,7 +881,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
     </Canvas>
 
 
-    <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} aria-hidden="true" />
+    <audio ref={audioRef} preload="auto" onEnded={()=>onNextMusic?.()} onError={()=>onMusicAutoplayBlocked?.(new Error("Audio playback failed."))} aria-hidden="true" />
     <div className="topbar"><b>🌙 GC HANGOUT HALL</b><span>♥ {Math.max(0,local?.health??3)}/3&nbsp;&nbsp; • &nbsp;&nbsp;● {Object.keys(players).length} online</span></div>
     <div className="zoneHint">Large open social floor • perimeter interaction zones</div><div className="cameraHint">🖱 Drag to look • wheel/pinch to zoom • WASD / joystick to move</div>
     <div className="chatNotices" role="log" aria-live="polite" aria-relevant="additions">
@@ -902,7 +902,7 @@ function Room({local,players,ballState,onBallState,onMove,onAttack,onEmote,onInt
       {chatError&&<div className="chatError" role="status">{chatError}</div>}
     </div>
     {candidate&&<button className="interactionPrompt" onPointerDown={e=>e.stopPropagation()} onClick={()=>requestInteraction(candidate)}><span>↗</span>{candidate.label}</button>}
-    <div className="musicStatus" aria-live="polite">{musicTrack?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1)}/></>:<span>No song selected</span>}</div>
+    <div className="musicStatus" aria-live="polite">{musicTrack&&musicStatus==="AVAILABLE"?<><strong>{musicPlaying?"▶":"Ⅱ"} {musicTrack.title||"Untitled"}</strong><span>{musicTrack.artist||"Unknown artist"}</span><progress max={audioProgress.duration||1} value={Math.min(audioProgress.current,audioProgress.duration||1)}/></>:<span>{musicStatus==="LOADING"?"Loading music…":musicStatus==="NOT_CONFIGURED"?"Music API not configured":musicStatus==="API_ERROR"?"Music API error":musicStatus==="PLAYBACK_ERROR"?"Playback error — tap Music to retry":"No music available"}</span>}</div>
     <div className="controls" onPointerDown={e=>e.stopPropagation()}>
       <button type="button" onClick={()=>candidate&&requestInteraction(candidate)}>✦ Interact</button>
       <button type="button" className={musicPlaying?"active":""} onClick={async()=>{
@@ -973,7 +973,7 @@ export default function Home(){
   const [id,setId]=useState(null),[players,setPlayers]=useState({}),[musicPlaying,setMusicPlaying]=useState(false);
   const [locks,setLocks]=useState({}),[snackStates,setSnackStates]=useState({}),[action,setAction]=useState(null);
   const [chatMessages,setChatMessages]=useState([]),[chatError,setChatError]=useState(""),[voiceEnabled,setVoiceEnabled]=useState(false),[voiceMuted,setVoiceMuted]=useState(false),[voiceOpen,setVoiceOpen]=useState(false),[voiceDevices,setVoiceDevices]=useState([]),[voiceDevice,setVoiceDevice]=useState(""),[voiceVolume,setVoiceVolume]=useState(.9),[voiceError,setVoiceError]=useState("");
-  const [musicError,setMusicError]=useState("");
+  const [musicError,setMusicError]=useState(""),[musicStatus,setMusicStatus]=useState("LOADING");
   const [connectionError,setConnectionError]=useState(""),[joining,setJoining]=useState(false);
   const ballStateRef=useRef({x:2,y:.35,z:0,vx:0,vy:0,vz:0,ts:Date.now()}),musicRef=useRef(false),musicTrackRef=useRef(null),musicStartedAtRef=useRef(null),musicPositionRef=useRef(0);
   const attackCooldownRef=useRef(0);
@@ -1366,7 +1366,28 @@ export default function Home(){
     }
   };
 
-  useEffect(()=>{if(!joined)return;setMusicError("");fetch("/api/music?search=instrumental%20lounge").then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data?.error||"Music catalog unavailable.");return data}).then(data=>{if(Array.isArray(data.tracks)&&data.tracks.length){setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0])}else setMusicError("No licensed music tracks are available right now.")}).catch(e=>{console.warn("music catalog unavailable",e);setMusicError(e?.message||"Music catalog unavailable.")})},[joined]);
+  useEffect(()=>{if(!joined)return;setMusicError("");setMusicStatus("LOADING");
+    fetch("/api/music?search=instrumental%20lounge")
+      .then(async r=>{
+        const data=await r.json().catch(()=>({}));
+        const status=classifyMusicResponse({status:r.status,data});
+        if(status==="NOT_CONFIGURED"){setMusicStatus(status);throw new Error(data?.error||"Music API is not configured.");}
+        if(status==="API_ERROR"){setMusicStatus(status);throw new Error(data?.error||"Music API request failed.");}
+        if(status==="NO_MUSIC"){setMusicStatus(status);return data;}
+        return data;
+      })
+      .then(data=>{
+        if(Array.isArray(data?.tracks)&&data.tracks.length){
+          setMusicTracks(data.tracks);setMusicTrack(prev=>prev||data.tracks[0]);setMusicStatus("AVAILABLE");
+        }else{
+          setMusicStatus("NO_MUSIC");
+          setMusicError("No playable tracks were returned by the music provider.");
+        }
+      })
+      .catch(e=>{
+        console.warn("music catalog unavailable",e);
+        setMusicError(e?.message||"Music API request failed.");
+      })},[joined]);
 
   const onAttack=()=>{
     if(!localRef.current)return;
@@ -1503,7 +1524,7 @@ export default function Home(){
     // race with input and could leave the client looking locked.
   };
 
-  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>setMusicError(error?"Tap Music to start audio on this device.":"")}/>;
+  if(joined&&id)return <Room local={localRef.current} players={players} ballState={ballState} musicError={musicError} musicStatus={musicStatus} onBallState={onBallState} onEmote={onEmote} musicTracks={musicTracks} musicTrack={musicTrack} musicPlaying={musicPlaying} musicStartedAt={musicStartedAt} musicPosition={musicPosition} onToggleMusic={toggleMusic} onSelectMusic={onSelectMusic} onNextMusic={onNextMusic} onUploadMusic={uploadMusic} locks={locks} snackStates={snackStates} chatMessages={chatMessages} chatError={chatError} onSendChat={onSendChat} onMove={onMove} onAttack={onAttack} onInteract={interact} onInteractionArrive={interactionArrived} onTouchInteraction={touchInteraction} voiceEnabled={voiceEnabled} onToggleVoice={onToggleVoice} voiceMuted={voiceMuted} voiceOpen={voiceOpen} onToggleMute={onToggleMute} voiceDevices={voiceDevices} voiceDevice={voiceDevice} onVoiceDeviceChange={onVoiceDeviceChange} voiceVolume={voiceVolume} onVoiceVolumeChange={onVoiceVolumeChange} voiceError={voiceError} onMusicAutoplayBlocked={error=>{setMusicStatus(error?"PLAYBACK_ERROR":"AVAILABLE");setMusicError(error?"Tap Music to start audio on this device.":"")}}/>;
 
   return <main className="join">
     <div className="card">
