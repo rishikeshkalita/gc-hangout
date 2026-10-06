@@ -1,109 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  VOICE_STATES, canAttack, createLocalPlayer, upsertPlayer, removePlayer, applyPlayerState,
-  beginInteraction, arriveInteraction, releaseInteraction, startEmote, finishEmote,
-  claimSeat, releaseSeat, normalizeChatMessage, mergeChatMessages,
-  normalizeMusicResponse, classifyMusicResponse, voiceTransition,
+  AVATAR_IDS,
+  clampRoomPosition,
+  createLocalPlayer,
+  isMoving,
+  updatePlayer,
 } from "../lib/game-state.mjs";
 
-test("local player exists immediately and remains stable without movement", () => {
-  const player = createLocalPlayer({id:"p1", name:"Rishi", avatarId:"maya"});
-  let players = upsertPlayer({}, player);
-  assert.equal(players.p1.id, "p1");
-  players = upsertPlayer(players, {...player, x:2, z:3});
-  assert.equal(Object.keys(players).length, 1);
-  assert.equal(players.p1.x, 2);
+test("local player is created immediately as a human-avatar identity", () => {
+  const player = createLocalPlayer({ id: "p1", name: " Rishi ", avatarId: "maya" });
+  assert.equal(player.id, "p1");
+  assert.equal(player.name, "Rishi");
+  assert.equal(player.avatarId, "maya");
+  assert.equal(player.x, 0);
+  assert.equal(player.z, 0);
+  assert.equal(player.moving, false);
 });
 
-test("player join/leave/reconnect are idempotent", () => {
-  const p = createLocalPlayer({id:"p1", name:"A", avatarId:"maya"});
-  let players = upsertPlayer({}, p);
-  players = upsertPlayer(players, p);
-  assert.equal(Object.keys(players).length, 1);
-  players = removePlayer(players, "p1");
-  assert.deepEqual(players, {});
-  players = upsertPlayer(players, p);
-  assert.equal(players.p1.id, "p1");
+test("invalid avatar ids fall back to a known human avatar", () => {
+  const player = createLocalPlayer({ id: "p1", avatarId: "capsule" });
+  assert.ok(AVATAR_IDS.includes(player.avatarId));
+  assert.notEqual(player.avatarId, "capsule");
 });
 
-test("stale movement state cannot overwrite newer player state", () => {
-  const current = {id:"p1", x:5, netTs:200};
-  const stale = {id:"p1", x:1, netTs:100};
-  assert.deepEqual(applyPlayerState({p1:current}, stale), {p1:current});
+test("player state updates do not mutate the original player", () => {
+  const player = createLocalPlayer({ id: "p1" });
+  const next = updatePlayer(player, { x: 3, z: -2, moving: true, speed: 2.6 });
+  assert.equal(player.x, 0);
+  assert.equal(next.x, 3);
+  assert.equal(next.z, -2);
+  assert.equal(isMoving(next), true);
+  assert.equal(isMoving(player), false);
 });
 
-test("seat interaction blocks conflicting local states", () => {
-  const p = createLocalPlayer({id:"p1", name:"A", avatarId:"maya"});
-  const seat = {id:"seat-1", type:"seat", position:[1,0,1], rotation:0, seatY:-.4, poseType:"sofa"};
-  const moving = beginInteraction(p, seat);
-  assert.equal(moving.id, "seat-1");
-  const seated = arriveInteraction(p, seat);
-  assert.equal(seated.action, "sit");
-  assert.equal(seated.interactionId, "seat-1");
-  assert.equal(beginInteraction(seated, seat), null);
-  assert.equal(beginInteraction({...p, action:"emote"}, seat), null);
-  assert.equal(releaseInteraction(seated).action, null);
-});
-
-test("simultaneous seat claims resolve to one holder", () => {
-  const first = claimSeat({}, "seat-1", "p1");
-  const second = claimSeat(first.locks, "seat-1", "p2");
-  assert.equal(first.ok, true);
-  assert.equal(second.ok, false);
-  assert.equal(releaseSeat(first.locks, "seat-1", "p2")["seat-1"], "p1");
-  assert.equal(releaseSeat(first.locks, "seat-1", "p1")["seat-1"], undefined);
-});
-
-test("combat cannot start while sitting, sleeping, watching, moving or emoting", () => {
-  const p = createLocalPlayer({id:"p1", name:"A", avatarId:"maya"});
-  assert.equal(canAttack(p), true);
-  for (const action of ["sit","sleep","watch","moving","emote"]) assert.equal(canAttack({...p, action}), false);
-});
-
-test("emotes always have an exit transition", () => {
-  const p = createLocalPlayer({id:"p1", name:"A", avatarId:"maya"});
-  const emote = startEmote(p, "dance");
-  assert.equal(emote.action, "emote");
-  assert.equal(finishEmote(emote).action, null);
-  assert.equal(finishEmote({...emote, action:"emote"}).emote, null);
-  assert.equal(startEmote({...p, action:"sit"}, "wave"), null);
-});
-
-test("chat normalization and merge deduplicate messages", () => {
-  const m = normalizeChatMessage({id:"m1", name:" A ", text:"hello\nworld", ts:10}, 20);
-  assert.deepEqual(m, {id:"m1", name:"A", text:"hello world", ts:10});
-  const merged = mergeChatMessages([m], [m, {id:"m2",name:"B",text:"second",ts:11}], 20);
-  assert.equal(merged.length, 2);
-  assert.deepEqual(mergeChatMessages(merged, m, 20), merged);
-});
-
-test("music normalization handles playable, empty and malformed responses", () => {
-  const data = {results:[{id:1,name:"Track",artist_name:"Artist",audio:"https://audio.example/1.mp3",duration:"123",license_ccurl:"https://creativecommons.org/licenses/by/4.0/"}]};
-  assert.equal(normalizeMusicResponse(data).length, 1);
-  assert.equal(normalizeMusicResponse(data)[0].source, "jamendo");
-  assert.deepEqual(normalizeMusicResponse({results:[]}), []);
-  assert.deepEqual(normalizeMusicResponse({}), []);
-  assert.deepEqual(normalizeMusicResponse({results:[{id:2,name:"No license",audio:"https://audio.example/2.mp3",duration:100}]}), []);
-  assert.deepEqual(normalizeMusicResponse({results:[{id:3,name:"Bad audio",audio:"http://audio.example/3.mp3",duration:100,license_ccurl:"https://creativecommons.org/licenses/by/4.0/"}]}), []);
-  assert.equal(classifyMusicResponse({status:200,data}), "AVAILABLE");
-  assert.equal(classifyMusicResponse({status:200,data:{results:[]}}), "NO_MUSIC");
-  assert.equal(classifyMusicResponse({status:502,data:{configured:true,error:"x"}}), "API_ERROR");
-  assert.equal(classifyMusicResponse({status:503,data:{configured:false}}), "NOT_CONFIGURED");
-});
-
-test("voice state machine is explicit", () => {
-  let state = VOICE_STATES.OFF;
-  state = voiceTransition(state, "REQUEST");
-  assert.equal(state, VOICE_STATES.REQUESTING_PERMISSION);
-  state = voiceTransition(state, "PERMISSION_GRANTED");
-  assert.equal(state, VOICE_STATES.LIVE);
-  state = voiceTransition(state, "MUTE");
-  assert.equal(state, VOICE_STATES.MUTED);
-  state = voiceTransition(state, "UNMUTE");
-  assert.equal(state, VOICE_STATES.LIVE);
-  state = voiceTransition(state, "DISCONNECT");
-  assert.equal(state, VOICE_STATES.DISCONNECTED);
-  assert.equal(voiceTransition(state, "OFF"), VOICE_STATES.OFF);
-  assert.equal(voiceTransition(VOICE_STATES.OFF, "ERROR"), VOICE_STATES.ERROR);
+test("room position clamps to the playable boundary", () => {
+  assert.deepEqual(clampRoomPosition({ x: 99, z: -99 }), { x: 14.66, z: -9.66 });
+  assert.deepEqual(clampRoomPosition({ x: 2, z: 3 }), { x: 2, z: 3 });
 });
