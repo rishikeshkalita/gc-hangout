@@ -40,29 +40,29 @@ const SEATS=[
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-n-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-10+x,0,-6.88],standPosition:[-10+x,0,-6.40],approachPosition:[-10+x,0,-6.40],
-   rotation:Math.PI,seatY:-.48,poseType:"sofa"
+   rotation:0,seatY:-.48,poseType:"sofa"
  })),
  ...[[-.62],[0],[.62]].map(([x],i)=>({
    id:"sofa-s-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-10+x,0,-4.02],standPosition:[-10+x,0,-4.92],approachPosition:[-10+x,0,-4.92],
-   rotation:0,seatY:-.48,poseType:"sofa"
+   rotation:Math.PI,seatY:-.48,poseType:"sofa"
  })),
  ...[[-.62],[0],[.62]].map(([z],i)=>({
    id:"sofa-w-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-12.55,0,-5.45+z],standPosition:[-11.70,0,-5.45+z],approachPosition:[-11.70,0,-5.45+z],
-   rotation:-Math.PI/2,seatY:-.58,poseType:"sofa"
+   rotation:-Math.PI/2,seatY:-.48,poseType:"sofa"
  })),
  ...[[-.62],[0],[.62]].map(([z],i)=>({
    id:"sofa-e-"+i,label:"Sit on sofa",type:"seat",finalAction:"sit",
    position:[-7.45,0,-5.45+z],standPosition:[-8.30,0,-5.45+z],approachPosition:[-8.30,0,-5.45+z],
-   rotation:Math.PI/2,seatY:-.58,poseType:"sofa"
+   rotation:Math.PI/2,seatY:-.48,poseType:"sofa"
  })),
  ...[[-1.45,-1],[0,-1],[1.45,-1],[-1.45,1],[0,1],[1.45,1]].map(([x,side],i)=>({
    id:"dining-seat-"+i,label:"Sit at table",type:"seat",finalAction:"sit",
    position:[10+x,0,5.8+(side<0?-1.82:1.82)],
    standPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
    approachPosition:[10+x,0,5.8+(side<0?-1.35:1.35)],
-   rotation:side<0?0:Math.PI,seatY:.04,poseType:"chair"
+   rotation:side<0?0:Math.PI,seatY:-.08,poseType:"chair"
  }))
 ];
 const BEDS=[
