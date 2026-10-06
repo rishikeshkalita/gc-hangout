@@ -16,21 +16,21 @@ const AVATARS = [
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
 const INTERACTION_ANCHORS = Object.freeze([
-  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -11.4, z: -6.2, rot: Math.PI, targetX: -11.4, targetZ: -6.2, targetRot: Math.PI, triggerX: -11.4, triggerZ: -4.75, exitX: -11.4, exitZ: -7.9, radius: 1.45 },
-  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -9.8, z: -6.2, rot: Math.PI, targetX: -9.8, targetZ: -6.2, targetRot: Math.PI, triggerX: -9.8, triggerZ: -4.75, exitX: -9.8, exitZ: -7.9, radius: 1.45 },
-  { id: "sofa-left-3", type: "SIT", label: "Sit", x: -8.2, z: -6.2, rot: Math.PI, targetX: -8.2, targetZ: -6.2, targetRot: Math.PI, triggerX: -8.2, triggerZ: -4.75, exitX: -8.2, exitZ: -7.9, radius: 1.45 },
-  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -11.4, z: -3.5, rot: Math.PI, targetX: -11.4, targetZ: -3.5, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.05, exitX: -11.4, exitZ: -1.65, radius: 1.45 },
-  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -9.8, z: -3.5, rot: Math.PI, targetX: -9.8, targetZ: -3.5, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.05, exitX: -9.8, exitZ: -1.65, radius: 1.45 },
-  { id: "sofa-lounge-3", type: "SIT", label: "Sit", x: -8.2, z: -3.5, rot: Math.PI, targetX: -8.2, targetZ: -3.5, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.05, exitX: -8.2, exitZ: -1.65, radius: 1.45 },
-  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.75, exitX: 8.2, exitZ: 2.55, radius: 0.82 },
-  { id: "dining-2", type: "SIT", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.75, exitX: 9.7, exitZ: 2.55, radius: 0.82 },
-  { id: "dining-3", type: "SIT", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.75, exitX: 11.2, exitZ: 2.55, radius: 0.82 },
-  { id: "dining-4", type: "SIT", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.85, exitX: 8.2, exitZ: 9.05, radius: 0.82 },
-  { id: "dining-5", type: "SIT", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.85, exitX: 9.7, exitZ: 9.05, radius: 0.82 },
-  { id: "dining-6", type: "SIT", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.85, exitX: 11.2, exitZ: 9.05, radius: 0.82 },
+  { id: "sofa-a-1", type: "SIT", label: "Sit", x: -11.4, z: -6.8, rot: 0, targetX: -11.4, targetZ: -6.8, targetRot: 0, triggerX: -11.4, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 0.92 },
+  { id: "sofa-a-2", type: "SIT", label: "Sit", x: -9.8, z: -6.8, rot: 0, targetX: -9.8, targetZ: -6.8, targetRot: 0, triggerX: -9.8, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 0.92 },
+  { id: "sofa-a-3", type: "SIT", label: "Sit", x: -8.2, z: -6.8, rot: 0, targetX: -8.2, targetZ: -6.8, targetRot: 0, triggerX: -8.2, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 0.92 },
+  { id: "sofa-b-1", type: "SIT", label: "Sit", x: -11.4, z: -0.8, rot: Math.PI, targetX: -11.4, targetZ: -0.8, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 0.92 },
+  { id: "sofa-b-2", type: "SIT", label: "Sit", x: -9.8, z: -0.8, rot: Math.PI, targetX: -9.8, targetZ: -0.8, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 0.92 },
+  { id: "sofa-b-3", type: "SIT", label: "Sit", x: -8.2, z: -0.8, rot: Math.PI, targetX: -8.2, targetZ: -0.8, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 0.92 },
+  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.72, exitX: 7.0, exitZ: 2.72, radius: 0.78 },
+  { id: "dining-2", type: "SIT", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.72, exitX: 9.7, exitZ: 2.72, radius: 0.78 },
+  { id: "dining-3", type: "SIT", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.72, exitX: 12.4, exitZ: 2.72, radius: 0.78 },
+  { id: "dining-4", type: "SIT", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.88, exitX: 7.0, exitZ: 8.88, radius: 0.78 },
+  { id: "dining-5", type: "SIT", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.88, exitX: 9.7, exitZ: 8.88, radius: 0.78 },
+  { id: "dining-6", type: "SIT", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.88, exitX: 12.4, exitZ: 8.88, radius: 0.78 },
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.35 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 6.7, z: 3.1, rot: 0, targetX: 6.7, targetZ: 4.05, targetRot: 0, triggerX: 6.7, triggerZ: 3.1, exitX: 5.8, exitZ: 3.1, radius: 1.3 },
+  { id: "food-table", type: "EAT", label: "Eat", x: 9.7, z: 4.55, rot: 0, targetX: 9.7, targetZ: 4.55, targetRot: 0, triggerX: 9.7, triggerZ: 4.55, exitX: 7.6, exitZ: 4.55, radius: 0.78 },
   { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 12.75, exitZ: 3.9, radius: 0.9 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
@@ -53,8 +53,9 @@ function findNearbyAnchors(x, z) {
 }
 
 const OBSTACLES = [
-  { x: -9.8, z: -6.2, rx: 2.8, rz: 1.0 },
-  { x: -9.8, z: -3.5, rx: 2.8, rz: 1.0 },
+  { x: -9.8, z: -6.8, rx: 2.8, rz: 0.7 },
+  { x: -9.8, z: -0.8, rx: 2.8, rz: 0.7 },
+  { x: -9.8, z: -3.8, rx: 1.1, rz: 0.7 },
   { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
   { x: 9.7, z: 5.8, rx: 2.4, rz: 1.35 },
   { x: 13.25, z: 0.7, rx: 0.8, rz: 3.2 },
@@ -82,6 +83,7 @@ function tryMove(x, z, dx, dz) {
 
 function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
   const group = useRef();
+  const visual = useRef();
   const arms = useRef([]);
   const legs = useRef([]);
   const { skin, shirt, pants, hair } = avatar;
@@ -114,6 +116,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
 
   return (
     <group ref={group}>
+      <group ref={visual}>
       <mesh position={[0, 1.62, 0]} castShadow><sphereGeometry args={[0.31, 20, 16]} /><meshStandardMaterial color={skin} roughness={0.72} /></mesh>
       <mesh position={[0, 1.82, 0]} castShadow scale={[1.05, 0.62, 1.05]}><sphereGeometry args={[0.31, 20, 16]} /><meshStandardMaterial color={hair} roughness={0.9} /></mesh>
       <mesh position={[-0.11, 1.63, 0.285]} castShadow><sphereGeometry args={[0.045, 10, 8]} /><meshStandardMaterial color="#f6f3ef" roughness={0.45} /></mesh>
@@ -131,6 +134,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
       <mesh position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
       {pose === "eat" && <mesh position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
       {pose === "drink" && <mesh position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
+      </group>
       <Billboard position={[0, 2.18, 0]} follow><Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">{displayName}</Text></Billboard>
     </group>
   );
@@ -242,7 +246,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 
     if (!interaction || interaction.phase === "release") {
       if (magnitude > 0.08) {
-        const speed = keys.current.has("shift") ? 5.2 : 3.8;
+        const speed = keys.current.has("shift") || mobile ? 5.2 : 3.8;
         const inputLength = Math.hypot(strafe, forward);
         const f = forward / inputLength;
         const s = strafe / inputLength;
@@ -424,11 +428,13 @@ function GraffitiWall() {
 function Furniture() {
   return (
     <group>
-      <group position={[-9.8, 0, -6.2]}>
+      <group position={[-9.8, 0, -6.8]}>
         <Sofa />
-        <Sofa position={[0, 0, 2.7]} />
-        <CoffeeTable position={[0, 0, 1.35]} />
       </group>
+      <group position={[-9.8, 0, -0.8]} rotation={[0, Math.PI, 0]}>
+        <Sofa />
+      </group>
+      <CoffeeTable position={[-9.8, 0, -3.8]} />
       <group position={[0, 0, -9.15]}>
         <RoundedBox args={[9.0, 3.35, 0.38]} position={[0, 2.2, 0]} radius={0.18} smoothness={5} castShadow><meshStandardMaterial color="#10141c" roughness={0.32} metalness={0.15} /></RoundedBox>
         <mesh position={[0, 2.2, 0.22]}><planeGeometry args={[8.45, 2.72]} /><meshStandardMaterial color="#17182a" emissive="#433a78" emissiveIntensity={0.55} roughness={0.55} /></mesh>
