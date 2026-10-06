@@ -439,7 +439,7 @@ function RealHuman({player,me,liveRef}) {
     if(previous)previous.fadeOut(.16);
     if(desired&&actions[desired]){actions[desired].reset().fadeIn(.16).play();clipRef.current=desired;}
     else clipRef.current=null;
-  },[actions,locked,player.action,player.speed,player.hit,player.attacking,player.emote]);
+  },[actions,poseLocked,player.action,player.speed,player.hit,player.attacking,player.emote]);
 
   useFrame((_,dt)=>{
     if(!root.current)return;
