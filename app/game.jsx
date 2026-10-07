@@ -841,6 +841,7 @@ function RemotePlayer({ state }) {
         drinkKind={state.drinkKind || "water"}
         interactionPhase={state.interactionPhase || "sync"}
         emote={state.emote || null}
+        pairAction={state.pairAction || null}
       />
     </group>
   );
@@ -919,7 +920,8 @@ export default function Game() {
   const [interaction, setInteraction] = useState(null);
   const [tvState, setTvState] = useState({ track: null });
   const [emote, setEmote] = useState(null);
-  const [remotePlayers, setRemotePlayers] = useState([]);\n  const [pairAction, setPairAction] = useState(null);
+  const [remotePlayers, setRemotePlayers] = useState([]);
+  const [pairAction, setPairAction] = useState(null);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
@@ -935,7 +937,12 @@ export default function Game() {
     });
   }, []);
 
-  const handlePairAction = useCallback((next) => {\n    setPairAction(next);\n    window.setTimeout(() => setPairAction((current) => current?.until === next.until ? null : current), Math.max(0, next.until - Date.now()));\n  }, []);\n\n  const handleEmote = useCallback((next) => {
+  const handlePairAction = useCallback((next) => {\n    setPairAction(next);\n    window.setTimeout(() => setPairAction((current) => current?.until === next.until ? null : current), Math.max(0, next.until - Date.now()));\n  }, []);\n\n  const handlePairAction = useCallback((next) => {
+    setPairAction(next);
+    window.setTimeout(() => setPairAction((current) => current?.until === next.until ? null : current), Math.max(0, next.until - Date.now()));
+  }, []);
+
+  const handleEmote = useCallback((next) => {
     setEmote(next);
     window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
   }, []);
@@ -1070,6 +1077,7 @@ export default function Game() {
         playerState={player}
         interaction={interaction}
         emote={emote}
+        pairAction={pairAction}
         speakerActive={interaction?.anchor?.type === "MUSIC_SPEAKER"}
         initialAudioUnlocked={true}
       />
