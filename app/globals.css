@@ -493,3 +493,30 @@ button { border: 0; cursor: pointer; }
     max-height: 58dvh;
   }
 }
+
+.music-main-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  min-width: 0;
+}
+.music-next {
+  min-width: 48px;
+  border-radius: 11px;
+  color: #dfe2ea;
+  background: rgba(255,255,255,.07);
+}
+.music-next:disabled { opacity: .4; cursor: default; }
+.add-song {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  margin-top: 8px;
+  border: 1px dashed rgba(255,255,255,.14);
+  border-radius: 10px;
+  color: #bfc5d2;
+  background: rgba(255,255,255,.025);
+  font-size: 11px;
+}
+.add-song input { display: none; }
