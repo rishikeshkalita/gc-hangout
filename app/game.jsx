@@ -878,7 +878,7 @@ function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joyst
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} />
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} pairAction={pairAction} />
       <RemotePlayers players={remotePlayers} />
     </>
   );
