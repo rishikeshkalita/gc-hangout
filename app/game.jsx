@@ -644,9 +644,9 @@ function TVScreen({ watching = false, track = null }) {
   return (
     <group position={[0, 2.2, -8.92]}>
       <mesh><planeGeometry args={[8.05, 2.34]} /><meshBasicMaterial color="#111827" /></mesh>
-      <Text position={[0, 0.72, 0.03]} fontSize={0.2} color="#aeb6d5" anchorX="center">{status}</Text>
-      <Text position={[0, 0.25, 0.03]} fontSize={0.31} color="#ffffff" anchorX="center" textAlign="center">{title}</Text>
-      <Text position={[0, -0.22, 0.03]} fontSize={0.18} color="#aeb6d5" anchorX="center" textAlign="center">{artist}</Text>
+      <Text position={[0, 0.72, 0.03]} fontSize={0.17} color="#aeb6d5" anchorX="center" overflowWrap="nowrap">{status}</Text>
+      <Text position={[0, 0.27, 0.03]} fontSize={0.26} color="#ffffff" anchorX="center" overflowWrap="nowrap" maxWidth={6.8}>{title}</Text>
+      <Text position={[0, -0.18, 0.03]} fontSize={0.16} color="#aeb6d5" anchorX="center" overflowWrap="nowrap" maxWidth={6.8}>{artist}</Text>
       <mesh position={[0, -0.67, 0.03]}>
         <planeGeometry args={[5.7, 0.055]} />
         <meshBasicMaterial color="#4b5563" />
@@ -685,6 +685,37 @@ function MusicSpeaker({ playing = false, volume = 0.8 }) {
         <meshBasicMaterial color="#b8aaff" transparent opacity={0.35} />
       </mesh>
       <Text position={[0, 0.05, 0.38]} fontSize={0.12} color="#b8aaff" anchorX="center">MUSIC</Text>
+    </group>
+  );
+}
+
+function MusicSpeaker({ playing = false, volume = 0.8 }) {
+  const groupRef = useRef(null);
+  const glowRef = useRef(null);
+
+  useFrame(({ clock }) => {
+    const pulse = playing ? 1 + Math.sin(clock.elapsedTime * 7.5) * 0.035 * Math.max(0.2, volume) : 1;
+    if (groupRef.current) groupRef.current.scale.set(pulse, pulse, pulse);
+    if (glowRef.current) glowRef.current.material.emissiveIntensity = playing ? 0.4 + volume * 1.3 + (Math.sin(clock.elapsedTime * 8) + 1) * 0.18 : 0.08;
+  });
+
+  return (
+    <group ref={groupRef} position={[6.9, 1.0, -7.55]}>
+      <RoundedBox args={[1.7, 2.3, 0.9]} radius={0.14} smoothness={4} castShadow>
+        <meshStandardMaterial color="#20242d" roughness={0.62} metalness={0.18} />
+      </RoundedBox>
+      <mesh position={[0, 0.42, -0.47]} rotation={[Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.47, 32]} />
+        <meshStandardMaterial ref={glowRef} color="#161a23" emissive="#7b6df0" emissiveIntensity={0.1} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, -0.52, -0.47]} rotation={[Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.28, 32]} />
+        <meshStandardMaterial color="#11141b" roughness={0.58} />
+      </mesh>
+      <mesh position={[0, 1.03, -0.48]}>
+        <boxGeometry args={[0.72, 0.08, 0.05]} />
+        <meshStandardMaterial color={playing ? "#8f84ff" : "#4b5362"} emissive={playing ? "#5146bd" : "#000000"} emissiveIntensity={playing ? 0.7 * volume : 0} />
+      </mesh>
     </group>
   );
 }
@@ -754,6 +785,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
 
       <Furniture />
       <TVScreen watching={interaction?.anchor?.type === "WATCH_TV"} track={tvState?.track} />
+      <MusicSpeaker playing={Boolean(tvState?.playing)} volume={tvState?.volume ?? 0.8} />
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} />
       <WallPhotoFrame />
       <GraffitiWall />
