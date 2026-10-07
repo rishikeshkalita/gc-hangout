@@ -133,7 +133,10 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   }, [interaction]);
 
   useEffect(() => {
-    if (!interactionActivity) return;
+    if (!interactionActivity) {
+      lastActivityInteractionRef.current = "";
+      return;
+    }
     const key = interaction?.anchor?.id || interaction.anchor.type;
     if (lastActivityInteractionRef.current === key) return;
     lastActivityInteractionRef.current = key;
@@ -251,7 +254,6 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       const emote = normalizeEmote(payload?.emote);
       if (!emote) return;
       setRemoteEmotes((items) => [...items, { id: `${Date.now()}-${Math.random()}`, name: payload.name || "Guest", emote }].slice(-5));
-      pushChatToast({ id: `emote-${payload.senderId || "remote"}-${payload.timestamp || Date.now()}`, name: String(payload.name || "Guest").slice(0, 18), message: `${emote === "dance" ? "💃" : emote === "clap" ? "👏" : "👋"} is doing ${emote}`, timestamp: Number(payload.timestamp) || Date.now(), local: false, activity: true });
       window.setTimeout(() => setRemoteEmotes((items) => items.slice(1)), 2600);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC }, ({ payload }) => {
