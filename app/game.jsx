@@ -110,7 +110,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
     if (visual.current) {
       if (pose === "sleep") {
-        visual.current.position.set(0, 0.72, 0.15);
+        visual.current.position.set(0, 1.02, 0.15);
         visual.current.rotation.set(-Math.PI / 2, 0, 0);
       } else if (sofaSeat) {
         visual.current.position.set(0, 0.04, -0.10);
@@ -147,8 +147,8 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       legs.current[0].position.z = seated ? 0.22 : 0;
       if (shoes.current[0]) {
         shoes.current[0].scale.setScalar(seated ? 0.86 : 1);
-        shoes.current[0].position.y = seated ? 0.31 : 0.12;
-        shoes.current[0].position.z = seated ? 0.50 : 0.10;
+        shoes.current[0].position.y = seated ? (sofaSeat ? 0.24 : 0.31) : 0.12;
+        shoes.current[0].position.z = seated ? (sofaSeat ? 0.88 : 0.50) : 0.10;
       }
     }
     if (legs.current[1]) {
@@ -158,8 +158,8 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       legs.current[1].position.z = seated ? 0.22 : 0;
       if (shoes.current[1]) {
         shoes.current[1].scale.setScalar(seated ? 0.86 : 1);
-        shoes.current[1].position.y = seated ? 0.31 : 0.12;
-        shoes.current[1].position.z = seated ? 0.50 : 0.10;
+        shoes.current[1].position.y = seated ? (sofaSeat ? 0.24 : 0.31) : 0.12;
+        shoes.current[1].position.z = seated ? (sofaSeat ? 0.88 : 0.50) : 0.10;
       }
     }
   });
