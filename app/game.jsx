@@ -636,8 +636,8 @@ function TVScreen({ watching = false, track = null }) {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     return text.length > length ? `${text.slice(0, length - 1)}…` : text;
   };
-  const title = clampText(track?.title || "NO TRACK PLAYING", 30);
-  const artist = clampText(track?.artist || "GC HANGOUT TV", 24);
+  const title = clampText(track?.title || "NO TRACK PLAYING", 24);
+  const artist = clampText(track?.artist || "GC HANGOUT TV", 20);
   const status = watching ? "WATCHING" : "TV READY";
   const progress = track?.duration > 0 ? Math.min(1, Math.max(0, Number(track.position || 0) / Number(track.duration))) : 0;
 
