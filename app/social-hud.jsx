@@ -38,6 +38,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const [voiceOn, setVoiceOn] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(0.8);
   const [voiceStatus, setVoiceStatus] = useState("Tap mic to join voice");
   const [voicePeers, setVoicePeers] = useState(0);
   const [emoteFlash, setEmoteFlash] = useState(null);
@@ -57,7 +58,15 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const nameRef = useRef(name);
 
   useEffect(() => { nameRef.current = name; }, [name]);
-  useEffect(() => { musicStateRef.current = musicState; onMusicState?.(musicState); }, [musicState, onMusicState]);
+  useEffect(() => {
+    musicStateRef.current = musicState;
+    if (Number.isFinite(musicState.volume)) setMusicVolume(musicState.volume);
+    onMusicState?.(musicState);
+  }, [musicState, onMusicState]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = musicVolume;
+  }, [musicVolume]);
 
   const pushChatToast = useCallback((entry) => {
     const toast = { ...entry, toastId: `${entry.id}-toast` };
@@ -247,6 +256,16 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     window.setTimeout(() => { void audio.play().catch(() => {}); }, 120);
   }, [musicVolume]);
 
+  const resumeMusicAfterVoiceStart = useCallback(() => {
+    const audio = audioRef.current;
+    const state = musicStateRef.current;
+    if (!audio || !state.track || !state.playing) return;
+    try {
+      if (Math.abs(audio.currentTime - state.position) > 1.25) audio.currentTime = Math.max(0, state.position);
+    } catch {}
+    void audio.play().catch(() => {});
+  }, []);
+
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
       voiceEnabledRef.current = false;
@@ -275,6 +294,9 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
         const state = channel.presenceState();
         for (const peerId of Object.keys(state).filter((id) => id !== clientIdRef.current && clientIdRef.current < id)) await ensurePeer(peerId, true);
       }
+      // iOS Safari may pause an existing media element when microphone capture starts.
+      window.setTimeout(resumeMusicAfterVoiceStart, 80);
+      window.setTimeout(resumeMusicAfterVoiceStart, 350);
     } catch (error) {
       setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
     }
@@ -306,6 +328,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     const audio = audioRef.current;
     if (!audio || !musicState.track?.audio) return;
     audio.src = musicState.track.audio;
+    audio.volume = musicVolume;
     audio.currentTime = Math.min(musicState.position || 0, Math.max(0, (musicState.track.duration || 1) - 0.2));
     audio.volume = musicVolume;
     if (musicState.playing) void audio.play().catch(() => {});
@@ -379,10 +402,11 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       },
       position: 0,
       playing: true,
+      volume: musicVolume,
       updatedAt: Date.now(),
       senderId: clientIdRef.current,
     });
-  }, []);
+  }, [musicVolume]);
 
   const publishMusic = useCallback((next) => {
     const normalized = normalizeMusicState({ ...next, volume: next.volume ?? musicVolume, senderId: clientIdRef.current });
@@ -415,6 +439,13 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       position: audioRef.current?.currentTime || musicStateRef.current.position,
       updatedAt: Date.now(),
     });
+  }, [publishMusic]);
+
+  const setVolume = useCallback((value) => {
+    const next = Math.max(0, Math.min(1, Number(value) || 0));
+    setMusicVolume(next);
+    if (audioRef.current) audioRef.current.volume = next;
+    if (musicStateRef.current.track) publishMusic({ ...musicStateRef.current, volume: next, position: audioRef.current?.currentTime || musicStateRef.current.position, updatedAt: Date.now() });
   }, [publishMusic]);
 
   const nextTrack = useCallback(() => {
