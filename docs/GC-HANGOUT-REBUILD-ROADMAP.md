@@ -986,3 +986,13 @@ For every wave, record:
 - Added a compact **FPP / TPP** camera toggle. FPP places the camera at avatar head height while TPP retains the current follow camera.
 - Commits: `01a111f147b72b3f7b047b1f0ba0b8a56e572551`, `9fd5fad2fa1c43a1c65719f48c952e6e51e9e936`.
 - Fresh iPhone acceptance remains required for the new dining route and both camera modes.
+
+
+### 2026-10-07 — FPP occlusion, dining reposition, and sofa leg correction
+- Fresh iPhone screenshots exposed three issues: FPP camera clipping through the local avatar, dining table placement too far left, and sofa legs/shoes penetrating or separating from the seated pose.
+- FPP now hides the local avatar visual/name while the camera is at eye height, preventing first-person self-occlusion.
+- Dining table, chairs, food/drink anchors, and table collision were shifted right together.
+- EAT and DRINK proximity anchors are now exposed through the universal interaction control, not decoration-only.
+- Sofa seated leg roots were moved forward/upward and their bend reduced; sofa shoes were brought back toward the legs.
+- Commit: `a240f8ca721a8fb1a59f4a69508b295a031cdc92`.
+- Fresh iPhone acceptance remains required for FPP, dining interactions, and sofa seating.
