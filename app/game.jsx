@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Billboard, Text, RoundedBox, useTexture } from "@react-three/drei";
 import * as THREE from "three";
-import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
 
 const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
 const AVATARS = [
@@ -505,7 +504,7 @@ function GraffitiWall() {
 }
 
 function WallPhotoFrame() {
-  const photo = useTexture(GC_HANGOUT_PHOTO_DATA_URL);
+  const photo = useTexture("/api/gc-photo");
   photo.colorSpace = THREE.SRGBColorSpace;
 
   return (
