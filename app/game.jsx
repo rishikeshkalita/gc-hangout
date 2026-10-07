@@ -87,6 +87,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
   const visual = useRef();
   const arms = useRef([]);
   const legs = useRef([]);
+  const heldProp = useRef();
   const { skin, shirt, pants, hair } = avatar;
   const displayName = (name || avatar.label || "You").trim().slice(0, 18).toUpperCase();
 
@@ -99,8 +100,11 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     const chairSeat = pose === "sit-chair" || (seated && seatStyle === "chair");
     const gesture = pose === "eat" || pose === "drink";
     const eating = pose === "eat";
+    const drinking = pose === "drink";
+    const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
+    const propToMouth = gestureCycle > 0.58;
 
-    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.34 : chairSeat ? 0.16 : 0;
+    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.40 : chairSeat ? 0.22 : 0;
     group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
 
@@ -109,9 +113,16 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = seated ? (sofaSeat ? -0.30 : -0.38) : pose === "drink" ? -1.05 : pose === "eat" ? -0.65 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = seated ? (sofaSeat ? -0.26 : -0.30) : drinking ? -1.05 : eating ? (propToMouth ? -1.22 : -0.72) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
-      if (eating) arms.current[1].rotation.y = Math.sin(t * 7) * 0.08;
+      if (eating) arms.current[1].rotation.y = propToMouth ? -0.10 : 0.08;
+      if (heldProp.current) {
+        if (eating) {
+          heldProp.current.position.set(propToMouth ? 0.26 : 0.34, propToMouth ? 1.30 : 1.04, propToMouth ? 0.34 : 0.30);
+        } else if (drinking) {
+          heldProp.current.position.set(propToMouth ? 0.27 : 0.36, propToMouth ? 1.31 : 1.05, propToMouth ? 0.34 : 0.28);
+        }
+      }
     }
     if (legs.current[0]) {
       legs.current[0].rotation.x = seated ? -1.05 : moving ? -stride : 0;
@@ -143,8 +154,8 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
       <mesh position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
       <mesh position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
-      {pose === "eat" && <mesh position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
-      {pose === "drink" && <mesh position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
+      {pose === "eat" && <mesh ref={heldProp} position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
+      {pose === "drink" && <mesh ref={heldProp} position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>
       </group>
       <Billboard position={[0, 2.18, 0]} follow><Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">{displayName}</Text></Billboard>
     </group>
