@@ -31,8 +31,8 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
-  { id: "bar-drink", type: "DRINK", label: "Drink", x: 12.9, z: 6.9, rot: Math.PI, targetX: 12.9, targetZ: 7.15, targetRot: Math.PI, triggerX: 12.9, triggerZ: 6.9, exitX: 11.4, exitZ: 6.9, radius: 1.15 },
-  { id: "bar-snack", type: "EAT", label: "Eat", requiresSitting: true, x: 12.9, z: 7.35, rot: Math.PI, targetX: 12.9, targetZ: 7.35, targetRot: Math.PI, triggerX: 12.9, triggerZ: 7.35, exitX: 11.4, exitZ: 7.35, radius: 1.15 },
+  { id: "bar-drink", type: "DRINK", label: "Drink", x: 4.0, z: 1.0, rot: Math.PI, targetX: 4.0, targetZ: 1.25, targetRot: Math.PI, triggerX: 4.0, triggerZ: 1.0, exitX: 2.5, exitZ: 1.0, radius: 1.15 },
+  { id: "bar-snack", type: "EAT", label: "Eat", x: 4.0, z: 1.45, rot: Math.PI, targetX: 4.0, targetZ: 1.45, targetRot: Math.PI, triggerX: 4.0, triggerZ: 1.45, exitX: 2.5, exitZ: 1.45, radius: 1.15 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -59,7 +59,7 @@ const OBSTACLES = [
   { x: -9.8, z: -3.35, rx: 0.9, rz: 0.6 },
   { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
   { x: 10.7, z: 5.8, rx: 2.4, rz: 1.35 },
-  { x: 12.9, z: 7.7, rx: 1.0, rz: 1.0 },
+  { x: 4.0, z: 1.35, rx: 1.15, rz: 1.0 },
   { x: 8.7, z: -6.5, rx: 1.8, rz: 1.8 },
 ];
 
@@ -504,7 +504,7 @@ function DiningBar() {
     { x: 0.7, color: "#5a253c", scale: 0.88 },
   ];
   return (
-    <group position={[12.9, 0, 7.7]}>
+    <group position={[4.0, 0, 1.35]}>
       <RoundedBox args={[2.1, 1.35, 1.8]} position={[0, 0.68, 0]} radius={0.12} smoothness={4} castShadow><meshStandardMaterial color="#343941" roughness={0.78} /></RoundedBox>
       <RoundedBox args={[2.35, 0.12, 2.0]} position={[0, 1.38, 0]} radius={0.05} smoothness={3} castShadow><meshStandardMaterial color="#72513f" roughness={0.72} /></RoundedBox>
       {bottles.map((bottle) => (
