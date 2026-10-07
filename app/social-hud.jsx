@@ -33,8 +33,9 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const [draft, setDraft] = useState("");
   const [tracks, setTracks] = useState([]);
   const [musicSearch, setMusicSearch] = useState("lounge");
-  const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, updatedAt: Date.now(), senderId: "" });
+  const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, volume: 0.8, updatedAt: Date.now(), senderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
+  const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const [voiceOn, setVoiceOn] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("Tap mic to join voice");
@@ -236,6 +237,16 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
 
+  const resumeMusicAfterVoice = useCallback(() => {
+    const audio = audioRef.current;
+    const state = musicStateRef.current;
+    if (!audio || !state.track || !state.playing) return;
+    audio.volume = Math.max(0, Math.min(1, Number(state.volume ?? musicVolume)));
+    try { audio.currentTime = Math.max(0, Number(state.position) || 0); } catch {}
+    void audio.play().catch(() => {});
+    window.setTimeout(() => { void audio.play().catch(() => {}); }, 120);
+  }, [musicVolume]);
+
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
       voiceEnabledRef.current = false;
@@ -254,6 +265,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       localStreamRef.current = stream;
+      resumeMusicAfterVoice();
       voiceEnabledRef.current = true;
       setVoiceOn(true);
       setVoiceStatus("Voice connected");
@@ -266,7 +278,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     } catch (error) {
       setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
     }
-  }, [ensurePeer, voiceOn]);
+  }, [ensurePeer, resumeMusicAfterVoice, voiceOn]);
 
   const toggleMute = useCallback(() => {
     const next = !muted;
@@ -302,6 +314,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    audio.volume = musicVolume;
     if (musicState.playing) void audio.play().catch(() => {});
     else audio.pause();
     if (musicState.track && Math.abs(audio.currentTime - musicState.position) > 1.25) {
@@ -313,12 +326,12 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     const timer = window.setInterval(() => {
       const audio = audioRef.current;
       if (!audio || !musicStateRef.current.track || !musicStateRef.current.playing) return;
-      const next = { ...musicStateRef.current, position: audio.currentTime, updatedAt: Date.now(), senderId: clientIdRef.current };
+      const next = { ...musicStateRef.current, position: audio.currentTime, volume: musicVolume, updatedAt: Date.now(), senderId: clientIdRef.current };
       setMusicState(next);
       void send(SOCIAL_EVENTS.MUSIC, next);
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [send]);
+  }, [musicVolume, send]);
 
   useEffect(() => () => {
     if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
@@ -371,11 +384,11 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   }, []);
 
   const publishMusic = useCallback((next) => {
-    const normalized = normalizeMusicState({ ...next, senderId: clientIdRef.current });
+    const normalized = normalizeMusicState({ ...next, volume: next.volume ?? musicVolume, senderId: clientIdRef.current });
     if (!normalized) return;
     setMusicState(normalized);
     void send(SOCIAL_EVENTS.MUSIC, normalized);
-  }, [send]);
+  }, [musicVolume, send]);
 
   const selectTrack = useCallback((track) => {
     publishMusic({ track, position: 0, playing: true, updatedAt: Date.now() });
@@ -392,6 +405,16 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     }
     publishMusic({ ...musicStateRef.current, playing: !musicStateRef.current.playing, position: audioRef.current?.currentTime || musicStateRef.current.position, updatedAt: Date.now() });
   }, [publishMusic, selectTrack, tracks]);
+
+  const setMusicVolume = useCallback((value) => {
+    const volume = Math.max(0, Math.min(1, Number(value)));
+    publishMusic({
+      ...musicStateRef.current,
+      volume,
+      position: audioRef.current?.currentTime || musicStateRef.current.position,
+      updatedAt: Date.now(),
+    });
+  }, [publishMusic]);
 
   const nextTrack = useCallback(() => {
     if (!tracks.length) return;
@@ -452,6 +475,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
           <div className="music-now">
             <div className="music-main-row"><button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause" : "Play"}{musicState.track ? ` · ${musicState.track.title}` : ""}</button><button className="music-next" onClick={nextTrack} disabled={!tracks.length} aria-label="Next track">Next</button></div>
             <span>{Math.floor(musicState.position || 0)}s</span>
+            <label className="music-volume" aria-label={`Room volume ${Math.round(musicVolume * 100)} percent`}><span>🔊</span><input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(event.target.value)} /></label>
           </div>
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
             <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search music" inputMode="search" enterKeyHint="search" />
@@ -466,6 +490,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
             ))}
             {!tracks.length && <div className="social-empty">No playable tracks found.</div>}
           </div>
+          <div className="music-volume-label">Room volume · {Math.round(musicVolume * 100)}%</div>
           <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Add Song plays a local MP3/WAV/M4A/AAC/OGG/WebM file on this device.</small>
         </section>
       )}
