@@ -288,6 +288,10 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
       remoteAudioRef.current.forEach((audio) => audio.remove());
       remoteAudioRef.current.clear();
+      window.clearInterval(playerTimer);
+      window.clearInterval(pruneTimer);
+      remotePlayersRef.current.clear();
+      onRemotePlayers?.([]);
       void channel.unsubscribe();
       supabase.removeChannel(channel);
       channelRef.current = null;
