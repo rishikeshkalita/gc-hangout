@@ -952,3 +952,14 @@ For every wave, record:
 - Screenshots confirmed the sofa and dining chairs were physically floating because their primitive bases were authored above floor level. Previous avatar offsets were compensating for that error and therefore could not produce stable seating.
 - Structural fix: furniture is now grounded at floor level; seated avatar roots are derived from the corrected seat heights; seated legs and shoes use an explicit forward foot position.
 - Wave 2 remains **NOT VERIFIED** until fresh iPhone acceptance confirms grounded furniture, natural sitting, seated eating, horizontal joystick direction, and safe interaction exits.
+
+
+### 2026-10-07 — post-deployment screenshot hardening
+- User-provided production screenshots were reviewed after the seating-coordinate merge.
+- Confirmed remaining issues: seated shoe/leg placement still reads as detached, sofa/chair seated transforms need tighter grounding, mobile joystick horizontal mapping regressed, mobile camera framing is too close, and the room remains visually underlit in several views.
+- Corrective commit: `35016165d33c43ac56d1d02cdf3710ff7bbe846b`.
+- Changes: restored direct joystick horizontal mapping, increased mobile camera distance, moved sleep rotation onto the avatar visual pivot instead of the player root, separated sofa/chair seated visual offsets, shortened/repositioned seated legs and shoes, and increased room fill lighting.
+- Automated verification: pending on the new main commit.
+- Browser/device result: not yet verified on a fresh build.
+- Deployment policy: this change is intended for the single explicitly requested production deployment only; no development preview deployment should be created.
+- Wave 2 remains **NOT VERIFIED** until fresh iPhone acceptance confirms sofa/chair posture, joystick left/right, sleep visibility/exit, seated eating, and safe exits.
