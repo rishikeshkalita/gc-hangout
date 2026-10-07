@@ -22,12 +22,12 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "sofa-b-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: 0.55, rot: Math.PI, targetX: -11.4, targetZ: 0.55, targetRot: Math.PI, triggerX: -11.4, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
   { id: "sofa-b-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: 0.55, rot: Math.PI, targetX: -9.8, targetZ: 0.55, targetRot: Math.PI, triggerX: -9.8, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
   { id: "sofa-b-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: 0.55, rot: Math.PI, targetX: -8.2, targetZ: 0.55, targetRot: Math.PI, triggerX: -8.2, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
-  { id: "dining-1", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.95, exitX: 8.2, exitZ: 2.45, radius: 1.15 },
-  { id: "dining-2", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.95, exitX: 9.7, exitZ: 2.45, radius: 1.15 },
-  { id: "dining-3", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.95, exitX: 11.2, exitZ: 2.45, radius: 1.15 },
-  { id: "dining-4", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.65, exitX: 8.2, exitZ: 9.15, radius: 1.15 },
-  { id: "dining-5", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.65, exitX: 9.7, exitZ: 9.15, radius: 1.15 },
-  { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.65, exitX: 11.2, exitZ: 9.15, radius: 1.15 },
+  { id: "dining-1", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.95, exitX: 8.2, exitZ: 2.45, radius: 1.65 },
+  { id: "dining-2", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.95, exitX: 9.7, exitZ: 2.45, radius: 1.65 },
+  { id: "dining-3", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.95, exitX: 11.2, exitZ: 2.45, radius: 1.65 },
+  { id: "dining-4", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.65, exitX: 8.2, exitZ: 9.15, radius: 1.65 },
+  { id: "dining-5", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.65, exitX: 9.7, exitZ: 9.15, radius: 1.65 },
+  { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.65, exitX: 11.2, exitZ: 9.15, radius: 1.65 },
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
@@ -89,7 +89,7 @@ function tryMove(x, z, dx, dz) {
   return { x, z };
 }
 
-function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "chair", pov = "tpp" }) {
+function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, pov = "tpp" }) {
   const group = useRef();
   const visual = useRef();
   const arms = useRef([]);
@@ -103,7 +103,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     if (!group.current) return;
     const t = clock.getElapsedTime();
     const stride = moving ? Math.sin(t * 11) * 0.48 : Math.sin(t * 2.2) * 0.025;
-    const seated = pose === "sit" || pose === "sit-sofa" || pose === "sit-chair" || ((pose === "eat" || pose === "drink") && seatStyle);
+    const seated = pose === "sit" || pose === "sit-sofa" || pose === "sit-chair" || ((pose === "eat" || pose === "drink") && Boolean(seatStyle));
     const sofaSeat = pose === "sit-sofa" || (seated && seatStyle === "sofa");
     const chairSeat = pose === "sit-chair" || (seated && seatStyle === "chair");
     const gesture = pose === "eat" || pose === "drink";
