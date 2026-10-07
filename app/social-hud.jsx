@@ -409,6 +409,10 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
 
   const setMusicVolume = useCallback((value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
+    if (musicStateRef.current.track?.local) {
+      setMusicState((state) => ({ ...state, volume }));
+      return;
+    }
     publishMusic({
       ...musicStateRef.current,
       volume,
