@@ -105,9 +105,24 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
     const propToMouth = gestureCycle > 0.58;
 
-    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? -0.065 : chairSeat ? -0.25 : 0;
-    group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
+    group.current.position.y = 0;
+    group.current.rotation.x = 0;
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
+    if (visual.current) {
+      if (pose === "sleep") {
+        visual.current.position.set(0, 0.72, 0.15);
+        visual.current.rotation.set(-Math.PI / 2, 0, 0);
+      } else if (sofaSeat) {
+        visual.current.position.set(0, 0.04, -0.10);
+        visual.current.rotation.set(0, 0, 0);
+      } else if (chairSeat) {
+        visual.current.position.set(0, -0.02, -0.02);
+        visual.current.rotation.set(0, 0, 0);
+      } else {
+        visual.current.position.set(0, 0, 0);
+        visual.current.rotation.set(0, 0, 0);
+      }
+    }
 
     if (arms.current[0]) {
       arms.current[0].rotation.x = seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
@@ -126,21 +141,25 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       }
     }
     if (legs.current[0]) {
-      legs.current[0].rotation.x = seated ? -1.18 : moving ? -stride : 0;
-      legs.current[0].position.y = seated ? 0.50 : 0.45;
-      legs.current[0].position.z = seated ? 0.20 : 0;
+      legs.current[0].rotation.x = seated ? -1.05 : moving ? -stride : 0;
+      legs.current[0].scale.y = seated ? 0.78 : 1;
+      legs.current[0].position.y = seated ? 0.54 : 0.45;
+      legs.current[0].position.z = seated ? 0.22 : 0;
       if (shoes.current[0]) {
-        shoes.current[0].position.y = seated ? 0.19 : 0.12;
-        shoes.current[0].position.z = seated ? 0.48 : 0.10;
+        shoes.current[0].scale.setScalar(seated ? 0.86 : 1);
+        shoes.current[0].position.y = seated ? 0.31 : 0.12;
+        shoes.current[0].position.z = seated ? 0.50 : 0.10;
       }
     }
     if (legs.current[1]) {
-      legs.current[1].rotation.x = seated ? -1.18 : moving ? stride : 0;
-      legs.current[1].position.y = seated ? 0.50 : 0.45;
-      legs.current[1].position.z = seated ? 0.20 : 0;
+      legs.current[1].rotation.x = seated ? -1.05 : moving ? stride : 0;
+      legs.current[1].scale.y = seated ? 0.78 : 1;
+      legs.current[1].position.y = seated ? 0.54 : 0.45;
+      legs.current[1].position.z = seated ? 0.22 : 0;
       if (shoes.current[1]) {
-        shoes.current[1].position.y = seated ? 0.19 : 0.12;
-        shoes.current[1].position.z = seated ? 0.48 : 0.10;
+        shoes.current[1].scale.setScalar(seated ? 0.86 : 1);
+        shoes.current[1].position.y = seated ? 0.31 : 0.12;
+        shoes.current[1].position.z = seated ? 0.50 : 0.10;
       }
     }
   });
@@ -175,7 +194,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
-  const cameraDistance = useRef(7.0);
+  const cameraDistance = useRef(8.2);
   const drag = useRef(null);
   const cameraTarget = useRef(new THREE.Vector3());
   const cameraPosition = useRef(new THREE.Vector3(0, 3.6, 7.8));
@@ -231,14 +250,14 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const element = gl.domElement;
     const wheel = (event) => {
       event.preventDefault();
-      cameraDistance.current = clamp(cameraDistance.current + event.deltaY * 0.006, mobile ? 6.2 : 5.2, 8.8);
+      cameraDistance.current = clamp(cameraDistance.current + event.deltaY * 0.006, mobile ? 7.0 : 5.2, mobile ? 10.0 : 8.8);
     };
     element.addEventListener("wheel", wheel, { passive: false });
     return () => element.removeEventListener("wheel", wheel);
   }, [gl, mobile]);
 
   useEffect(() => {
-    cameraDistance.current = mobile ? clamp(cameraDistance.current, 6.2, 8.8) : clamp(cameraDistance.current, 5.2, 8.8);
+    cameraDistance.current = mobile ? clamp(cameraDistance.current, 7.0, 10.0) : clamp(cameraDistance.current, 5.2, 8.8);
   }, [mobile]);
 
   useEffect(() => {
@@ -272,7 +291,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
     const forward = touch.active ? touch.y : keyboardForward;
-    const strafe = touch.active ? -touch.x : keyboardStrafe;
+    const strafe = touch.active ? touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction || interaction.phase === "release") {
@@ -510,12 +529,12 @@ function Furniture() {
 function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
   return (
     <>
-      <ambientLight intensity={1.55} />
+      <ambientLight intensity={1.82} />
       <hemisphereLight args={["#fff2dc", "#303847", 1.1]} />
-      <directionalLight position={[5, 10, 4]} intensity={0.72} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-      <pointLight position={[0, 4.5, 0]} intensity={1.8} distance={18} color="#fff1d5" />
-      <pointLight position={[-9, 3.6, -3]} intensity={1.0} distance={10} color="#e2e8ff" />
-      <pointLight position={[9, 3.6, 4]} intensity={1.0} distance={10} color="#ffe5c2" />
+      <directionalLight position={[5, 10, 4]} intensity={0.95} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <pointLight position={[0, 4.5, 0]} intensity={2.15} distance={18} color="#fff1d5" />
+      <pointLight position={[-9, 3.6, -3]} intensity={1.25} distance={10} color="#e2e8ff" />
+      <pointLight position={[9, 3.6, 4]} intensity={1.25} distance={10} color="#ffe5c2" />
       <color attach="background" args={["#141821"]} />
       <fog attach="fog" args={["#141821", 24, 46]} />
 
