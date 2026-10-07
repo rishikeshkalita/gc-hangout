@@ -86,6 +86,7 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.65, exitX: 11.2, exitZ: 9.15, radius: 1.65 },
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
+  { id: "music-speaker", type: "MUSIC", label: "Adjust volume", x: 6.4, z: -7.0, rot: Math.PI, targetX: 6.4, targetZ: -7.0, targetRot: Math.PI, triggerX: 6.4, triggerZ: -7.0, exitX: 7.6, exitZ: -7.0, radius: 1.55 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, foodKind: "pizza", x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
   // Stocked bar: standing interactions are available from all four sides.
   { id: "bar-drink-south", type: "DRINK", label: "Drink", drinkKind: "soda", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
@@ -124,6 +125,7 @@ const OBSTACLES = [
   { x: 10.7, z: 5.8, rx: 2.4, rz: 1.35 },
   { x: 4.0, z: 1.35, rx: 1.15, rz: 1.0 },
   { x: 8.7, z: -6.5, rx: 1.8, rz: 1.8 },
+  { x: 6.4, z: -7.65, rx: 0.68, rz: 0.42 },
 ];
 
 function blocked(x, z) {
@@ -659,16 +661,16 @@ function TVScreen({ watching = false, track = null }) {
   );
 }
 
-function MusicSpeaker({ playing = false, volume = 0.8 }) {
+function MusicSpeaker({ playing = false, volume = 0.8, active = false }) {
   const ring = useRef();
   useFrame(({ clock }) => {
     if (!ring.current) return;
-    const pulse = playing ? 1 + Math.sin(clock.getElapsedTime() * 7) * 0.035 * Math.max(0.2, volume) : 1;
+    const pulse = playing ? 1 + Math.sin(clock.getElapsedTime() * 7) * 0.08 * Math.max(0.25, volume) : active ? 1 + Math.sin(clock.getElapsedTime() * 4) * 0.025 : 1;
     ring.current.scale.setScalar(pulse);
-    ring.current.material.opacity = 0.18 + volume * 0.42;
+    ring.current.material.opacity = playing ? 0.25 + volume * 0.55 : active ? 0.28 : 0.12;
   });
   return (
-    <group position={[5.25, 1.15, -8.35]}>
+    <group position={[6.4, 0, -7.65]}>
       <RoundedBox args={[1.2, 1.8, 0.65]} position={[0, 0.9, 0]} radius={0.12} smoothness={5} castShadow>
         <meshStandardMaterial color="#151923" roughness={0.48} metalness={0.18} />
       </RoundedBox>
@@ -684,6 +686,8 @@ function MusicSpeaker({ playing = false, volume = 0.8 }) {
         <ringGeometry args={[0.31, 0.36, 32]} />
         <meshBasicMaterial color="#b8aaff" transparent opacity={0.35} />
       </mesh>
+      <pointLight position={[0, 1.15, 0.7]} intensity={playing ? 1.15 : active ? 0.75 : 0.08} distance={3.8} color="#8b7dff" />
+      <mesh position={[0, 0.22, 0.34]}><boxGeometry args={[0.82, 0.035, 0.035]} /><meshBasicMaterial color="#9b8cff" /></mesh>
       <Text position={[0, 0.05, 0.38]} fontSize={0.12} color="#b8aaff" anchorX="center">MUSIC</Text>
     </group>
   );
@@ -733,7 +737,61 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {
+function RemotePlayer({ state }) {
+  const group = useRef();
+  const avatar = AVATARS.find((item) => item.id === state.avatarId) || AVATARS[0];
+  const interaction = state.interaction;
+  const pose = interaction?.type === "SIT" ? (interaction.seatStyle === "sofa" ? "sit-sofa" : "sit-chair")
+    : interaction?.type === "SLEEP" ? "sleep"
+    : interaction?.type === "EAT" ? "eat"
+    : interaction?.type === "DRINK" ? "drink"
+    : "idle";
+  useFrame(() => {
+    if (!group.current) return;
+    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, state.x, 0.28);
+    group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, state.z, 0.28);
+    let delta = state.rot - group.current.rotation.y;
+    delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+    group.current.rotation.y += delta * 0.28;
+  });
+  return (
+    <group ref={group} position={[state.x, 0, state.z]} rotation={[0, state.rot, 0]}>
+      <HumanAvatar avatar={avatar} name={state.name} moving={state.moving} pose={pose} seatStyle={interaction?.seatStyle} foodKind={interaction?.foodKind} drinkKind={interaction?.drinkKind} interactionPhase={interaction?.phase} emote={state.emote} />
+    </group>
+  );
+}
+
+function ClubLighting() {
+  const lights = useRef([]);
+  const fixtures = [
+    [-9, 4.72, -3.5, "#8b7dff"], [-3, 4.72, -2, "#45d9ff"],
+    [3, 4.72, -2, "#ff5fc7"], [9, 4.72, 2, "#6eff8a"],
+  ];
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    lights.current.forEach((light, i) => {
+      if (!light) return;
+      const pulse = 0.55 + 0.45 * Math.sin(t * 3.4 + i * 1.8);
+      light.intensity = 1.4 + pulse * 2.2;
+      light.position.x = fixtures[i][0] + Math.sin(t * (0.55 + i * 0.08) + i) * 2.2;
+      light.position.z = fixtures[i][2] + Math.cos(t * (0.65 + i * 0.06) + i) * 1.8;
+      light.position.y = 4.3;
+    });
+  });
+  return (
+    <group>
+      {fixtures.map(([x,y,z,color], i) => (
+        <group key={i} position={[x,y,z]}>
+          <mesh><boxGeometry args={[0.72, 0.08, 0.72]} /><meshStandardMaterial color="#10131b" emissive={color} emissiveIntensity={2.2} /></mesh>
+          <mesh position={[0, -0.06, 0]}><boxGeometry args={[0.5, 0.025, 0.5]} /><meshBasicMaterial color={color} /></mesh>
+          <pointLight ref={(node) => { lights.current[i] = node; }} color={color} intensity={2.2} distance={9} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote, remotePlayers }) {
   return (
     <>
       <ambientLight intensity={1.82} />
@@ -752,14 +810,16 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh position={[15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
       <mesh position={[0, 4.85, 0]}><boxGeometry args={[28.5, 0.12, 18.5]} /><meshStandardMaterial color="#1d222c" roughness={1} /></mesh>
 
+      <ClubLighting />
       <Furniture />
       <TVScreen watching={interaction?.anchor?.type === "WATCH_TV"} track={tvState?.track} />
-      <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} />
+      <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC"} />
       <WallPhotoFrame />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
+      {remotePlayers.map((item) => <RemotePlayer key={item.id} state={item} />)}
       <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} />
     </>
   );
@@ -800,6 +860,7 @@ export default function Game() {
   const [interaction, setInteraction] = useState(null);
   const [tvState, setTvState] = useState({ track: null });
   const [emote, setEmote] = useState(null);
+  const [remotePlayers, setRemotePlayers] = useState([]);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
@@ -815,12 +876,14 @@ export default function Game() {
     });
   }, []);
 
+  const handleRemotePlayers = useCallback((next) => { setRemotePlayers(Array.isArray(next) ? next.filter((item) => item?.id && item.id !== player.id) : []); }, [player.id]);
+
   const handleEmote = useCallback((next) => {
     setEmote(next);
     window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
   }, []);
 
-  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK" || anchor.type === "WATCH_TV");
+  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK" || anchor.type === "WATCH_TV" || anchor.type === "MUSIC");
   const universalActive = Boolean(interaction);
 
   const beginInteraction = (anchor) => {
@@ -882,12 +945,16 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
+        <Room remotePlayers={remotePlayers} player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
       <SocialHud
         name={name.trim().slice(0, 18) || "You"}
+        player={player}
+        interaction={interaction}
+        emote={emote}
+        onRemotePlayers={handleRemotePlayers}
         onMusicState={handleMusicState}
         onEmote={handleEmote}
       />
@@ -956,10 +1023,10 @@ export default function Game() {
           }
           if (universalInteraction) beginInteraction(universalInteraction);
         }}
-        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
-        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
+        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : universalInteraction?.type === "MUSIC" ? "Adjust music volume" : "Sit"}
+        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : universalInteraction?.type === "MUSIC" ? "Adjust music volume" : "Sit"}
       >
-        {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : "♙"}
+        {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : universalInteraction?.type === "MUSIC" ? "🔊" : "♙"}
       </button>
 
       <button className="pov-toggle" onPointerDown={(event) => event.stopPropagation()} onClick={() => setPov((value) => value === "tpp" ? "fpp" : "tpp")} aria-label={pov === "tpp" ? "Switch to first person view" : "Switch to third person view"}>{pov === "tpp" ? "FPP" : "TPP"}</button>

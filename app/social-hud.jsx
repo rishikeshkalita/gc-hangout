@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { EMOTES, SOCIAL_EVENTS, createClientId, formatChatTime, normalizeEmote, normalizeMusicState, sanitizeChatMessage } from "../lib/social-state.mjs";
+import { EMOTES, SOCIAL_EVENTS, createClientId, formatChatTime, normalizeEmote, normalizeMusicState, normalizePlayerState, sanitizeChatMessage } from "../lib/social-state.mjs";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote }) {
+export default function SocialHud({ name, player, interaction, emote, onMusicState, onEmote, onRemotePlayers }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -42,6 +42,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const [voicePeers, setVoicePeers] = useState(0);
   const [emoteFlash, setEmoteFlash] = useState(null);
   const [remoteEmotes, setRemoteEmotes] = useState([]);
+  const [remotePlayers, setRemotePlayers] = useState({});
   const supabaseRef = useRef(null);
   const channelRef = useRef(null);
   const clientIdRef = useRef(createClientId());
@@ -55,8 +56,15 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
   const nameRef = useRef(name);
+  const playerRef = useRef(player);
+  const interactionRef = useRef(interaction);
+  const emoteRef = useRef(emote);
 
   useEffect(() => { nameRef.current = name; }, [name]);
+  useEffect(() => { playerRef.current = player; }, [player]);
+  useEffect(() => { interactionRef.current = interaction; }, [interaction]);
+  useEffect(() => { emoteRef.current = emote; }, [emote]);
+  useEffect(() => { onRemotePlayers?.(Object.values(remotePlayers)); }, [remotePlayers, onRemotePlayers]);
   useEffect(() => { musicStateRef.current = musicState; onMusicState?.(musicState); }, [musicState, onMusicState]);
 
   const pushChatToast = useCallback((entry) => {
@@ -161,6 +169,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       setChat((items) => [...items, entry].slice(-40));
       pushChatToast(entry);
     });
+    channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => { if (payload?.senderId === clientIdRef.current) return; const next = normalizePlayerState(payload?.player); if (!next?.id) return; setRemotePlayers((items) => ({ ...items, [next.id]: next })); });
     channel.on("broadcast", { event: SOCIAL_EVENTS.EMOTE }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const emote = normalizeEmote(payload?.emote);
@@ -217,11 +226,11 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     channel.on("presence", { event: "join" }, ({ key }) => {
       if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
     });
-    channel.on("presence", { event: "leave" }, ({ key }) => closePeer(key));
+    channel.on("presence", { event: "leave" }, ({ key }) => { closePeer(key); setRemotePlayers((items) => { const next={...items}; delete next[key]; return next; }); });
 
     void channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
-        await channel.track({ name: nameRef.current, voice: voiceEnabledRef.current });
+        await channel.track({ name: nameRef.current, voice: voiceEnabledRef.current, player: playerRef.current ? { ...playerRef.current, interaction: interactionRef.current ? { type: interactionRef.current.anchor?.type, phase: interactionRef.current.phase, seatStyle: interactionRef.current.anchor?.seatStyle, foodKind: interactionRef.current.anchor?.foodKind, drinkKind: interactionRef.current.anchor?.drinkKind } : null, emote: emoteRef.current } : null });
       }
     });
 
@@ -236,6 +245,8 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       channelRef.current = null;
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
+
+  useEffect(() => { const timer = window.setInterval(() => { const channel = channelRef.current; const current = playerRef.current; if (!channel || !current) return; const state = normalizePlayerState({ ...current, id: clientIdRef.current, interaction: interactionRef.current ? { type: interactionRef.current.anchor?.type, phase: interactionRef.current.phase, seatStyle: interactionRef.current.anchor?.seatStyle, foodKind: interactionRef.current.anchor?.foodKind, drinkKind: interactionRef.current.anchor?.drinkKind } : null, emote: emoteRef.current, timestamp: Date.now() }); if (state) void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload: { player: state, senderId: clientIdRef.current } }); }, 100); return () => window.clearInterval(timer); }, []);
 
   const resumeMusicAfterVoice = useCallback(() => {
     const audio = audioRef.current;
@@ -460,11 +471,11 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       <div className="chat-toasts" aria-live="polite">
         {chatToasts.map((item) => <div className="chat-toast" key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
       </div>
-      <label className="global-volume" aria-label={`Room volume ${Math.round(musicVolume * 100)} percent`}>
+      {interaction?.anchor?.type === "MUSIC" && <label className="global-volume speaker-volume" aria-label={`Room volume ${Math.round(musicVolume * 100)} percent`}>
         <span>🔊</span>
         <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(event.target.value)} />
         <b>{Math.round(musicVolume * 100)}%</b>
-      </label>
+      </label>}
       <div className="social-toolbar" aria-label="Social controls">
         <PanelButton active={panel === "chat"} onClick={() => setPanel(panel === "chat" ? null : "chat")} label="Open chat">💬</PanelButton>
         <PanelButton active={panel === "music"} onClick={() => setPanel(panel === "music" ? null : "music")} label="Open music">🎵</PanelButton>
