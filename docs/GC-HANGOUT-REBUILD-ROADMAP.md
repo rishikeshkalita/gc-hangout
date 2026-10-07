@@ -938,3 +938,11 @@ For every wave, record:
 - [ ] No unsupported “working” claims.
 
 > **Finish line:** A human player inside a large, beautiful hangout hall with smooth camera and movement, where people can actually hang out together.
+
+
+### 2026-10-07 — latest iPhone interaction acceptance findings
+- Wave 2 remains **NOT VERIFIED / NOT COMPLETE**.
+- User acceptance identified: seated avatar posture needs correction on sofa/chairs; eating was incorrectly switching the avatar into a standing-like posture; horizontal joystick input was reversed; sofa exit points could leave the player blocked against the sofa collision; interaction labels overlapped the player name; dining/interaction exits need robust safe-position handling.
+- Latest fix commit: `025841b3549c9518a58f0f5631f11946110d68e0`.
+- Vercel preview deployments are intentionally disabled for development. Do not create preview deployments during implementation. Remote deployment is reserved for an explicit real-device verification need.
+- Required next acceptance: verify joystick left/right, sofa/chair seated posture, seated eating animation, universal Sit/Sleep control, safe exit from every interaction, and bed sleep/exit on a fresh build. No Wave 3 work until these pass.
