@@ -343,10 +343,36 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         } else {
           next = { ...state, revision: state.revision + 1, queue, updatedAt: now };
         }
-      } else if (action === "toggle") {
+      } else if (action === "pause_vote") {
         if (!state.current) return;
-        const position = currentMusicPosition(state, now);
-        next = { ...state, revision: state.revision + 1, position, startedAt: state.playing ? 0 : now, playing: !state.playing, updatedAt: now, skipVotes: [] };
+        const desiredPlaying = Boolean(payload.desiredPlaying);
+        if (desiredPlaying === state.playing) return;
+        const votes = desiredPlaying === state.pauseTargetPlaying
+          ? [...new Set([...state.pauseVotes, requesterId])]
+          : [requesterId];
+        const activeCount = Math.max(1, activePresenceIdsRef.current.size);
+        if (votes.length > activeCount / 2) {
+          const position = currentMusicPosition(state, now);
+          next = {
+            ...state,
+            revision: state.revision + 1,
+            position,
+            startedAt: desiredPlaying ? now : 0,
+            playing: desiredPlaying,
+            updatedAt: now,
+            skipVotes: [],
+            pauseVotes: [],
+            pauseTargetPlaying: desiredPlaying,
+          };
+        } else {
+          next = {
+            ...state,
+            revision: state.revision + 1,
+            pauseVotes: votes,
+            pauseTargetPlaying: desiredPlaying,
+            updatedAt: now,
+          };
+        }
       } else if (action === "volume") {
         next = { ...state, revision: state.revision + 1, volume: Math.max(0, Math.min(1, Number(payload.volume) || 0)), updatedAt: now };
       } else if (action === "skip") {
@@ -696,9 +722,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
               }
               if (youtubeProgrammaticRef.current) return;
               if (event.data === YT.PlayerState.PAUSED && current.playing) {
-                void sendMusicRequest("toggle");
+                setMusicStatus("Room pause requires a majority vote.");
+                youtubeProgrammaticRef.current = true;
+                event.target.playVideo();
+                window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 250);
               } else if (event.data === YT.PlayerState.PLAYING && !current.playing) {
-                void sendMusicRequest("toggle");
+                setMusicStatus("Room resume requires a majority vote.");
+                youtubeProgrammaticRef.current = true;
+                event.target.pauseVideo();
+                window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 250);
               }
             },
             onError: (event) => {
@@ -838,13 +870,14 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     setPanel("music");
   }, [sendMusicRequest]);
 
-  const toggleMusic = useCallback(() => {
+  const votePauseResume = useCallback(() => {
     sharedAudioUnlockedRef.current = true;
     if (!musicStateRef.current.current) {
       if (tracks[0]) queueTrack(tracks[0]);
       return;
     }
-    void sendMusicRequest("toggle");
+    const desiredPlaying = !musicStateRef.current.playing;
+    void sendMusicRequest("pause_vote", { desiredPlaying });
   }, [queueTrack, sendMusicRequest, tracks]);
 
   const setMusicVolume = useCallback((value) => {
@@ -936,10 +969,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           <div className="social-panel-head"><strong>Shared YouTube</strong><span>{musicState.current ? `${musicState.current.title} · ${musicState.current.artist}` : "Nothing playing"}</span></div>
           <div className="music-now">
             <div className="music-main-row">
-              <button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause room" : "Play room"}{musicState.current ? ` · ${musicState.current.title}` : ""}</button>
+              <button className="music-main" onClick={votePauseResume}>{musicState.playing ? "Vote to pause" : "Vote to resume"}{musicState.current ? ` · ${musicState.current.title}` : ""}</button>
               <button className="music-next" onClick={voteSkip} disabled={!musicState.current}>Skip vote</button>
             </div>
-            <span>{musicState.current ? `${Math.floor(currentMusicPosition(musicState))}s · ${musicState.skipVotes.length} vote${musicState.skipVotes.length === 1 ? "" : "s"}` : "Queue a video to start the room"}</span>
+            <span>{musicState.current ? `${Math.floor(currentMusicPosition(musicState))}s · ${musicState.playing ? `${musicState.pauseVotes.length} pause vote${musicState.pauseVotes.length === 1 ? "" : "s"}` : `${musicState.pauseVotes.length} resume vote${musicState.pauseVotes.length === 1 ? "" : "s"}`} · ${musicState.skipVotes.length} skip vote${musicState.skipVotes.length === 1 ? "" : "s"}` : "Queue a video to start the room"}</span>
           </div>
           <div className="speaker-volume-note">Room volume is shared. Walk to the floor speaker to change it.</div>
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
@@ -959,7 +992,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
             {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to advance the room. No local uploads. YouTube content remains in the official player.</small>
+          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to pause/resume or advance the room. No local uploads. YouTube content remains in the official player.</small>
           <small className="youtube-attribution">YouTube source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
         </section>
       )}
