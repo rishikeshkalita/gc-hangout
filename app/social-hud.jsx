@@ -29,6 +29,7 @@ function PanelButton({ active, children, onClick, label }) {
 export default function SocialHud({ name, onMusicState, onEmote }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
+  const [chatToasts, setChatToasts] = useState([]);
   const [draft, setDraft] = useState("");
   const [tracks, setTracks] = useState([]);
   const [musicSearch, setMusicSearch] = useState("lounge");
@@ -56,6 +57,12 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
 
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => { musicStateRef.current = musicState; onMusicState?.(musicState); }, [musicState, onMusicState]);
+
+  const pushChatToast = useCallback((entry) => {
+    const toast = { ...entry, toastId: `${entry.id}-toast` };
+    setChatToasts((items) => [...items, toast].slice(-3));
+    window.setTimeout(() => setChatToasts((items) => items.filter((item) => item.toastId !== toast.toastId)), 3200);
+  }, []);
 
   const send = useCallback(async (event, payload) => {
     const channel = channelRef.current;
@@ -143,13 +150,15 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       if (payload?.senderId === clientIdRef.current) return;
       const message = sanitizeChatMessage(payload?.message);
       if (!message) return;
-      setChat((items) => [...items, {
+      const entry = {
         id: `${payload.senderId || "remote"}-${payload.timestamp || Date.now()}`,
         name: String(payload.name || "Guest").slice(0, 18),
         message,
         timestamp: Number(payload.timestamp) || Date.now(),
         local: false,
-      }].slice(-40));
+      };
+      setChat((items) => [...items, entry].slice(-40));
+      pushChatToast(entry);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.EMOTE }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
@@ -395,9 +404,10 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     if (!message) return;
     const entry = { id: `${clientIdRef.current}-${Date.now()}`, name: nameRef.current || "You", message, timestamp: Date.now(), local: true };
     setChat((items) => [...items, entry].slice(-40));
+    pushChatToast(entry);
     setDraft("");
     void send(SOCIAL_EVENTS.CHAT, { name: nameRef.current || "You", message, timestamp: entry.timestamp });
-  }, [draft, send]);
+  }, [draft, pushChatToast, send]);
 
   const triggerEmote = useCallback((emote) => {
     const normalized = normalizeEmote(emote);
@@ -413,6 +423,9 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   return (
     <>
       <audio ref={audioRef} preload="auto" />
+      <div className="chat-toasts" aria-live="polite">
+        {chatToasts.map((item) => <div className="chat-toast" key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
+      </div>
       <div className="social-toolbar" aria-label="Social controls">
         <PanelButton active={panel === "chat"} onClick={() => setPanel(panel === "chat" ? null : "chat")} label="Open chat">💬</PanelButton>
         <PanelButton active={panel === "music"} onClick={() => setPanel(panel === "music" ? null : "music")} label="Open music">🎵</PanelButton>
