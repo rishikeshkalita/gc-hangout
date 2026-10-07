@@ -86,7 +86,7 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.65, exitX: 11.2, exitZ: 9.15, radius: 1.65 },
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
-  { id: "music-speaker", type: "MUSIC_SPEAKER", label: "Speaker", x: 5.5, z: -4.55, rot: Math.PI, targetX: 5.5, targetZ: -4.55, targetRot: Math.PI, triggerX: 5.5, triggerZ: -3.65, exitX: 5.5, exitZ: -3.25, radius: 1.65 },
+  { id: "music-speaker", type: "MUSIC_SPEAKER", label: "Speaker", x: 5.5, z: -4.55, rot: Math.PI, targetX: 5.5, targetZ: -3.65, targetRot: Math.PI, triggerX: 5.5, triggerZ: -3.65, exitX: 5.5, exitZ: -3.05, radius: 1.65 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, foodKind: "pizza", x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
   // Stocked bar: standing interactions are available from all four sides.
   { id: "bar-drink-south", type: "DRINK", label: "Drink", drinkKind: "soda", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
