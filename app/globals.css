@@ -553,3 +553,14 @@ button { border: 0; cursor: pointer; }
     width: min(290px, calc(100vw - 20px));
   }
 }
+
+/* Wave 4 social polish */
+.music-volume { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:8px; margin-top:8px; color:#aeb5c4; font-size:11px; }
+.music-volume input { width:100%; accent-color:#7567ee; }
+.music-volume-label { margin-top:5px; color:#8f96a6; font-size:10px; text-align:right; }
+.chat-toasts { top:calc(70px + env(safe-area-inset-top)); bottom:auto; right:max(16px, env(safe-area-inset-right)); width:min(330px, calc(100vw - 32px)); }
+.chat-toast { animation:chat-toast-in .18s ease-out; }
+@keyframes chat-toast-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+@media (max-width:700px) {
+  .chat-toasts { top:calc(62px + env(safe-area-inset-top)); bottom:auto; right:max(10px, env(safe-area-inset-right)); width:min(300px, calc(100vw - 20px)); }
+}
