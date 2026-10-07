@@ -425,12 +425,12 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ### 2026-10-07 — Wave 4 implementation record
 
-- **Commits:** merged PR #23 at `0306ac4998efbdfd0c30e721a82d6947c73a8ff7`; merged PR #25 at `603cb12708fc6d4f57d989b88662393451c2dedb`.
-- **What changed:** added Supabase Realtime social transport, shared Jamendo music controls, local Add Song playback, compact chat/toasts, WebRTC voice signaling/transport, mute/unmute, and wave/clap/dance emotes with movement locking.
-- **Production deployment:** Vercel production deployment for `0306ac4...` reached READY. Deployment for `603cb127...` was triggered automatically and was still BUILDING at the time of this record.
-- **Browser result:** NOT VERIFIED for Wave 4 social controls.
-- **Known limitation:** local Add Song is intentionally local-device playback; it is not falsely broadcast as a remote blob URL. Shared uploaded audio can be added later with a storage-backed asset pipeline.
-- **Next acceptance:** on two devices/clients, verify chat delivery, Jamendo playback synchronization, voice audio, mute/unmute, and emote behavior. Then run the mobile UI regression checklist.
+- **Wave 4 implementation is in source.** Supabase Realtime social transport, shared Jamendo music, local Add Song playback, chat/toasts, WebRTC voice, mute/unmute, and wave/clap/dance emotes are implemented.
+- **Polish pass:** TV track text was tightened to prevent long song titles/artists from flooding the screen; chat toasts are positioned at the top and auto-expire; music resume is retried after microphone activation for iOS Safari; a persistent room-volume slider is available outside the music panel; the animated 3D music speaker remains beside the TV rather than in front of the screen.
+- **Volume correctness:** shared volume normalization now preserves 0% volume instead of falling back to 80%.
+- **Deployment:** a fresh production deployment was attempted for commit `02489e267b4a3c39c10597bb0a1af24a8c95a029`, but Vercel rejected the deployment because the Hobby account hit its daily deployment limit (>100/day). No workaround or billing setting was changed.
+- **Verification:** Wave 4 remains **NOT VERIFIED** until fresh two-client/device acceptance is completed. Automated test execution is also not independently observed through the available GitHub connector.
+- **Acceptance target:** verify chat delivery/toasts, shared music play/pause/position/volume, voice join/mute without stopping music, emotes, TV formatting, and the mobile volume control on two clients/devices.
 
 ---
 
