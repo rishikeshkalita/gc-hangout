@@ -16,22 +16,23 @@ const AVATARS = [
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
 const INTERACTION_ANCHORS = Object.freeze([
-  { id: "sofa-a-1", type: "SIT", label: "Sit", x: -11.4, z: -6.8, rot: 0, targetX: -11.4, targetZ: -6.8, targetRot: 0, triggerX: -11.4, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 0.92 },
-  { id: "sofa-a-2", type: "SIT", label: "Sit", x: -9.8, z: -6.8, rot: 0, targetX: -9.8, targetZ: -6.8, targetRot: 0, triggerX: -9.8, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 0.92 },
-  { id: "sofa-a-3", type: "SIT", label: "Sit", x: -8.2, z: -6.8, rot: 0, targetX: -8.2, targetZ: -6.8, targetRot: 0, triggerX: -8.2, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 0.92 },
-  { id: "sofa-b-1", type: "SIT", label: "Sit", x: -11.4, z: -0.8, rot: Math.PI, targetX: -11.4, targetZ: -0.8, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 0.92 },
-  { id: "sofa-b-2", type: "SIT", label: "Sit", x: -9.8, z: -0.8, rot: Math.PI, targetX: -9.8, targetZ: -0.8, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 0.92 },
-  { id: "sofa-b-3", type: "SIT", label: "Sit", x: -8.2, z: -0.8, rot: Math.PI, targetX: -8.2, targetZ: -0.8, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 0.92 },
-  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.72, exitX: 7.0, exitZ: 2.72, radius: 0.78 },
-  { id: "dining-2", type: "SIT", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.72, exitX: 9.7, exitZ: 2.72, radius: 0.78 },
-  { id: "dining-3", type: "SIT", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.72, exitX: 12.4, exitZ: 2.72, radius: 0.78 },
-  { id: "dining-4", type: "SIT", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.88, exitX: 7.0, exitZ: 8.88, radius: 0.78 },
-  { id: "dining-5", type: "SIT", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.88, exitX: 9.7, exitZ: 8.88, radius: 0.78 },
-  { id: "dining-6", type: "SIT", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.88, exitX: 12.4, exitZ: 8.88, radius: 0.78 },
-  { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.35 },
+  { id: "sofa-a-1", type: "SIT", label: "Sit", x: -11.4, z: -6.8, rot: 0, targetX: -11.4, targetZ: -6.8, targetRot: 0, triggerX: -11.4, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 1.45 },
+  { id: "sofa-a-2", type: "SIT", label: "Sit", x: -9.8, z: -6.8, rot: 0, targetX: -9.8, targetZ: -6.8, targetRot: 0, triggerX: -9.8, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 1.45 },
+  { id: "sofa-a-3", type: "SIT", label: "Sit", x: -8.2, z: -6.8, rot: 0, targetX: -8.2, targetZ: -6.8, targetRot: 0, triggerX: -8.2, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 1.45 },
+  { id: "sofa-b-1", type: "SIT", label: "Sit", x: -11.4, z: -0.8, rot: Math.PI, targetX: -11.4, targetZ: -0.8, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 1.45 },
+  { id: "sofa-b-2", type: "SIT", label: "Sit", x: -9.8, z: -0.8, rot: Math.PI, targetX: -9.8, targetZ: -0.8, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 1.45 },
+  { id: "sofa-b-3", type: "SIT", label: "Sit", x: -8.2, z: -0.8, rot: Math.PI, targetX: -8.2, targetZ: -0.8, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 1.45 },
+  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 3.05, exitX: 7.0, exitZ: 2.45, radius: 1.45 },
+  { id: "dining-2", type: "SIT", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 3.05, exitX: 9.7, exitZ: 2.45, radius: 1.45 },
+  { id: "dining-3", type: "SIT", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 3.05, exitX: 11.2, exitZ: 2.45, radius: 1.45 },
+  { id: "dining-4", type: "SIT", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.55, exitX: 7.0, exitZ: 9.0, radius: 1.45 },
+  { id: "dining-5", type: "SIT", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.55, exitX: 9.7, exitZ: 9.0, radius: 1.45 },
+  { id: "dining-6", type: "SIT", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.55, exitX: 11.2, exitZ: 9.0, radius: 1.45 },
+  { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 9.7, z: 4.55, rot: 0, targetX: 9.7, targetZ: 4.55, targetRot: 0, triggerX: 9.7, triggerZ: 4.55, exitX: 7.6, exitZ: 4.55, radius: 0.78 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 12.75, exitZ: 3.9, radius: 0.9 },
+  { id: "food-table", type: "EAT", label: "Eat", x: 9.7, z: 4.55, rot: 0, targetX: 9.7, targetZ: 4.55, targetRot: 0, triggerX: 9.7, triggerZ: 4.55, exitX: 7.6, exitZ: 4.55, radius: 0.9 },
+  { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 9.7, z: 5.8, rot: 0, targetX: 9.7, targetZ: 5.8, targetRot: 0, triggerX: 9.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.0 },
+  { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 12.75, exitZ: 3.9, radius: 1.0 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -102,16 +103,16 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
 
     if (arms.current[0]) {
-      arms.current[0].rotation.x = seated ? -0.58 : gesture ? -0.9 - Math.sin(t * 7) * 0.12 : moving ? stride : 0.02 * Math.sin(t * 2.2);
+      arms.current[0].rotation.x = seated ? -0.44 : gesture ? -0.9 - Math.sin(t * 7) * 0.12 : moving ? stride : 0.02 * Math.sin(t * 2.2);
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = seated ? -0.58 : pose === "drink" ? -1.05 : pose === "eat" ? -0.65 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = seated ? -0.44 : pose === "drink" ? -1.05 : pose === "eat" ? -0.65 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
       if (eating) arms.current[1].rotation.y = Math.sin(t * 7) * 0.08;
     }
-    if (legs.current[0]) legs.current[0].rotation.x = seated ? -1.28 : moving ? -stride : 0;
-    if (legs.current[1]) legs.current[1].rotation.x = seated ? -1.28 : moving ? stride : 0;
+    if (legs.current[0]) legs.current[0].rotation.x = seated ? -1.02 : moving ? -stride : 0;
+    if (legs.current[1]) legs.current[1].rotation.x = seated ? -1.02 : moving ? stride : 0;
   });
 
   return (
@@ -241,7 +242,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
     const forward = touch.active ? touch.y : keyboardForward;
-    const strafe = touch.active ? touch.x : keyboardStrafe;
+    const strafe = touch.active ? -touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction || interaction.phase === "release") {
@@ -513,9 +514,14 @@ export default function Game() {
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
   const beginInteraction = (anchor) => {
-    if (!anchor || interaction) return;
-    restoreMotion.current = { x: player.x, z: player.z, rot: player.rot };
-    setInteraction({ status: "reserved", phase: "reserve", anchor, startedAt: Date.now() });
+    if (!anchor) return;
+    if (interaction && interaction.anchor.type !== "SIT") return;
+    const seatedEat = Boolean(anchor.requiresSitting && interaction?.anchor?.type === "SIT");
+    const nextAnchor = seatedEat
+      ? { ...anchor, targetX: player.x, targetZ: player.z, targetRot: player.rot, exitX: player.x, exitZ: player.z }
+      : anchor;
+    if (!interaction) restoreMotion.current = { x: player.x, z: player.z, rot: player.rot };
+    setInteraction({ status: "reserved", phase: "reserve", anchor: nextAnchor, startedAt: Date.now() });
   };
 
   const endInteraction = () => {
@@ -564,16 +570,19 @@ export default function Game() {
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
-      {nearby.length > 0 && !interaction && (
+      {!interaction && nearby.filter((anchor) => !anchor.requiresSitting).length > 0 && (
         <div className="interaction-actions" onPointerDown={(event) => event.stopPropagation()}>
-          {nearby.map((anchor) => (
+          {nearby.filter((anchor) => !anchor.requiresSitting).slice(0, 2).map((anchor) => (
             <button key={anchor.id} className="interaction-hint" onClick={() => beginInteraction(anchor)}>
-              <strong>{anchor.label}</strong><span>Tap to interact</span>
+              <strong>{anchor.label}</strong><span>{anchor.type === "SIT" ? "Sit here" : "Tap to interact"}</span>
             </button>
           ))}
         </div>
       )}
-      {interaction && <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}><strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span></button>}
+      {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
+        <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
+      )}
+      {interaction && <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}><strong>{interaction.anchor.label}</strong><span>{interaction.anchor.type === "EAT" ? "Tap to stand / exit" : "Tap to stand / exit"}</span></button>}
 
       <div
         className="touch-controls"
