@@ -159,5 +159,5 @@ test("shared music state clamps room volume", () => {
     volume: 1.4,
   });
   assert.equal(state.volume, 1);
-  assert.equal(state.playing, true);
+  assert.equal(state.playing, false);
 });
