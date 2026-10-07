@@ -815,14 +815,19 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         duration: 0,
         shared: true,
       };
-      publishMusic({ track, position: 0, playing: true, updatedAt: Date.now() });
+      const normalized = normalizeMusicState({ track, position: 0, playing: true, volume: musicVolume, updatedAt: Date.now(), senderId: clientIdRef.current });
+      if (!normalized) throw new Error("Invalid shared music track");
+      sharedAudioUnlockedRef.current = true;
+      setMusicState(normalized);
+      pushActivity(`started music “${track.title}”`, "🎵");
+      void send(SOCIAL_EVENTS.MUSIC, { ...normalized, senderName: nameRef.current || "You" });
     } catch (error) {
       console.error("GC Hangout music upload failed", error);
       pushChatToast({ id: `upload-error-${Date.now()}`, name: "Music", message: "Could not share that song. Try again.", timestamp: Date.now(), local: true, activity: true });
     } finally {
       setUploadBusy(false);
     }
-  }, [publishMusic, pushChatToast, uploadBusy]);
+  }, [musicVolume, pushActivity, pushChatToast, send, uploadBusy]);
 
   const publishMusic = useCallback((next) => {
     sharedAudioUnlockedRef.current = true;
