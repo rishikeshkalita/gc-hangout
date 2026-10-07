@@ -16,22 +16,23 @@ const AVATARS = [
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
 const INTERACTION_ANCHORS = Object.freeze([
-  { id: "sofa-left-1", type: "SIT", label: "Sit", x: -11.4, z: -6.2, rot: Math.PI, targetX: -11.4, targetZ: -6.2, targetRot: Math.PI, triggerX: -11.4, triggerZ: -4.75, exitX: -11.4, exitZ: -7.9, radius: 1.45 },
-  { id: "sofa-left-2", type: "SIT", label: "Sit", x: -9.8, z: -6.2, rot: Math.PI, targetX: -9.8, targetZ: -6.2, targetRot: Math.PI, triggerX: -9.8, triggerZ: -4.75, exitX: -9.8, exitZ: -7.9, radius: 1.45 },
-  { id: "sofa-left-3", type: "SIT", label: "Sit", x: -8.2, z: -6.2, rot: Math.PI, targetX: -8.2, targetZ: -6.2, targetRot: Math.PI, triggerX: -8.2, triggerZ: -4.75, exitX: -8.2, exitZ: -7.9, radius: 1.45 },
-  { id: "sofa-lounge-1", type: "SIT", label: "Sit", x: -11.4, z: -3.5, rot: Math.PI, targetX: -11.4, targetZ: -3.5, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.05, exitX: -11.4, exitZ: -1.65, radius: 1.45 },
-  { id: "sofa-lounge-2", type: "SIT", label: "Sit", x: -9.8, z: -3.5, rot: Math.PI, targetX: -9.8, targetZ: -3.5, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.05, exitX: -9.8, exitZ: -1.65, radius: 1.45 },
-  { id: "sofa-lounge-3", type: "SIT", label: "Sit", x: -8.2, z: -3.5, rot: Math.PI, targetX: -8.2, targetZ: -3.5, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.05, exitX: -8.2, exitZ: -1.65, radius: 1.45 },
-  { id: "dining-1", type: "SIT", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 2.75, exitX: 8.2, exitZ: 2.55, radius: 0.82 },
-  { id: "dining-2", type: "SIT", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 2.75, exitX: 9.7, exitZ: 2.55, radius: 0.82 },
-  { id: "dining-3", type: "SIT", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 2.75, exitX: 11.2, exitZ: 2.55, radius: 0.82 },
-  { id: "dining-4", type: "SIT", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.85, exitX: 8.2, exitZ: 9.05, radius: 0.82 },
-  { id: "dining-5", type: "SIT", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.85, exitX: 9.7, exitZ: 9.05, radius: 0.82 },
-  { id: "dining-6", type: "SIT", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.85, exitX: 11.2, exitZ: 9.05, radius: 0.82 },
-  { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.35 },
+  { id: "sofa-a-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: -7.25, rot: 0, targetX: -11.4, targetZ: -7.25, targetRot: 0, triggerX: -11.4, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
+  { id: "sofa-a-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: -7.25, rot: 0, targetX: -9.8, targetZ: -7.25, targetRot: 0, triggerX: -9.8, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
+  { id: "sofa-a-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: -7.25, rot: 0, targetX: -8.2, targetZ: -7.25, targetRot: 0, triggerX: -8.2, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
+  { id: "sofa-b-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: 0.55, rot: Math.PI, targetX: -11.4, targetZ: 0.55, targetRot: Math.PI, triggerX: -11.4, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
+  { id: "sofa-b-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: 0.55, rot: Math.PI, targetX: -9.8, targetZ: 0.55, targetRot: Math.PI, triggerX: -9.8, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
+  { id: "sofa-b-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: 0.55, rot: Math.PI, targetX: -8.2, targetZ: 0.55, targetRot: Math.PI, triggerX: -8.2, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
+  { id: "dining-1", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 3.05, exitX: 7.0, exitZ: 2.45, radius: 1.45 },
+  { id: "dining-2", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 3.05, exitX: 9.7, exitZ: 2.45, radius: 1.45 },
+  { id: "dining-3", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 3.05, exitX: 11.2, exitZ: 2.45, radius: 1.45 },
+  { id: "dining-4", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 7.65, rot: Math.PI, targetX: 8.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 8.2, triggerZ: 8.55, exitX: 7.0, exitZ: 9.0, radius: 1.45 },
+  { id: "dining-5", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 7.65, rot: Math.PI, targetX: 9.7, targetZ: 7.65, targetRot: Math.PI, triggerX: 9.7, triggerZ: 8.55, exitX: 9.7, exitZ: 9.0, radius: 1.45 },
+  { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.55, exitX: 11.2, exitZ: 9.0, radius: 1.45 },
+  { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 6.7, z: 3.1, rot: 0, targetX: 6.7, targetZ: 4.05, targetRot: 0, triggerX: 6.7, triggerZ: 3.1, exitX: 5.8, exitZ: 3.1, radius: 1.3 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 12.75, exitZ: 3.9, radius: 0.9 },
+  { id: "food-table", type: "EAT", label: "Eat", x: 9.7, z: 4.55, rot: 0, targetX: 9.7, targetZ: 4.55, targetRot: 0, triggerX: 9.7, triggerZ: 4.55, exitX: 7.6, exitZ: 4.55, radius: 0.9 },
+  { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 9.7, z: 5.8, rot: 0, targetX: 9.7, targetZ: 5.8, targetRot: 0, triggerX: 9.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.0 },
+  { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 11.8, exitZ: 3.8, radius: 1.0 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -53,8 +54,9 @@ function findNearbyAnchors(x, z) {
 }
 
 const OBSTACLES = [
-  { x: -9.8, z: -6.2, rx: 2.8, rz: 1.0 },
-  { x: -9.8, z: -3.5, rx: 2.8, rz: 1.0 },
+  { x: -9.8, z: -7.25, rx: 2.8, rz: 0.7 },
+  { x: -9.8, z: 0.55, rx: 2.8, rz: 0.7 },
+  { x: -9.8, z: -3.35, rx: 0.9, rz: 0.6 },
   { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
   { x: 9.7, z: 5.8, rx: 2.4, rz: 1.35 },
   { x: 13.25, z: 0.7, rx: 0.8, rz: 3.2 },
@@ -80,10 +82,13 @@ function tryMove(x, z, dx, dz) {
   return { x, z };
 }
 
-function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
+function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "chair" }) {
   const group = useRef();
+  const visual = useRef();
   const arms = useRef([]);
   const legs = useRef([]);
+  const shoes = useRef([]);
+  const heldProp = useRef();
   const { skin, shirt, pants, hair } = avatar;
   const displayName = (name || avatar.label || "You").trim().slice(0, 18).toUpperCase();
 
@@ -91,29 +96,58 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
     if (!group.current) return;
     const t = clock.getElapsedTime();
     const stride = moving ? Math.sin(t * 11) * 0.48 : Math.sin(t * 2.2) * 0.025;
-    const seated = pose === "sit";
+    const seated = pose === "sit" || pose === "sit-sofa" || pose === "sit-chair" || ((pose === "eat" || pose === "drink") && seatStyle);
+    const sofaSeat = pose === "sit-sofa" || (seated && seatStyle === "sofa");
+    const chairSeat = pose === "sit-chair" || (seated && seatStyle === "chair");
     const gesture = pose === "eat" || pose === "drink";
     const eating = pose === "eat";
+    const drinking = pose === "drink";
+    const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
+    const propToMouth = gestureCycle > 0.58;
 
-    group.current.position.y = pose === "sleep" ? 1.0 : seated ? -0.2 : 0;
+    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? -0.065 : chairSeat ? -0.25 : 0;
     group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
 
     if (arms.current[0]) {
-      arms.current[0].rotation.x = seated ? -0.58 : gesture ? -0.9 - Math.sin(t * 7) * 0.12 : moving ? stride : 0.02 * Math.sin(t * 2.2);
+      arms.current[0].rotation.x = seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = seated ? -0.58 : pose === "drink" ? -1.05 : pose === "eat" ? -0.65 : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = gesture ? (drinking ? (propToMouth ? -1.22 : -0.88) : (propToMouth ? -1.20 : -0.70)) : seated ? (sofaSeat ? -0.22 : -0.28) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
-      if (eating) arms.current[1].rotation.y = Math.sin(t * 7) * 0.08;
+      if (eating) arms.current[1].rotation.y = propToMouth ? -0.10 : 0.08;
+      if (heldProp.current) {
+        if (eating) {
+          heldProp.current.position.set(propToMouth ? 0.29 : 0.36, propToMouth ? 1.43 : 1.10, propToMouth ? 0.36 : 0.30);
+        } else if (drinking) {
+          heldProp.current.position.set(propToMouth ? 0.30 : 0.37, propToMouth ? 1.44 : 1.10, propToMouth ? 0.36 : 0.28);
+        }
+      }
     }
-    if (legs.current[0]) legs.current[0].rotation.x = seated ? -1.28 : moving ? -stride : 0;
-    if (legs.current[1]) legs.current[1].rotation.x = seated ? -1.28 : moving ? stride : 0;
+    if (legs.current[0]) {
+      legs.current[0].rotation.x = seated ? -1.18 : moving ? -stride : 0;
+      legs.current[0].position.y = seated ? 0.50 : 0.45;
+      legs.current[0].position.z = seated ? 0.20 : 0;
+      if (shoes.current[0]) {
+        shoes.current[0].position.y = seated ? 0.19 : 0.12;
+        shoes.current[0].position.z = seated ? 0.48 : 0.10;
+      }
+    }
+    if (legs.current[1]) {
+      legs.current[1].rotation.x = seated ? -1.18 : moving ? stride : 0;
+      legs.current[1].position.y = seated ? 0.50 : 0.45;
+      legs.current[1].position.z = seated ? 0.20 : 0;
+      if (shoes.current[1]) {
+        shoes.current[1].position.y = seated ? 0.19 : 0.12;
+        shoes.current[1].position.z = seated ? 0.48 : 0.10;
+      }
+    }
   });
 
   return (
     <group ref={group}>
+      <group ref={visual}>
       <mesh position={[0, 1.62, 0]} castShadow><sphereGeometry args={[0.31, 20, 16]} /><meshStandardMaterial color={skin} roughness={0.72} /></mesh>
       <mesh position={[0, 1.82, 0]} castShadow scale={[1.05, 0.62, 1.05]}><sphereGeometry args={[0.31, 20, 16]} /><meshStandardMaterial color={hair} roughness={0.9} /></mesh>
       <mesh position={[-0.11, 1.63, 0.285]} castShadow><sphereGeometry args={[0.045, 10, 8]} /><meshStandardMaterial color="#f6f3ef" roughness={0.45} /></mesh>
@@ -127,10 +161,11 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle" }) {
       <mesh ref={(node) => { arms.current[1] = node; }} position={[0.45, 1.08, 0]} castShadow><capsuleGeometry args={[0.08, 0.48, 6, 10]} /><meshStandardMaterial color={skin} roughness={0.76} /></mesh>
       <mesh ref={(node) => { legs.current[0] = node; }} position={[-0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
       <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
-      <mesh position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
-      <mesh position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
-      {pose === "eat" && <mesh position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
-      {pose === "drink" && <mesh position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
+      <mesh ref={(node) => { shoes.current[0] = node; }} position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
+      <mesh ref={(node) => { shoes.current[1] = node; }} position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
+      {pose === "eat" && <mesh ref={heldProp} position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
+      {pose === "drink" && <mesh ref={heldProp} position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
+      </group>
       <Billboard position={[0, 2.18, 0]} follow><Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">{displayName}</Text></Billboard>
     </group>
   );
@@ -237,12 +272,12 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
     const forward = touch.active ? touch.y : keyboardForward;
-    const strafe = touch.active ? touch.x : keyboardStrafe;
+    const strafe = touch.active ? -touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction || interaction.phase === "release") {
       if (magnitude > 0.08) {
-        const speed = keys.current.has("shift") ? 5.2 : 3.8;
+        const speed = keys.current.has("shift") ? 7.0 : mobile ? 6.2 : 5.0;
         const inputLength = Math.hypot(strafe, forward);
         const f = forward / inputLength;
         const s = strafe / inputLength;
@@ -271,7 +306,13 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
       dirty.current = true;
     }
 
-    const nearby = findNearbyAnchors(current.x, current.z);
+    let nearby = findNearbyAnchors(current.x, current.z);
+    if (interaction?.anchor?.type === "SIT") {
+      const seatedEat = INTERACTION_ANCHORS.find((item) => item.id === "dining-eat");
+      if (seatedEat && Math.hypot(current.x - seatedEat.triggerX, current.z - seatedEat.triggerZ) < seatedEat.radius) {
+        nearby = [...nearby.filter((item) => item.type !== "EAT"), seatedEat];
+      }
+    }
     const nearbyId = nearby.map((item) => item.id).join("|");
     if (nearbyRef.current !== nearbyId) {
       nearbyRef.current = nearbyId;
@@ -305,19 +346,19 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     camera.lookAt(current.x, mobile ? 0.9 : 1.0, current.z);
   });
 
-  const pose = interaction?.anchor?.type === "SLEEP" ? "sleep" : interaction?.anchor?.type === "SIT" ? "sit" : interaction?.anchor?.type === "EAT" ? "eat" : interaction?.anchor?.type === "DRINK" ? "drink" : interaction?.anchor?.type === "WATCH_TV" ? "watch" : "idle";
+  const pose = interaction?.anchor?.type === "SLEEP" ? "sleep" : interaction?.anchor?.type === "SIT" ? (interaction.anchor.seatStyle === "sofa" ? "sit-sofa" : "sit-chair") : interaction?.anchor?.type === "EAT" ? "eat" : interaction?.anchor?.type === "DRINK" ? "drink" : interaction?.anchor?.type === "WATCH_TV" ? "watch" : "idle";
 
   return (
     <group ref={playerGroup}>
-      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} />
-      {interaction?.status === "active" && <Text position={[0, 2.45, 0]} fontSize={0.16} color="#d8ceff" anchorX="center">{interaction.anchor.label.toUpperCase()}</Text>}
+      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} />
     </group>
   );
 }
 
 function Sofa({ position = [0, 0, 0] }) {
+  const FLOOR_OFFSET = -0.245;
   return (
-    <group position={position}>
+    <group position={[position[0], position[1] + FLOOR_OFFSET, position[2]]}>
       <RoundedBox args={[5.4, 0.55, 1.05]} position={[0, 0.52, 0]} radius={0.14} smoothness={5} castShadow><meshStandardMaterial color="#3f4b61" roughness={0.85} /></RoundedBox>
       <RoundedBox args={[5.4, 1.0, 0.3]} position={[0, 1.0, -0.38]} radius={0.12} smoothness={5} castShadow><meshStandardMaterial color="#48556c" roughness={0.85} /></RoundedBox>
       {[-2.35, 2.35].map((x) => <RoundedBox key={x} args={[0.32, 0.85, 0.9]} position={[x, 0.9, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#48556c" /></RoundedBox>)}
@@ -326,8 +367,9 @@ function Sofa({ position = [0, 0, 0] }) {
 }
 
 function Chair({ position = [0, 0, 0], rotation = 0 }) {
+  const FLOOR_OFFSET = -0.30;
   return (
-    <group position={position} rotation={[0, rotation, 0]}>
+    <group position={[position[0], position[1] + FLOOR_OFFSET, position[2]]} rotation={[0, rotation, 0]}>
       <RoundedBox args={[0.8, 0.36, 0.8]} position={[0, 0.48, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#556071" /></RoundedBox>
       <RoundedBox args={[0.8, 0.9, 0.22]} position={[0, 0.95, -0.3]} radius={0.08} smoothness={4} castShadow><meshStandardMaterial color="#606c7f" /></RoundedBox>
     </group>
@@ -424,11 +466,13 @@ function GraffitiWall() {
 function Furniture() {
   return (
     <group>
-      <group position={[-9.8, 0, -6.2]}>
+      <group position={[-9.8, 0, -7.25]}>
         <Sofa />
-        <Sofa position={[0, 0, 2.7]} />
-        <CoffeeTable position={[0, 0, 1.35]} />
       </group>
+      <group position={[-9.8, 0, 0.55]} rotation={[0, Math.PI, 0]}>
+        <Sofa />
+      </group>
+      <CoffeeTable position={[-9.8, 0, -3.35]} />
       <group position={[0, 0, -9.15]}>
         <RoundedBox args={[9.0, 3.35, 0.38]} position={[0, 2.2, 0]} radius={0.18} smoothness={5} castShadow><meshStandardMaterial color="#10141c" roughness={0.32} metalness={0.15} /></RoundedBox>
         <mesh position={[0, 2.2, 0.22]}><planeGeometry args={[8.45, 2.72]} /><meshStandardMaterial color="#17182a" emissive="#433a78" emissiveIntensity={0.55} roughness={0.55} /></mesh>
@@ -492,6 +536,31 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
   );
 }
 
+function findSafeExit(anchor, fallback) {
+  const preferred = anchor?.exitX != null && anchor?.exitZ != null
+    ? { x: anchor.exitX, z: anchor.exitZ }
+    : fallback;
+  const candidates = [
+    preferred,
+    { x: preferred.x - 0.7, z: preferred.z },
+    { x: preferred.x + 0.7, z: preferred.z },
+    { x: preferred.x, z: preferred.z - 0.7 },
+    { x: preferred.x, z: preferred.z + 0.7 },
+    { x: preferred.x - 1.2, z: preferred.z },
+    { x: preferred.x + 1.2, z: preferred.z },
+    { x: preferred.x, z: preferred.z - 1.2 },
+    { x: preferred.x, z: preferred.z + 1.2 },
+    { x: preferred.x - 1.8, z: preferred.z },
+    { x: preferred.x + 1.8, z: preferred.z },
+    { x: preferred.x, z: preferred.z - 1.8 },
+    { x: preferred.x, z: preferred.z + 1.8 },
+  ].map((candidate) => ({
+    x: clamp(candidate.x, -WORLD.halfX + 0.6, WORLD.halfX - 0.6),
+    z: clamp(candidate.z, -WORLD.halfZ + 0.6, WORLD.halfZ - 0.6),
+  }));
+  return candidates.find((candidate) => !blocked(candidate.x, candidate.z)) || fallback;
+}
+
 export default function Game() {
   const [player, setPlayer] = useState(() => ({ id: "local", name: "You", avatar: AVATARS[0], x: 0, z: 1.5, rot: Math.PI, moving: false, speed: 0 }));
   const [name, setName] = useState("You");
@@ -506,19 +575,25 @@ export default function Game() {
 
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
+  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP");
+  const universalActive = Boolean(interaction);
+
   const beginInteraction = (anchor) => {
-    if (!anchor || interaction) return;
-    restoreMotion.current = { x: player.x, z: player.z, rot: player.rot };
-    setInteraction({ status: "reserved", phase: "reserve", anchor, startedAt: Date.now() });
+    if (!anchor) return;
+    if (interaction && interaction.anchor.type !== "SIT") return;
+    const seatedEat = Boolean(anchor.requiresSitting && interaction?.anchor?.type === "SIT");
+    const nextAnchor = seatedEat
+      ? { ...anchor, seatStyle: interaction.anchor.seatStyle, targetX: player.x, targetZ: player.z, targetRot: player.rot, exitX: player.x, exitZ: player.z }
+      : anchor;
+    if (!interaction) restoreMotion.current = { x: player.x, z: player.z, rot: player.rot };
+    setInteraction({ status: "reserved", phase: "reserve", anchor: nextAnchor, startedAt: Date.now() });
   };
 
   const endInteraction = () => {
     const current = interaction;
     if (!current) return;
     const anchor = current.anchor;
-    const exit = anchor.exitX != null && anchor.exitZ != null
-      ? { x: anchor.exitX, z: anchor.exitZ }
-      : restoreMotion.current;
+    const exit = findSafeExit(anchor, restoreMotion.current);
     setInteraction({ ...current, status: "released", phase: "release" });
     const exitRot = Math.atan2(player.z - exit.z, player.x - exit.x);
     setPlayer((state) => ({ ...state, x: exit.x, z: exit.z, rot: exitRot, moving: false, speed: 0 }));
@@ -558,16 +633,9 @@ export default function Game() {
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
-      {nearby.length > 0 && !interaction && (
-        <div className="interaction-actions" onPointerDown={(event) => event.stopPropagation()}>
-          {nearby.map((anchor) => (
-            <button key={anchor.id} className="interaction-hint" onClick={() => beginInteraction(anchor)}>
-              <strong>{anchor.label}</strong><span>Tap to interact</span>
-            </button>
-          ))}
-        </div>
+      {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
+        <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
       )}
-      {interaction && <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}><strong>{interaction.anchor.label}</strong><span>Tap to stand / exit</span></button>}
 
       <div
         className="touch-controls"
@@ -619,6 +687,22 @@ export default function Game() {
       >
         <div className="joystick"><span style={{ transform: `translate(${joystick.x * 30}px, ${-joystick.y * 30}px)` }} /></div>
       </div>
+
+      <button
+        className={`interaction-button${universalActive ? " active" : ""}${universalInteraction ? " available" : ""}`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => {
+          if (universalActive) {
+            endInteraction();
+            return;
+          }
+          if (universalInteraction) beginInteraction(universalInteraction);
+        }}
+        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
+        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
+      >
+        {universalActive ? "↗" : "♙"}
+      </button>
 
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
