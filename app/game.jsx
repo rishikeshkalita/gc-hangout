@@ -1040,6 +1040,7 @@ export default function Game() {
         onEmote={handleEmote}
         onRemotePlayers={setRemotePlayers}
         playerState={player}
+        interaction={interaction}
         speakerActive={interaction?.anchor?.type === "MUSIC_SPEAKER"}
         initialAudioUnlocked={true}
       />
