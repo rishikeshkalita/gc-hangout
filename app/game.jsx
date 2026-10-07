@@ -1041,6 +1041,7 @@ export default function Game() {
         onRemotePlayers={setRemotePlayers}
         playerState={player}
         speakerActive={interaction?.anchor?.type === "MUSIC_SPEAKER"}
+        initialAudioUnlocked
       />
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
         <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
