@@ -855,6 +855,15 @@ Examples:
 - **Current source commits:** b0acbe83764fbfbfc015d059fc3eca4920613614, 210044b6d6f9ae95556f59354edf8bcc4cab5ffc, 61e3674a1273ca53429158aea49fcca90b3fb2c5.
 - **Verification:** no new workflow run is currently reported for the latest commit; fresh iPhone verification remains required.
 - **Gate:** Wave 2 remains **NOT VERIFIED**. Do not merge or start Wave 3 until joystick direction, every chair, sofa seating, seated Eat, exits, and Sleep are re-tested on device.
+### Wave 2 posture correction — 2026-10-07
+
+- **Posture review:** latest iPhone evidence confirms sofa and dining-chair seating need different transforms; a single generic seated offset was not sufficient.
+- **Sofa seat:** dedicated `seatStyle: "sofa"` with a higher/deeper seat placement and forward leg bend relative to the sofa cushion.
+- **Dining chair:** dedicated `seatStyle: "chair"` with independent seat height and leg placement appropriate to the chair cushion.
+- **Pose routing:** interaction anchors now select `sit-sofa` vs `sit-chair`; no longer relying on one global seated pose.
+- **Verification:** GitHub Actions run 37570725743 is currently in progress for commit 0d5d2dc70f51fc0fbb5ef1054aaae3d8bf1cfbf8.
+- **Device gate:** still NOT VERIFIED until fresh iPhone testing confirms both seating postures, all seat entry/exit paths, joystick direction, seated Eat, and Sleep.
+
 ### Wave update format
 
 For every wave, record:
