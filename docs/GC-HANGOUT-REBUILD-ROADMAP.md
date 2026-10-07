@@ -932,6 +932,16 @@ Examples:
 - **Known failures:** Vercel status currently reports a build-rate-limit failure; this is not treated as evidence of a source/build failure. Fresh device verification is still required, especially music + microphone coexistence, speaker interaction/volume, TV metadata, chat notifications, and mobile club-light readability.
 - **Wave 4 gate:** **NOT VERIFIED**.
 
+
+### 2026-10-07 — Multiplayer avatar synchronization
+
+- **Commits:** `9f5cfcf5eae196e773831e7fd79ac84a1997f862`, `6aff1a619fb678075e382006a703852c7d8a90ad`, `4e308633cf9adbcdac097856cf64cfa7681f43f9`, `d0156fb1f473c0d65f9f498e0b4a72971bfaa53d`, `8a98df18b24f2946c2d931ad9eca8b58287db15b`.
+- **Problem found:** the existing Supabase room channel synchronized chat/music/emotes/voice signaling, but did not broadcast player transforms or render remote avatars. Two devices could therefore join the same room without seeing each other's human avatars.
+- **Implementation:** added a dedicated `PLAYER` broadcast event. Each client publishes name, avatar ID, position, rotation, movement state and speed at 10 Hz. Remote player snapshots are pruned after 1.8 seconds without updates.
+- **Rendering:** remote players use the existing `HumanAvatar` component and interpolate toward received positions/rotations to reduce visible network jitter.
+- **Isolation:** player synchronization uses the existing Supabase room channel and does not alter music, chat, voice, or interaction state ownership.
+- **Verification:** source-level wiring and cleanup were checked. Fresh two-device browser acceptance is **NOT YET VERIFIED**.
+
 ### Wave update format
 
 For every wave, record:
