@@ -15,6 +15,7 @@ import {
   getInteractionPose,
   canReserveInteraction,
 } from "../lib/game-state.mjs";
+import { normalizeMusicState } from "../lib/social-state.mjs";
 
 test("local player is created immediately as a human-avatar identity", () => {
   const player = createLocalPlayer({ id: "p1", name: " Rishi ", avatarId: "maya" });
@@ -145,4 +146,16 @@ test("interaction reservation is owner-safe", () => {
   assert.equal(canReserveInteraction(state, "seat", "p1"), true);
   assert.equal(canReserveInteraction(state, "other", "p2"), false);
   assert.equal(canReserveInteraction(advanceInteraction(state, "release"), "other", "p2"), true);
+});
+
+
+test("shared music state clamps room volume", () => {
+  const state = normalizeMusicState({
+    track: { id: "track-1", title: "Song", artist: "Artist", audio: "https://example.com/song.mp3", duration: 120 },
+    position: 8,
+    playing: true,
+    volume: 1.4,
+  });
+  assert.equal(state.volume, 1);
+  assert.equal(state.playing, true);
 });
