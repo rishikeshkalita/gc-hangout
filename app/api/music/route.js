@@ -1,86 +1,74 @@
 import { NextResponse } from "next/server";
-import { normalizeMusicResponse } from "../../../lib/game-state.mjs";
+import { parseYouTubeDuration } from "../../../lib/social-state.mjs";
 
-const MAX_QUERIES = 2;
+const CACHE_SECONDS = 300;
 
-export async function GET(request){
-  // Jamendo documents a read-only test client for quick API checks. Production still
-  // prefers the project's configured client; preview deployments can therefore play
-  // catalog music without silently disabling the feature when preview env scoping is missing.
-  const clientId=process.env.JAMENDO_CLIENT_ID||"709fa152";
+function clean(value, max = 100) {
+  return String(value || "").replace(/[<>]/g, "").trim().slice(0, max);
+}
 
-  const query=(request.nextUrl.searchParams.get("search")||"lounge").slice(0,80);
+export async function GET(request) {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  const query = clean(request.nextUrl.searchParams.get("search") || "", 80);
+  if (!apiKey) {
+    return NextResponse.json({ configured: false, tracks: [], error: "YouTube search is not configured. Set YOUTUBE_API_KEY on the server." }, { status: 503 });
+  }
+  if (query.length < 2) {
+    return NextResponse.json({ configured: true, tracks: [], error: "Search for at least 2 characters." }, { status: 400 });
+  }
 
-  const fetchTracks=async(search,label)=>{
-    const url=new URL("https://api.jamendo.com/v3.0/tracks/");
-    url.searchParams.set("client_id",clientId);
-    url.searchParams.set("format","json");
-    url.searchParams.set("limit","12");
-    url.searchParams.set("audioformat","mp32");
-    url.searchParams.set("imagesize","200");
-    url.searchParams.set("include","licenses");
-    url.searchParams.set("search",search);
+  const url = new URL("https://www.googleapis.com/youtube/v3/search");
+  url.searchParams.set("key", apiKey);
+  url.searchParams.set("part", "snippet");
+  url.searchParams.set("type", "video");
+  url.searchParams.set("videoEmbeddable", "true");
+  url.searchParams.set("videoSyndicated", "true");
+  url.searchParams.set("maxResults", "10");
+  url.searchParams.set("q", query);
 
-    const response=await fetch(url,{next:{revalidate:300}});
-    const data=await response.json().catch(()=>({}));
-    const rawCount=Array.isArray(data.results)?data.results.length:0;
-    const playableCount=normalizeMusicResponse(data).length;
-
-    console.info("Music catalog probe",{
-      strategy:label,
-      query:search,
-      status:response.status,
-      rawCount,
-      playableCount,
-      apiStatus:data?.headers?.status||null,
-      apiCode:data?.headers?.code??null,
-      apiError:data?.headers?.error_message||null
-    });
-
-    if(!response.ok){
-      const error=new Error("Jamendo request failed: "+response.status);
-      error.status=response.status;
-      throw error;
-    }
-    return data;
-  };
-
-  // The production investigation showed the combined free-text query
-  // "instrumental lounge" returns zero rows for this valid client, while
-  // "lounge" returns real playable Jamendo tracks. Keep this fallback
-  // deliberately small and observable rather than issuing a request storm.
-  const searches=[
-    {value:query,label:"requested-search"},
-    ...(query.toLowerCase()!=="lounge"?[{value:"lounge",label:"known-good-lounge-fallback"}]:[])
-  ];
-
-  try{
-    for(const [index,strategy] of searches.slice(0,MAX_QUERIES).entries()){
-      const data=await fetchTracks(strategy.value,strategy.label);
-      const tracks=normalizeMusicResponse(data);
-      if(tracks.length){
-        return NextResponse.json({
-          configured:true,
-          tracks,
-          diagnostics:{strategy:strategy.label,attempts:index+1}
-        });
-      }
+  try {
+    const response = await fetch(url, { next: { revalidate: CACHE_SECONDS } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return NextResponse.json({ configured: true, tracks: [], error: data?.error?.message || "YouTube search failed." }, { status: response.status });
     }
 
-    return NextResponse.json({
-      configured:true,
-      tracks:[],
-      diagnostics:{strategy:"exhausted",attempts:searches.length}
-    });
-  }catch(error){
-    console.error("Jamendo API error",{
-      status:error?.status||502,
-      message:error?.message||String(error)
-    });
-    return NextResponse.json({
-      configured:true,
-      tracks:[],
-      error:"Music API request failed. Check server logs for the provider status."
-    },{status:502});
+    const ids = (Array.isArray(data.items) ? data.items : [])
+      .map((item) => String(item?.id?.videoId || ""))
+      .filter((id) => /^[A-Za-z0-9_-]{11}$/.test(id));
+
+    if (!ids.length) return NextResponse.json({ configured: true, tracks: [] });
+
+    const detailUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
+    detailUrl.searchParams.set("key", apiKey);
+    detailUrl.searchParams.set("part", "contentDetails,status");
+    detailUrl.searchParams.set("id", ids.join(","));
+    const detailResponse = await fetch(detailUrl, { next: { revalidate: CACHE_SECONDS } });
+    const detailData = await detailResponse.json().catch(() => ({}));
+    if (!detailResponse.ok) {
+      return NextResponse.json({ configured: true, tracks: [], error: detailData?.error?.message || "Could not verify YouTube videos." }, { status: detailResponse.status });
+    }
+
+    const details = new Map((Array.isArray(detailData.items) ? detailData.items : []).map((item) => [item.id, item]));
+    const tracks = (Array.isArray(data.items) ? data.items : []).map((item) => {
+      const videoId = String(item?.id?.videoId || "");
+      const detail = details.get(videoId);
+      if (!detail || detail.status?.embeddable === false || detail.status?.madeForKids === true) return null;
+      return {
+        id: `yt-${videoId}`,
+        videoId,
+        title: clean(item?.snippet?.title || "YouTube video"),
+        artist: clean(item?.snippet?.channelTitle || "YouTube"),
+        channelTitle: clean(item?.snippet?.channelTitle || "YouTube"),
+        album: "YouTube",
+        duration: parseYouTubeDuration(detail?.contentDetails?.duration),
+        thumbnail: String(item?.snippet?.thumbnails?.high?.url || item?.snippet?.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`),
+      };
+    }).filter(Boolean);
+
+    return NextResponse.json({ configured: true, tracks });
+  } catch (error) {
+    console.error("YouTube search failed", error);
+    return NextResponse.json({ configured: true, tracks: [], error: "YouTube search is temporarily unavailable." }, { status: 502 });
   }
 }
