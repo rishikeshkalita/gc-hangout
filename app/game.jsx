@@ -508,7 +508,7 @@ function WallPhotoFrame() {
   photo.colorSpace = THREE.SRGBColorSpace;
 
   return (
-    <group position={[9.35, 3.15, -9.72]}>
+    <group position={[7.35, 3.65, -9.72]}>
       <RoundedBox args={[4.2, 3.35, 0.16]} radius={0.08} smoothness={4} castShadow>
         <meshStandardMaterial color="#5b3c2b" roughness={0.58} />
       </RoundedBox>
