@@ -796,7 +796,29 @@ function ClubLighting({ playing = false }) {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {
+function RemotePlayer({ state }) {
+  const group = useRef();
+  const target = useRef(new THREE.Vector3(state.x, 0, state.z));
+  const targetRot = useRef(state.rot || 0);
+  useEffect(() => {
+    target.current.set(state.x, 0, state.z);
+    targetRot.current = state.rot || 0;
+  }, [state.x, state.z, state.rot]);
+  useFrame((_, dt) => {
+    if (!group.current) return;
+    const alpha = 1 - Math.exp(-18 * Math.min(dt, 0.05));
+    group.current.position.lerp(target.current, alpha);
+    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, targetRot.current, alpha);
+  });
+  const avatar = AVATARS.find((item) => item.id === state.avatarId) || AVATARS[0];
+  return <group ref={group}><HumanAvatar avatar={avatar} name={state.name} moving={state.moving} local={false} pose="idle" /></group>;
+}
+
+function RemotePlayers({ players = [] }) {
+  return <group>{players.map((state) => <RemotePlayer key={state.id} state={state} />)}</group>;
+}
+
+function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {
   return (
     <>
       <ambientLight intensity={1.72} />
@@ -825,6 +847,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
       <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} />
+      <RemotePlayers players={remotePlayers} />
     </>
   );
 }
@@ -864,6 +887,7 @@ export default function Game() {
   const [interaction, setInteraction] = useState(null);
   const [tvState, setTvState] = useState({ track: null });
   const [emote, setEmote] = useState(null);
+  const [remotePlayers, setRemotePlayers] = useState([]);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
@@ -946,7 +970,7 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
+        <Room player={player} remotePlayers={remotePlayers} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
@@ -954,6 +978,8 @@ export default function Game() {
         name={name.trim().slice(0, 18) || "You"}
         onMusicState={handleMusicState}
         onEmote={handleEmote}
+        onRemotePlayers={setRemotePlayers}
+        playerState={player}
         speakerActive={interaction?.anchor?.type === "MUSIC_SPEAKER"}
       />
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
