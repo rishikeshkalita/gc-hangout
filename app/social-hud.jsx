@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote }) {
+export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -38,7 +38,6 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const [voiceOn, setVoiceOn] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [musicVolume, setMusicVolume] = useState(0.8);
   const [voiceStatus, setVoiceStatus] = useState("Tap mic to join voice");
   const [voicePeers, setVoicePeers] = useState(0);
   const [emoteFlash, setEmoteFlash] = useState(null);
@@ -55,18 +54,30 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const remoteStreamsRef = useRef(new Map());
   const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
+  const keepMusicAliveRef = useRef(false);
   const nameRef = useRef(name);
 
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => {
     musicStateRef.current = musicState;
-    if (Number.isFinite(musicState.volume)) setMusicVolume(musicState.volume);
     onMusicState?.(musicState);
   }, [musicState, onMusicState]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = musicVolume;
   }, [musicVolume]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+    audio.setAttribute("playsinline", "");
+    const recover = () => {
+      if (!keepMusicAliveRef.current || !musicStateRef.current.playing) return;
+      window.setTimeout(() => { void audio.play().catch(() => {}); }, 40);
+    };
+    audio.addEventListener("pause", recover);
+    return () => audio.removeEventListener("pause", recover);
+  }, []);
 
   const pushChatToast = useCallback((entry) => {
     const toast = { ...entry, toastId: `${entry.id}-toast` };
@@ -268,6 +279,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
 
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
+      keepMusicAliveRef.current = false;
       voiceEnabledRef.current = false;
       const channel = channelRef.current;
       if (channel) void channel.track({ name: nameRef.current, voice: false });
@@ -282,6 +294,8 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       return;
     }
     try {
+      const wasPlaying = Boolean(musicStateRef.current.track && musicStateRef.current.playing);
+      keepMusicAliveRef.current = wasPlaying;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       localStreamRef.current = stream;
       resumeMusicAfterVoice();
@@ -514,7 +528,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
           <div className="music-now">
             <div className="music-main-row"><button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause" : "Play"}{musicState.track ? ` · ${musicState.track.title}` : ""}</button><button className="music-next" onClick={nextTrack} disabled={!tracks.length} aria-label="Next track">Next</button></div>
             <span>{Math.floor(musicState.position || 0)}s</span>
-            <label className="music-volume" aria-label={`Room volume ${Math.round(musicVolume * 100)} percent`}><span>🔊</span><input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(event.target.value)} /></label>
+            <span className="music-volume-readout">🔊 {Math.round(musicVolume * 100)}%</span>
           </div>
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
             <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search music" inputMode="search" enterKeyHint="search" />
@@ -531,6 +545,21 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
           </div>
           <div className="music-volume-label">Room volume · {Math.round(musicVolume * 100)}%</div>
           <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Add Song plays a local MP3/WAV/M4A/AAC/OGG/WebM file on this device.</small>
+        </section>
+      )}
+
+      {speakerActive && (
+        <section className="speaker-volume" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="speaker-volume-head"><span>🔊 Speaker</span><strong>{Math.round(musicVolume * 100)}%</strong></div>
+          <input
+            aria-label={`Speaker volume ${Math.round(musicVolume * 100)} percent`}
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={musicVolume}
+            onChange={(event) => setMusicVolume(event.target.value)}
+          />
         </section>
       )}
 
