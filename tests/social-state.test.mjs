@@ -42,6 +42,7 @@ test("music state normalizes a playable https track", () => {
   assert.equal(state.track.id, "42");
   assert.equal(state.position, 12.5);
   assert.equal(state.playing, true);
+  assert.equal(state.volume, 0.8);
 });
 
 test("invalid music state is rejected", () => {
@@ -51,4 +52,11 @@ test("invalid music state is rejected", () => {
 
 test("chat time formatting returns a stable non-empty string", () => {
   assert.equal(typeof formatChatTime(Date.now()), "string");
+});
+
+
+test("music volume is clamped to the shared 0..1 range", () => {
+  assert.equal(normalizeMusicState({ volume: 2 }).volume, 1);
+  assert.equal(normalizeMusicState({ volume: -1 }).volume, 0);
+  assert.equal(normalizeMusicState({ volume: 0.35 }).volume, 0.35);
 });
