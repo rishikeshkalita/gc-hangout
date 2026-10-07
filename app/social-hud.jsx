@@ -235,7 +235,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         activity: true,
       });
     });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.CHAT }, ({ payload }) =>
+    channel.on("broadcast", { event: SOCIAL_EVENTS.CHAT }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const message = sanitizeChatMessage(payload?.message);
       if (!message) return;
