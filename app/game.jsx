@@ -697,22 +697,30 @@ function MusicSpeaker({ playing = false, volume = 0.8 }) {
 function ClubLighting({ active = false }) {
   const lights = useRef([]);
   const bars = useRef([]);
+  const beams = useRef([]);
+  const beamColors = ["#8b7cff", "#5ee7ff", "#ff4fb8"];
+  const colors = ["#8b7cff", "#5ee7ff", "#ff4fb8", "#ffd166"];
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    const colors = ["#8b7cff", "#5ee7ff", "#ff4fb8", "#ffd166"];
     lights.current.forEach((light, index) => {
       if (!light) return;
       const phase = t * (0.75 + index * 0.08) + index * 1.6;
       light.position.x = Math.sin(phase) * (5.5 + index * 0.45);
       light.position.z = Math.cos(phase * 0.83) * (3.8 + index * 0.35);
-      light.intensity = active ? 1.4 + (Math.sin(t * 7 + index) + 1) * 0.9 : 0.35;
+      light.intensity = active ? 1.5 + (Math.sin(t * 7 + index) + 1) * 0.9 : 0.45;
       light.color.set(colors[index % colors.length]);
     });
     bars.current.forEach((bar, index) => {
       if (!bar) return;
-      const phase = t * 1.2 + index * 0.9;
-      bar.rotation.y = phase;
-      bar.material.emissiveIntensity = active ? 1.1 + (Math.sin(t * 8 + index) + 1) * 0.65 : 0.25;
+      bar.rotation.y = t * 1.2 + index * 0.9;
+      bar.material.emissiveIntensity = active ? 1.15 + (Math.sin(t * 8 + index) + 1) * 0.7 : 0.28;
+    });
+    beams.current.forEach((beam, index) => {
+      if (!beam) return;
+      const phase = t * (0.65 + index * 0.12) + index * 2.1;
+      beam.rotation.x = Math.sin(phase) * 0.62;
+      beam.rotation.z = Math.cos(phase * 0.9) * 0.48;
+      beam.material.opacity = active ? 0.055 + (Math.sin(t * 5 + index) + 1) * 0.018 : 0.012;
     });
   });
   return (
@@ -721,10 +729,16 @@ function ClubLighting({ active = false }) {
         <group key={x} position={[x, 4.68, -0.4]}>
           <mesh ref={(node) => { bars.current[index] = node; }}>
             <boxGeometry args={[1.55, 0.08, 0.34]} />
-            <meshStandardMaterial color="#282d38" emissive="#8b7cff" emissiveIntensity={0.35} />
+            <meshStandardMaterial color="#282d38" emissive={colors[index % colors.length]} emissiveIntensity={0.35} />
           </mesh>
-          <pointLight ref={(node) => { lights.current[index] = node; }} position={[0, -0.2, 0]} intensity={0.35} distance={8} decay={2} color="#8b7cff" />
+          <pointLight ref={(node) => { lights.current[index] = node; }} position={[0, -0.2, 0]} intensity={0.45} distance={9} decay={2} color="#8b7cff" />
         </group>
+      ))}
+      {[-7, 0, 7].map((x, index) => (
+        <mesh key={x} ref={(node) => { beams.current[index] = node; }} position={[x, 4.58, 0]}>
+          <coneGeometry args={[1.35, 5.8, 20, 1, true]} />
+          <meshBasicMaterial color={beamColors[index]} transparent opacity={0.012} depthWrite={false} />
+        </mesh>
       ))}
     </group>
   );
