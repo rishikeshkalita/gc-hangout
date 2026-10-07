@@ -340,7 +340,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
 
   const addLocalAudio = useCallback((file) => {
     if (!file) return;
-    const accepted = /^audio\\/(mpeg|wav|x-wav|mp4|aac|ogg|webm)$/.test(file.type) || /\\.(mp3|wav|m4a|aac|ogg|webm)$/i.test(file.name);
+    const accepted = /^audio\/(mpeg|wav|x-wav|mp4|aac|ogg|webm)$/.test(file.type) || /\.(mp3|wav|m4a|aac|ogg|webm)$/i.test(file.name);
     if (!accepted) return;
     if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
     const url = URL.createObjectURL(file);
@@ -349,7 +349,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     setMusicState({
       track: {
         id: `local-${clientIdRef.current}-${Date.now()}`,
-        title: file.name.replace(/\\.[^.]+$/, "").slice(0, 100),
+        title: file.name.replace(/\.[^.]+$/, "").slice(0, 100),
         artist: "Local file",
         album: "This device",
         audio: url,
