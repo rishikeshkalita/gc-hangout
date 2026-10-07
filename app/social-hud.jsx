@@ -35,7 +35,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const [musicSearch, setMusicSearch] = useState("lounge");
   const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, volume: 0.8, updatedAt: Date.now(), senderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
-  const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
+  const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));\n  const speakerControlActive = Boolean(speakerActive && playerState && Math.hypot(Number(playerState.x) - 5.5, Number(playerState.z) + 3.65) <= 2.25);
   const [voiceOn, setVoiceOn] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("Tap mic to join voice");
@@ -549,7 +549,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       <div className="chat-toasts" aria-live="polite">
         {chatToasts.map((item) => <div className="chat-toast" key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
       </div>
-      {speakerActive && (
+      {speakerControlActive && (
         <label className="speaker-volume" aria-label={`Speaker volume ${Math.round(musicVolume * 100)} percent`}>
           <span>🔊 Speaker</span>
           <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(event.target.value)} />
