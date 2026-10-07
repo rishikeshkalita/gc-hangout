@@ -827,15 +827,14 @@ function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joyst
     <>
       <ambientLight intensity={1.72} />
       <hemisphereLight args={["#fff2dc", "#303847", 1.1]} />
-      <directionalLight position={[5, 10, 4]} intensity={0.95} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <directionalLight position={[5, 10, 4]} intensity={0.85} />
       <pointLight position={[0, 4.5, 0]} intensity={2.15} distance={18} color="#fff1d5" />
       <pointLight position={[-9, 3.6, -3]} intensity={1.25} distance={10} color="#e2e8ff" />
       <pointLight position={[9, 3.6, 4]} intensity={1.05} distance={10} color="#ffe5c2" />
       <ClubLighting playing={Boolean(tvState?.playing)} />
       <color attach="background" args={["#141821"]} />
-      <fog attach="fog" args={["#141821", 24, 46]} />
 
-      <mesh receiveShadow position={[0, -0.12, 0]}><boxGeometry args={[30, 0.24, 20]} /><meshStandardMaterial color="#343b46" roughness={0.92} /></mesh>
+      <mesh position={[0, -0.12, 0]}><boxGeometry args={[30, 0.24, 20]} /><meshStandardMaterial color="#343b46" roughness={0.92} /></mesh>
       <mesh position={[0, 2.5, -10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
       <mesh position={[0, 2.5, 10]}><boxGeometry args={[30, 5, 0.3]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
       <mesh position={[-15, 2.5, 0]}><boxGeometry args={[0.3, 5, 20]} /><meshStandardMaterial color="#252b35" roughness={0.96} /></mesh>
@@ -973,7 +972,7 @@ export default function Game() {
 
   return (
     <main className="game-shell">
-      <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
+      <Canvas dpr={1} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 60 }} gl={{ antialias: false, powerPreference: "low-power", preserveDrawingBuffer: false }}>
         <Room player={player} remotePlayers={remotePlayers} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
       </Canvas>
 
