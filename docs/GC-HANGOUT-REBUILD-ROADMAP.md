@@ -1180,7 +1180,7 @@ For every wave, record:
 - **UI:** local file upload was removed. Music search/queue UI is YouTube-labelled; physical floor speaker remains the room-volume interaction point.
 - **Configuration:** add server-only `YOUTUBE_API_KEY`; search uses submit-based requests and verifies embeddability/Made-for-Kids status before returning videos.
 - **Tests:** added pure shared-state coverage for YouTube track normalization, queue deduplication, room-clock position, queue advancement, and duration parsing.
-- **Automated verification:** the first post-change GitHub CI run was blocked at `actions/setup-node@v7` infrastructure setup, before install/test/build. This is not treated as a code-pass.
+- **Automated verification:** GitHub Actions Quality run `460` passed dependency audit, all 24 tests, and the production build on the implementation checkpoint. A separate CI run was intermittently blocked at `actions/setup-node@v7`; the passing Quality run is the authoritative automated source/build result.
 - **Browser/device result:** **NOT VERIFIED**. Real two-device acceptance is still required for search, queue, synchronized playback, skip voting, autoplay, speaker volume, and voice coexistence.
 - **Deployment count:** 0 deliberate Vercel deployments. Existing Vercel deployment quota remains exhausted; no new production deployment is claimed.
 - **Gate:** Wave 4 remains **NOT VERIFIED**.
