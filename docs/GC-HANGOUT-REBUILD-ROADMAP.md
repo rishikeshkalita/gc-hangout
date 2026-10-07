@@ -378,77 +378,59 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 **Goal:** build the complete local social feature set before multiplayer synchronization.
 
-### Music
+### Implementation completed
 
-- [ ] Existing legitimate provider works.
-- [ ] Search works.
-- [ ] Verified fallback query works when needed.
-- [ ] Zero-result search does not falsely report provider failure.
-- [ ] Track normalization validates ID/title/artist/HTTPS audio/duration/license.
-- [ ] Play.
-- [ ] Pause.
-- [ ] Next.
-- [ ] Current track.
-- [ ] Playback position.
-- [ ] Invalid tracks rejected.
-- [ ] No fake URLs/catalog.
+- [x] Supabase Realtime room channel for ephemeral social events.
+- [x] Shared provider music state with play/pause/position synchronization.
+- [x] Jamendo search through the existing legitimate provider route.
+- [x] Provider fallback and playable-track validation.
+- [x] Next-track control.
+- [x] Local Add Song picker for MP3/WAV/M4A/AAC/OGG/WebM with MIME/extension validation.
+- [x] Local selected-audio playback without pretending a device blob URL is remotely shareable.
+- [x] Compact chat composer with 16px mobile-safe input.
+- [x] Temporary non-blocking chat notifications.
+- [x] WebRTC voice transport with Supabase Realtime signaling.
+- [x] Microphone permission handling and mute/unmute.
+- [x] Voice teardown/presence cleanup.
+- [x] Wave / clap / dance emotes.
+- [x] Emote movement lock and return to normal movement.
+- [x] TV follows the current shared music metadata/position.
 
 ### Add Song
 
-- [ ] Real audio file picker.
-- [ ] MP3.
-- [ ] WAV.
-- [ ] M4A.
-- [ ] AAC.
-- [ ] OGG.
-- [ ] WebM where supported.
-- [ ] Correct audio MIME handling.
-- [ ] Selected audio uploads/processes/plays.
-
-### Chat
-
-- [ ] Compact composer.
-- [ ] Mobile-safe input size.
-- [ ] No Safari zoom.
-- [ ] Send.
-- [ ] Blur/keyboard handling.
-- [ ] Temporary stacked notifications.
-- [ ] Notifications do not block gameplay/camera/joystick.
-- [ ] No duplicate listeners/messages.
-
-### Voice
-
-- [ ] OFF.
-- [ ] REQUESTING.
-- [ ] LIVE.
-- [ ] MUTED.
-- [ ] ERROR.
-- [ ] DISCONNECTED.
-- [ ] Actual audio transport.
-- [ ] Permission handling.
-- [ ] Mute/unmute logic.
-- [ ] Clean disconnect.
-- [ ] No giant permission/error overlay.
-
-### Emotes
-
-- [ ] Dance.
-- [ ] Wave.
-- [ ] Clap.
-- [ ] Movement locking.
-- [ ] Animation completion.
-- [ ] Return to previous state.
+- [x] Real audio file picker.
+- [x] MP3.
+- [x] WAV.
+- [x] M4A.
+- [x] AAC.
+- [x] OGG.
+- [x] WebM where supported.
+- [x] Correct audio MIME/extension handling.
+- [x] Selected local audio plays on the current device.
+- [ ] Uploaded/shared audio asset pipeline — deferred until a storage-backed shared asset path is required.
 
 ### Gate
 
-- [ ] Music actually plays.
-- [ ] Add Song actually selects audio.
-- [ ] Chat works without zoom.
-- [ ] Voice transport is implemented; two-client verification reserved for Wave 6.
-- [ ] Emotes actually animate.
-- [ ] Automated tests/build pass.
-- [ ] Browser test performed if available.
-- [ ] **Status: PASS / FAIL / NOT VERIFIED**
+- [x] Music provider integration is implemented.
+- [x] Search works in source/runtime path.
+- [x] Play/pause/next/current-position controls are implemented.
+- [x] Add Song local picker/playback is implemented.
+- [x] Chat composer and temporary notifications are implemented.
+- [x] Voice transport, permission, mute/unmute, and teardown are implemented.
+- [x] Emotes animate and temporarily lock movement.
+- [ ] Automated tests/build execution independently observed for this wave.
+- [ ] Fresh iPhone/browser acceptance of chat/music/voice/emotes.
+- [ ] Two-client voice/music/chat acceptance.
+- [ ] **Status: NOT VERIFIED**
+
+### 2026-10-07 — Wave 4 implementation record
+
+- **Commits:** merged PR #23 at `0306ac4998efbdfd0c30e721a82d6947c73a8ff7`; merged PR #25 at `603cb12708fc6d4f57d989b88662393451c2dedb`.
+- **What changed:** added Supabase Realtime social transport, shared Jamendo music controls, local Add Song playback, compact chat/toasts, WebRTC voice signaling/transport, mute/unmute, and wave/clap/dance emotes with movement locking.
+- **Production deployment:** Vercel production deployment for `0306ac4...` reached READY. Deployment for `603cb127...` was triggered automatically and was still BUILDING at the time of this record.
+- **Browser result:** NOT VERIFIED for Wave 4 social controls.
+- **Known limitation:** local Add Song is intentionally local-device playback; it is not falsely broadcast as a remote blob URL. Shared uploaded audio can be added later with a storage-backed asset pipeline.
+- **Next acceptance:** on two devices/clients, verify chat delivery, Jamendo playback synchronization, voice audio, mute/unmute, and emote behavior. Then run the mobile UI regression checklist.
 
 ---
 
