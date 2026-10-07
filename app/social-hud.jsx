@@ -60,9 +60,30 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
   const musicPlaybackSnapshotRef = useRef(null);
+  const sharedAudioUnlockedRef = useRef(false);
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
   const remotePlayersRef = useRef(new Map());
+
+  const mergeRemotePlayer = useCallback((payload) => {
+    if (!payload || payload.senderId === clientIdRef.current) return;
+    const id = String(payload.senderId || "");
+    if (!id || !Number.isFinite(Number(payload.x)) || !Number.isFinite(Number(payload.z))) return;
+    const current = remotePlayersRef.current.get(id) || {};
+    const next = {
+      id,
+      name: String(payload.name || "Guest").slice(0, 18),
+      avatarId: String(payload.avatarId || "maya"),
+      x: Number(payload.x),
+      z: Number(payload.z),
+      rot: Number(payload.rot) || 0,
+      moving: Boolean(payload.moving),
+      speed: Number(payload.speed) || 0,
+      lastSeen: Date.now(),
+    };
+    remotePlayersRef.current.set(id, { ...current, ...next });
+    onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+  }, [onRemotePlayers]);
 
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => { playerStateRef.current = playerState; }, [playerState]);
@@ -157,23 +178,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     channelRef.current = channel;
 
     channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
-      if (payload?.senderId === clientIdRef.current) return;
-      const id = String(payload?.senderId || "");
-      if (!id || !Number.isFinite(Number(payload?.x)) || !Number.isFinite(Number(payload?.z))) return;
-      const current = remotePlayersRef.current.get(id) || {};
-      const next = {
-        id,
-        name: String(payload.name || "Guest").slice(0, 18),
-        avatarId: String(payload.avatarId || "maya"),
-        x: Number(payload.x),
-        z: Number(payload.z),
-        rot: Number(payload.rot) || 0,
-        moving: Boolean(payload.moving),
-        speed: Number(payload.speed) || 0,
-        lastSeen: Date.now(),
-      };
-      remotePlayersRef.current.set(id, { ...current, ...next });
-      onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+      mergeRemotePlayer(payload);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.CHAT }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
@@ -235,18 +240,6 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       }
     });
 
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      const peers = Object.keys(state).filter((id) => id !== clientIdRef.current);
-      if (voiceEnabledRef.current) {
-        peers.filter((id) => clientIdRef.current < id).forEach((id) => void ensurePeer(id, true));
-      }
-    });
-    channel.on("presence", { event: "join" }, ({ key }) => {
-      if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
-    });
-    channel.on("presence", { event: "leave" }, ({ key }) => closePeer(key));
-
     const publishPlayer = () => {
       const state = playerStateRef.current;
       if (!state) return;
@@ -266,6 +259,53 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         },
       });
     };
+
+    const readPresencePlayers = (state) => {
+      for (const [key, metas] of Object.entries(state || {})) {
+        if (key === clientIdRef.current) continue;
+        const meta = Array.isArray(metas) ? metas[0] : metas;
+        if (meta?.kind === "player") {
+          mergeRemotePlayer({ ...meta, senderId: key });
+        }
+        if (!musicStateRef.current.track && meta?.music) {
+          const next = normalizeMusicState(meta.music);
+          if (next?.track) {
+            if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
+            setMusicState(next);
+          }
+        }
+      }
+    };
+
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState();
+      readPresencePlayers(state);
+      const peers = Object.keys(state).filter((id) => id !== clientIdRef.current);
+      if (voiceEnabledRef.current) {
+        peers.filter((id) => clientIdRef.current < id).forEach((id) => void ensurePeer(id, true));
+      }
+      // Force every existing client to publish a fresh transform to a newly joined client.
+      peers.forEach(() => publishPlayer());
+    });
+    channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
+      if (key !== clientIdRef.current) {
+        const meta = Array.isArray(newPresences) ? newPresences[0] : null;
+        if (meta?.kind === "player") mergeRemotePlayer({ ...meta, senderId: key });
+        if (!musicStateRef.current.track && meta?.music) {
+          const next = normalizeMusicState(meta.music);
+          if (next?.track) {
+            if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
+            setMusicState(next);
+          }
+        }
+        publishPlayer();
+        if (voiceEnabledRef.current && clientIdRef.current < key) void ensurePeer(key, true);
+      }
+    });
+    channel.on("presence", { event: "leave" }, ({ key }) => {
+      closePeer(key);
+      if (remotePlayersRef.current.delete(key)) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+    });
     const playerTimer = window.setInterval(publishPlayer, 100);
     const pruneTimer = window.setInterval(() => {
       const cutoff = Date.now() - 1800;
@@ -278,13 +318,32 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       }
       if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
     }, 700);
-    const sendInitialPlayer = () => publishPlayer();
+    const sendInitialPlayer = async () => {
+      const state = playerStateRef.current;
+      const music = musicStateRef.current.track ? {
+        track: musicStateRef.current.track,
+        position: musicStateRef.current.position,
+        playing: musicStateRef.current.playing,
+        volume: musicStateRef.current.volume,
+        updatedAt: musicStateRef.current.updatedAt,
+      } : null;
+      await channel.track({
+        kind: "player",
+        name: nameRef.current || "Guest",
+        avatarId: state?.avatar?.id || "maya",
+        x: Number(state?.x) || 0,
+        z: Number(state?.z) || 0,
+        rot: Number(state?.rot) || 0,
+        moving: Boolean(state?.moving),
+        speed: Number(state?.speed) || 0,
+        voice: voiceEnabledRef.current,
+        music,
+      });
+      publishPlayer();
+    };
 
     void channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel.track({ name: nameRef.current, voice: voiceEnabledRef.current });
-        sendInitialPlayer();
-      }
+      if (status === "SUBSCRIBED") await sendInitialPlayer();
     });
 
     return () => {
@@ -394,8 +453,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     audio.src = musicState.track.audio;
     audio.currentTime = Math.min(musicState.position || 0, Math.max(0, (musicState.track.duration || 1) - 0.2));
     audio.volume = musicVolume;
-    if (musicState.playing) void audio.play().catch(() => {});
-    else audio.pause();
+    if (musicState.playing) {
+      if (sharedAudioUnlockedRef.current) void audio.play().catch(() => {});
+    } else audio.pause();
   }, [musicState.track?.id, musicVolume]);
 
   useEffect(() => {
@@ -413,11 +473,30 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   }, [resumeMusicAfterVoice]);
 
   useEffect(() => {
+    const unlock = () => {
+      const audio = audioRef.current;
+      if (!audio || !musicStateRef.current.track || !musicStateRef.current.playing) return;
+      sharedAudioUnlockedRef.current = true;
+      audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
+      void audio.play().catch(() => {});
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("touchstart", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = musicVolume;
-    if (musicState.playing) void audio.play().catch(() => {});
-    else audio.pause();
+    if (musicState.playing) {
+      if (sharedAudioUnlockedRef.current) void audio.play().catch(() => {});
+    } else audio.pause();
     if (musicState.track && Math.abs(audio.currentTime - musicState.position) > 1.25) {
       try { audio.currentTime = Math.max(0, musicState.position); } catch {}
     }
@@ -433,6 +512,31 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     }, 2000);
     return () => window.clearInterval(timer);
   }, [musicVolume, send]);
+
+  useEffect(() => {
+    const channel = channelRef.current;
+    const track = musicState.track;
+    if (!channel || !track || track.local) return;
+    const state = playerStateRef.current;
+    void channel.track({
+      kind: "player",
+      name: nameRef.current || "Guest",
+      avatarId: state?.avatar?.id || "maya",
+      x: Number(state?.x) || 0,
+      z: Number(state?.z) || 0,
+      rot: Number(state?.rot) || 0,
+      moving: Boolean(state?.moving),
+      speed: Number(state?.speed) || 0,
+      voice: voiceEnabledRef.current,
+      music: {
+        track,
+        position: Number(musicState.position) || 0,
+        playing: Boolean(musicState.playing),
+        volume: Number(musicState.volume ?? 0.8),
+        updatedAt: Number(musicState.updatedAt) || Date.now(),
+      },
+    }).catch(() => {});
+  }, [musicState.track?.id, musicState.playing, musicState.volume]);
 
   useEffect(() => () => {
     if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
@@ -485,6 +589,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   }, []);
 
   const publishMusic = useCallback((next) => {
+    sharedAudioUnlockedRef.current = true;
     const normalized = normalizeMusicState({ ...next, volume: next.volume ?? musicVolume, senderId: clientIdRef.current });
     if (!normalized) return;
     setMusicState(normalized);
