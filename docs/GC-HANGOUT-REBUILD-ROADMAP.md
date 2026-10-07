@@ -382,14 +382,14 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 - [x] Supabase Realtime room channel for ephemeral social events.
 - [x] Shared provider music state with play/pause/position synchronization.
-- [x] Universal shared music volume control and animated in-world speaker feedback.
+- [x] Music volume is controlled through the in-world floor speaker; the volume UI appears only while interacting with that speaker.
 - [x] Jamendo search through the existing legitimate provider route.
 - [x] Provider fallback and playable-track validation.
 - [x] Next-track control.
 - [x] Local Add Song picker for MP3/WAV/M4A/AAC/OGG/WebM with MIME/extension validation.
 - [x] Local selected-audio playback without pretending a device blob URL is remotely shareable.
 - [x] Compact chat composer with 16px mobile-safe input.
-- [x] Temporary non-blocking chat notifications positioned at the top safe area.
+- [x] Temporary non-blocking chat notifications positioned at the top safe area, with automatic fade/removal.
 - [x] WebRTC voice transport with Supabase Realtime signaling.
 - [x] Music resume retries when microphone capture interrupts iOS Safari playback.
 - [x] Microphone permission handling and mute/unmute.
@@ -913,6 +913,24 @@ Examples:
 - **Action:** preview deployments were disabled on the gc-hangout Vercel project to prevent further automatic PR preview deployments.
 - **Development policy:** GitHub source + CI/build/tests are the default verification path. A Vercel deployment should only be created when explicitly needed for remote-device testing or Vercel-specific behavior.
 - **Production/device status:** no new production deployment is being claimed; Wave 2 remains **NOT VERIFIED**.
+
+
+
+### 2026-10-07 — Wave 4 implementation pass: audio separation + club room
+
+- **Commits:** `ef821c0909699c1e7540c21460e94d212b9a675c`, `181199f1d583cbf316499d897540b26b82a0bcbe`, `a33547f057301c941042914a712a0a18fdc01e2e`, `b6eed17f8f1f2041ac7fd776474076be54ac9a9e`, `1c3401f9fea3c765571158dda2594e20b24c4449`, `c02a41747650a24b96ae115cee702965bc0c17f0`, `5e0e802aa3f4698bb15600fc11555576251c7c15`.
+- **Music/voice:** kept music playback in its own HTMLAudioElement lifecycle; microphone/WebRTC teardown only stops microphone tracks and peer connections. Added iOS Safari playback preservation/resume around microphone activation and a guarded recovery path for browser-induced music pauses. Voice state does not mutate shared music state.
+- **TV:** tightened metadata hierarchy and truncation so status, title, artist, and progress have separate vertical bands.
+- **Chat:** normal messages remain temporary top-of-screen notifications with a compact history/composer panel; notifications now fade out before automatic removal.
+- **Speaker:** moved the music speaker to the floor near the music area, added a dedicated `MUSIC_SPEAKER` interaction anchor, and removed the always-visible universal volume slider. Volume is now exposed only while the speaker interaction is active.
+- **Speaker feedback:** added pulsing speaker rings/LED treatment tied to playback and volume, with a stronger active-interaction state.
+- **Club lighting:** added four lightweight ceiling fixtures, two music-reactive room wash lights, and three animated emissive light-beam cones. No new shadow-casting dynamic lights were added.
+- **Tests:** added coverage for the dedicated music-speaker interaction type. Repository CI status is not independently confirmed for this commit; Vercel currently reports a build-rate-limit failure rather than a code-build result.
+- **Local build:** attempted `git clone + npm ci + npm test + npm run build`, but outbound GitHub DNS is unavailable in the current environment, so no independent local build execution was possible.
+- **Browser/device result:** **NOT VERIFIED**. No fresh iPhone Safari acceptance has been performed after this Wave 4 pass.
+- **Deployment count:** 0 deliberate deployments. Do not redeploy until a coherent remote-device checkpoint is needed.
+- **Known failures:** Vercel status currently reports a build-rate-limit failure; this is not treated as evidence of a source/build failure. Fresh device verification is still required, especially music + microphone coexistence, speaker interaction/volume, TV metadata, chat notifications, and mobile club-light readability.
+- **Wave 4 gate:** **NOT VERIFIED**.
 
 ### Wave update format
 
