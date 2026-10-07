@@ -147,7 +147,7 @@ function tryMove(x, z, dx, dz) {
   return { x, z };
 }
 
-function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, foodKind = "pizza", drinkKind = "water", interactionPhase = "sync", pov = "tpp", emote = null }) {
+function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, foodKind = "pizza", drinkKind = "water", interactionPhase = "sync", pov = "tpp", emote = null, pairAction = null }) {
   const group = useRef();
   const visual = useRef();
   const arms = useRef([]);
@@ -172,11 +172,15 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
     const emoteWave = emote === "wave";
     const emoteClap = emote === "clap";
     const emoteDance = emote === "dance";
+    const pair = pairAction && pairAction.until > Date.now() ? pairAction.action : null;
+    const pairHug = pair === "hug";
+    const pairKiss = pair === "kiss";
+    const pairFight = pair === "fight";
     const propVisible = gesture && (interactionPhase === "animate" || interactionPhase === "sync");
 
     group.current.position.y = 0;
     group.current.rotation.x = 0;
-    group.current.rotation.z = emoteDance ? Math.sin(t * 7) * 0.055 : moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
+    group.current.rotation.z = pairKiss ? Math.sin(t * 5) * 0.025 : pairFight ? Math.sin(t * 14) * 0.035 : emoteDance ? Math.sin(t * 7) * 0.055 : moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
     if (visual.current) {
       if (pose === "sleep") {
         visual.current.position.set(0, 1.02, 0.15);
@@ -194,11 +198,11 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
     }
 
     if (arms.current[0]) {
-      arms.current[0].rotation.x = emoteClap ? -0.72 + Math.sin(t * 10) * 0.18 : emoteDance ? -0.38 + Math.sin(t * 7) * 0.55 : seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
+      arms.current[0].rotation.x = pairHug ? -1.18 + Math.sin(t * 5) * 0.08 : pairKiss ? -0.55 : pairFight ? -0.15 + Math.sin(t * 14) * 0.75 : emoteClap ? -0.72 + Math.sin(t * 10) * 0.18 : emoteDance ? -0.38 + Math.sin(t * 7) * 0.55 : seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = emoteWave ? -1.15 + Math.sin(t * 9) * 0.38 : emoteClap ? -0.72 - Math.sin(t * 10) * 0.18 : emoteDance ? -0.38 - Math.sin(t * 7) * 0.55 : gesture ? (drinking ? (propToMouth ? -1.22 : -0.88) : (propToMouth ? -1.20 : -0.70)) : seated ? (sofaSeat ? -0.22 : -0.28) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = pairHug ? -1.18 - Math.sin(t * 5) * 0.08 : pairKiss ? -0.55 : pairFight ? -0.15 - Math.sin(t * 14) * 0.75 : emoteWave ? -1.15 + Math.sin(t * 9) * 0.38 : emoteClap ? -0.72 - Math.sin(t * 10) * 0.18 : emoteDance ? -0.38 - Math.sin(t * 7) * 0.55 : gesture ? (drinking ? (propToMouth ? -1.22 : -0.88) : (propToMouth ? -1.20 : -0.70)) : seated ? (sofaSeat ? -0.22 : -0.28) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
       if (eating) arms.current[1].rotation.y = propToMouth ? -0.10 : 0.08;
       if (heldProp.current) {
@@ -915,7 +919,7 @@ export default function Game() {
   const [interaction, setInteraction] = useState(null);
   const [tvState, setTvState] = useState({ track: null });
   const [emote, setEmote] = useState(null);
-  const [remotePlayers, setRemotePlayers] = useState([]);
+  const [remotePlayers, setRemotePlayers] = useState([]);\n  const [pairAction, setPairAction] = useState(null);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
@@ -931,7 +935,7 @@ export default function Game() {
     });
   }, []);
 
-  const handleEmote = useCallback((next) => {
+  const handlePairAction = useCallback((next) => {\n    setPairAction(next);\n    window.setTimeout(() => setPairAction((current) => current?.until === next.until ? null : current), Math.max(0, next.until - Date.now()));\n  }, []);\n\n  const handleEmote = useCallback((next) => {
     setEmote(next);
     window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
   }, []);
