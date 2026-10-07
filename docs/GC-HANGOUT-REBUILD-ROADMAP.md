@@ -963,3 +963,10 @@ For every wave, record:
 - Browser/device result: not yet verified on a fresh build.
 - Deployment policy: this change is intended for the single explicitly requested production deployment only; no development preview deployment should be created.
 - Wave 2 remains **NOT VERIFIED** until fresh iPhone acceptance confirms sofa/chair posture, joystick left/right, sleep visibility/exit, seated eating, and safe exits.
+
+
+### 2026-10-07 — joystick direction correction
+- Fresh iPhone screenshots confirmed the horizontal touch joystick remained inverted in the deployed build.
+- Corrected touch strafe mapping in `app/game.jsx` so left drag produces left movement and right drag produces right movement relative to the camera.
+- Commit: `e88c5cbf889d65e3a07c7fcf56d781d81593fdf2`.
+- Wave 2 remains **NOT VERIFIED** until the corrected production build is exercised on iPhone.
