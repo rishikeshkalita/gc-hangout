@@ -1006,3 +1006,13 @@ For every wave, record:
 - Lowered the FPP look target slightly to correct the upward camera tilt.
 - Commit: `2674f2e1a0ff7a5e1108752decbd3b105d28167b`.
 - Fresh iPhone acceptance remains required for dining-only eating, bar interactions, and FPP framing.
+
+
+### 2026-10-07 — dining chair anchor correction and standing bar actions
+- Fresh iPhone screenshot showed the stocked bar was still too close to the lamp; moved the bar and its collision farther right.
+- Confirmed the six chair meshes are at x 8.2 / 9.7 / 11.2, while their previous interaction anchors were offset by +1.0m. Corrected all six SIT anchors, target positions, trigger zones, and exits to the actual chair centers.
+- Tightened chair trigger radii to reduce cross-seat selection and expanded the seated dining EAT range so all six corrected seats can reach the dining-table food action.
+- Dining-table EAT remains unavailable while standing.
+- Bar DRINK and bar snack actions remain standing interactions; they do not transition the avatar into a seated pose.
+- Commit: `92258e411925cc042001f450072e82193019955b`.
+- Fresh iPhone acceptance remains required for all six chair positions and bar interactions.
