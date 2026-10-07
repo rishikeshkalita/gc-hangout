@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false, playerState = null, onRemotePlayers }) {
+export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false, playerState = null, onRemotePlayers, initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -60,7 +60,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
   const musicPlaybackSnapshotRef = useRef(null);
-  const sharedAudioUnlockedRef = useRef(false);
+  const sharedAudioUnlockedRef = useRef(Boolean(initialAudioUnlocked));
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
   const remotePlayersRef = useRef(new Map());
