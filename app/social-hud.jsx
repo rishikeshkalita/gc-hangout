@@ -445,7 +445,14 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     const next = Math.max(0, Math.min(1, Number(value) || 0));
     setMusicVolume(next);
     if (audioRef.current) audioRef.current.volume = next;
-    if (musicStateRef.current.track) publishMusic({ ...musicStateRef.current, volume: next, position: audioRef.current?.currentTime || musicStateRef.current.position, updatedAt: Date.now() });
+    const current = musicStateRef.current;
+    if (!current.track) return;
+    const nextState = { ...current, volume: next, position: audioRef.current?.currentTime || current.position, updatedAt: Date.now() };
+    if (current.track.local) {
+      setMusicState(nextState);
+    } else {
+      publishMusic(nextState);
+    }
   }, [publishMusic]);
 
   const nextTrack = useCallback(() => {
