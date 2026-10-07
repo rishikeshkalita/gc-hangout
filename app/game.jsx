@@ -276,7 +276,13 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
       dirty.current = true;
     }
 
-    const nearby = findNearbyAnchors(current.x, current.z);
+    let nearby = findNearbyAnchors(current.x, current.z);
+    if (interaction?.anchor?.type === "SIT") {
+      const seatedEat = INTERACTION_ANCHORS.find((item) => item.id === "dining-eat");
+      if (seatedEat && Math.hypot(current.x - seatedEat.triggerX, current.z - seatedEat.triggerZ) < seatedEat.radius) {
+        nearby = [...nearby.filter((item) => item.type !== "EAT"), seatedEat];
+      }
+    }
     const nearbyId = nearby.map((item) => item.id).join("|");
     if (nearbyRef.current !== nearbyId) {
       nearbyRef.current = nearbyId;
