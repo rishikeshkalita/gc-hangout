@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Billboard, Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
 
 const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
 const AVATARS = [
@@ -14,6 +15,59 @@ const AVATARS = [
 ];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+
+function useEmbeddedPhotoTexture(dataUrl) {
+  const [texture, setTexture] = useState(null);
+
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl = null;
+    let image = null;
+    let nextTexture = null;
+
+    try {
+      const comma = dataUrl.indexOf(",");
+      if (comma < 0) throw new Error("Invalid embedded photo data");
+
+      const binary = atob(dataUrl.slice(comma + 1));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+
+      objectUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+      image = new Image();
+      image.decoding = "async";
+
+      image.onload = () => {
+        if (disposed) return;
+        nextTexture = new THREE.Texture(image);
+        nextTexture.colorSpace = THREE.SRGBColorSpace;
+        nextTexture.needsUpdate = true;
+        setTexture(nextTexture);
+      };
+
+      image.onerror = () => {
+        if (!disposed) console.error("GC photo failed to decode");
+      };
+
+      image.src = objectUrl;
+    } catch (error) {
+      if (!disposed) console.error("GC photo failed to prepare", error);
+    }
+
+    return () => {
+      disposed = true;
+      if (image) image.src = "";
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (nextTexture) nextTexture.dispose();
+    };
+  }, [dataUrl]);
+
+  return texture;
+}
+
 
 const INTERACTION_ANCHORS = Object.freeze([
   { id: "sofa-a-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: -7.25, rot: 0, targetX: -11.4, targetZ: -7.25, targetRot: 0, triggerX: -11.4, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
@@ -503,6 +557,35 @@ function GraffitiWall() {
   );
 }
 
+
+function WallPhotoFrame() {
+  const photo = useEmbeddedPhotoTexture(GC_HANGOUT_PHOTO_DATA_URL);
+
+  return (
+    <group position={[14.72, 3.0, 2.0]} rotation={[0, -Math.PI / 2, 0]}>
+      <RoundedBox args={[3.45, 2.65, 0.14]} radius={0.07} smoothness={4} castShadow>
+        <meshStandardMaterial color="#5b3c2b" roughness={0.58} />
+      </RoundedBox>
+      <mesh position={[0, 0, 0.085]}>
+        <planeGeometry args={[3.02, 2.22]} />
+        <meshBasicMaterial map={photo} toneMapped={false} />
+      </mesh>
+      <RoundedBox args={[3.22, 0.09, 0.07]} position={[0, 1.19, 0.11]} radius={0.02} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[3.22, 0.09, 0.07]} position={[0, -1.19, 0.11]} radius={0.02} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[0.09, 2.48, 0.07]} position={[-1.61, 0, 0.11]} radius={0.02} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[0.09, 2.48, 0.07]} position={[1.61, 0, 0.11]} radius={0.02} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+    </group>
+  );
+}
+
 function DiningBar() {
   const bottles = [
     { x: -0.85, color: "#7d2020", scale: 1.0 },
@@ -592,6 +675,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh position={[0, 4.85, 0]}><boxGeometry args={[28.5, 0.12, 18.5]} /><meshStandardMaterial color="#1d222c" roughness={1} /></mesh>
 
       <Furniture />
+      <WallPhotoFrame />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
