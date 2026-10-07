@@ -215,11 +215,14 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     }
 
     const channel = supabase.channel(`gc-hangout:${ROOM_NAME}`, {
-      config: { broadcast: { self: false }, presence: { key: clientIdRef.current } },
+      config: { broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
+    });
+    const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
+      config: { broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     channelRef.current = channel;
 
-    channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
       mergeRemotePlayer(payload);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
@@ -310,7 +313,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     const publishPlayer = () => {
       const state = playerStateRef.current;
       if (!state) return;
-      void channel.send({
+      void gameChannel.send({
         type: "broadcast",
         event: SOCIAL_EVENTS.PLAYER,
         payload: {
@@ -344,8 +347,8 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       }
     };
 
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
+    gameChannel.on("presence", { event: "sync" }, () => {
+      const state = gameChannel.presenceState();
       readPresencePlayers(state);
       const peers = Object.keys(state).filter((id) => id !== clientIdRef.current);
       if (voiceEnabledRef.current) {
@@ -354,7 +357,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       // Force every existing client to publish a fresh transform to a newly joined client.
       peers.forEach(() => publishPlayer());
     });
-    channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
+    gameChannel.on("presence", { event: "join" }, ({ key, newPresences }) => {
       if (key !== clientIdRef.current) {
         const meta = Array.isArray(newPresences) ? newPresences[0] : null;
         if (meta?.kind === "player") mergeRemotePlayer({ ...meta, senderId: key });
@@ -369,7 +372,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         if (voiceEnabledRef.current && clientIdRef.current < key) void ensurePeer(key, true);
       }
     });
-    channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+    gameChannel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
       closePeer(key);
       if (remotePlayersRef.current.delete(key)) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
       const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
@@ -396,7 +399,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         volume: musicStateRef.current.volume,
         updatedAt: musicStateRef.current.updatedAt,
       } : null;
-      await channel.track({
+      await gameChannel.track({
         kind: "player",
         name: nameRef.current || "Guest",
         avatarId: state?.avatar?.id || "maya",
@@ -412,8 +415,12 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
     };
 
-    void channel.subscribe(async (status) => {
+    void channel.subscribe();
+    void gameChannel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") await sendInitialPlayer();
+      else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.warn("GC Hangout game realtime status:", status);
+      }
     });
 
     return () => {
@@ -427,7 +434,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
+      void gameChannel.unsubscribe();
       supabase.removeChannel(channel);
+      supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
