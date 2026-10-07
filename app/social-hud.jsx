@@ -389,7 +389,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         if (Number(payload.revision) !== state.revision || endedRevisionRef.current === state.revision) return;
         endedRevisionRef.current = state.revision;
         const upcoming = state.queue[0] || null;
-        next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], updatedAt: now };
+        next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming) ? false : true, updatedAt: now };
       } else {
         return;
       }
