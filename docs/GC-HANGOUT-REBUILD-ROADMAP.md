@@ -485,6 +485,15 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 - [ ] Seat ownership authoritative.
 - [ ] Interactions visible remotely.
 
+### 2026-10-07 — Multiplayer synchronization repair
+
+- Supabase Realtime Presence is now used for join/sync discovery and initial shared-state recovery on the existing `gc-hangout:main` channel.
+- Player transforms continue through Broadcast at 10Hz; Presence join/sync forces fresh transform handshakes so a newly joined device does not depend on a missed first packet.
+- Shared provider music state is included in Presence for late joiners and continues through Broadcast for play/pause/position updates.
+- Browser audio unlock is now remembered after the first user gesture on each device, allowing a remote shared track to start once the browser has granted audible playback permission.
+- Local Add Song files remain device-local because Blob/object URLs are not portable between devices.
+- **Verification: NOT VERIFIED.** The implementation is committed, but the current Vercel account is over its daily deployment limit and the new commit cannot be deployed for two-device acceptance yet.
+
 ### Gate
 
 Two-client/local multi-instance testing:
