@@ -864,6 +864,15 @@ Examples:
 - **Verification:** GitHub Actions run 37570725743 is currently in progress for commit 0d5d2dc70f51fc0fbb5ef1054aaae3d8bf1cfbf8.
 - **Device gate:** still NOT VERIFIED until fresh iPhone testing confirms both seating postures, all seat entry/exit paths, joystick direction, seated Eat, and Sleep.
 
+### Wave 2 universal interaction control + exit hardening — 2026-10-07
+
+- **iPhone evidence reviewed:** drink interaction can leave the avatar against the right-side collision boundary; sofa and chair seating remain visually misaligned.
+- **Exit hardening:** Drink now exits into the open corridor; all interaction exits also pass through a safe-position resolver so a bad configured exit cannot leave the avatar permanently blocked.
+- **Universal interaction control:** Sit/Sleep are no longer rendered as contextual bottom popups. A persistent circular action control beside Settings performs the nearest Sit/Sleep action; with no eligible seat/bed it is inert. While sitting/sleeping, the same control exits.
+- **Posture pass:** raised the seated root and leg placement to keep hips/legs visually inside the furniture rather than below the chair/sofa.
+- **Verification:** source change requires a fresh iPhone pass before Wave 2 can be marked verified.
+
+
 ### Wave update format
 
 For every wave, record:
