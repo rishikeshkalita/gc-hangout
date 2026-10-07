@@ -59,7 +59,7 @@ const OBSTACLES = [
   { x: -9.8, z: -3.35, rx: 0.9, rz: 0.6 },
   { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
   { x: 9.7, z: 5.8, rx: 2.4, rz: 1.35 },
-  { x: 13.25, z: 0.7, rx: 0.8, rz: 3.2 },
+  { x: 5.0, z: 7.7, rx: 1.0, rz: 1.0 },
   { x: 8.7, z: -6.5, rx: 1.8, rz: 1.8 },
 ];
 
@@ -190,7 +190,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
+function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey, pov }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -355,14 +355,25 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
       playerGroup.current.rotation.y = current.rot;
     }
 
-    const targetY = (mobile ? 0.95 : 1.05) + Math.sin(pitch.current) * cameraDistance.current;
-    const horizontal = Math.cos(pitch.current) * cameraDistance.current;
-    const desired = cameraTarget.current.set(current.x - Math.sin(yaw.current) * horizontal, targetY, current.z - Math.cos(yaw.current) * horizontal);
-    cameraPosition.current.lerp(desired, 1 - Math.exp(-8 * safeDt));
-    cameraPosition.current.x = clamp(cameraPosition.current.x, -WORLD.halfX + 1.0, WORLD.halfX - 1.0);
-    cameraPosition.current.z = clamp(cameraPosition.current.z, -WORLD.halfZ + 1.0, WORLD.halfZ - 1.0);
-    camera.position.copy(cameraPosition.current);
-    camera.lookAt(current.x, mobile ? 0.9 : 1.0, current.z);
+    if (pov === "fpp") {
+      const headY = 1.58;
+      const lookDistance = 4.0;
+      const lookX = current.x + Math.sin(yaw.current) * lookDistance;
+      const lookZ = current.z + Math.cos(yaw.current) * lookDistance;
+      const desired = cameraTarget.current.set(current.x + Math.sin(yaw.current) * 0.08, headY, current.z + Math.cos(yaw.current) * 0.08);
+      cameraPosition.current.lerp(desired, 1 - Math.exp(-12 * safeDt));
+      camera.position.copy(cameraPosition.current);
+      camera.lookAt(lookX, headY + Math.sin(pitch.current - 0.38) * 2.2, lookZ);
+    } else {
+      const targetY = (mobile ? 0.95 : 1.05) + Math.sin(pitch.current) * cameraDistance.current;
+      const horizontal = Math.cos(pitch.current) * cameraDistance.current;
+      const desired = cameraTarget.current.set(current.x - Math.sin(yaw.current) * horizontal, targetY, current.z - Math.cos(yaw.current) * horizontal);
+      cameraPosition.current.lerp(desired, 1 - Math.exp(-8 * safeDt));
+      cameraPosition.current.x = clamp(cameraPosition.current.x, -WORLD.halfX + 1.0, WORLD.halfX - 1.0);
+      cameraPosition.current.z = clamp(cameraPosition.current.z, -WORLD.halfZ + 1.0, WORLD.halfZ - 1.0);
+      camera.position.copy(cameraPosition.current);
+      camera.lookAt(current.x, mobile ? 0.9 : 1.0, current.z);
+    }
   });
 
   const pose = interaction?.anchor?.type === "SLEEP" ? "sleep" : interaction?.anchor?.type === "SIT" ? (interaction.anchor.seatStyle === "sofa" ? "sit-sofa" : "sit-chair") : interaction?.anchor?.type === "EAT" ? "eat" : interaction?.anchor?.type === "DRINK" ? "drink" : interaction?.anchor?.type === "WATCH_TV" ? "watch" : "idle";
@@ -482,6 +493,31 @@ function GraffitiWall() {
   );
 }
 
+function DiningBar() {
+  const bottles = [
+    { x: -0.85, color: "#7d2020", scale: 1.0 },
+    { x: -0.35, color: "#c99b38", scale: 0.92 },
+    { x: 0.18, color: "#254f36", scale: 1.05 },
+    { x: 0.7, color: "#5a253c", scale: 0.88 },
+  ];
+  return (
+    <group position={[5.0, 0, 7.7]}>
+      <RoundedBox args={[2.1, 1.35, 1.8]} position={[0, 0.68, 0]} radius={0.12} smoothness={4} castShadow><meshStandardMaterial color="#343941" roughness={0.78} /></RoundedBox>
+      <RoundedBox args={[2.35, 0.12, 2.0]} position={[0, 1.38, 0]} radius={0.05} smoothness={3} castShadow><meshStandardMaterial color="#72513f" roughness={0.72} /></RoundedBox>
+      {bottles.map((bottle) => (
+        <group key={bottle.x} position={[bottle.x, 1.62, -0.25]} scale={bottle.scale}>
+          <mesh castShadow><cylinderGeometry args={[0.10, 0.12, 0.38, 12]} /><meshStandardMaterial color={bottle.color} roughness={0.35} metalness={0.05} /></mesh>
+          <mesh position={[0, 0.27, 0]} castShadow><cylinderGeometry args={[0.035, 0.045, 0.18, 10]} /><meshStandardMaterial color={bottle.color} roughness={0.3} /></mesh>
+        </group>
+      ))}
+      <group position={[-0.55, 1.57, 0.45]}><mesh><cylinderGeometry args={[0.07, 0.08, 0.16, 12]} /><meshStandardMaterial color="#bfe8f2" transparent opacity={0.78} /></mesh></group>
+      <group position={[0.05, 1.57, 0.45]}><mesh><cylinderGeometry args={[0.07, 0.08, 0.16, 12]} /><meshStandardMaterial color="#dce9ef" transparent opacity={0.7} /></mesh></group>
+      <group position={[0.62, 1.5, 0.4]}><RoundedBox args={[0.45, 0.06, 0.32]} radius={0.025} smoothness={2}><meshStandardMaterial color="#eee8dc" /></RoundedBox><mesh position={[0, 0.07, 0]}><sphereGeometry args={[0.075, 12, 8]} /><meshStandardMaterial color="#d28b4b" /></mesh></group>
+      <group position={[-0.82, 1.5, 0.42]}><RoundedBox args={[0.38, 0.06, 0.3]} radius={0.025} smoothness={2}><meshStandardMaterial color="#eee8dc" /></RoundedBox><mesh position={[0, 0.07, 0]}><sphereGeometry args={[0.08, 12, 8]} /><meshStandardMaterial color="#c95d4e" /></mesh></group>
+    </group>
+  );
+}
+
 function Furniture() {
   return (
     <group>
@@ -517,7 +553,7 @@ function Furniture() {
         </group>
       </group>
       <group position={[8.7, 0, -6.5]}><Bed position={[0, 0, 0]} /></group>
-      <group position={[13.25, 0, 0.7]}><RoundedBox args={[1.4, 1.1, 6.2]} position={[0, 0.6, 0]} radius={0.12} smoothness={4}><meshStandardMaterial color="#343941" /></RoundedBox></group>
+      <DiningBar />
       <Plant position={[-13.1, 0, 7.5]} />
       <Plant position={[13.0, 0, -7.7]} scale={1.15} />
       <Lamp position={[-5.7, 0, 6.8]} />
@@ -526,7 +562,7 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey }) {
+function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov }) {
   return (
     <>
       <ambientLight intensity={1.82} />
@@ -550,7 +586,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} />
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} />
     </>
   );
 }
@@ -585,6 +621,7 @@ export default function Game() {
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pov, setPov] = useState("tpp");
   const [nearby, setNearby] = useState([]);
   const [interaction, setInteraction] = useState(null);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
@@ -648,7 +685,7 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
@@ -723,6 +760,7 @@ export default function Game() {
         {universalActive ? "↗" : "♙"}
       </button>
 
+      <button className="pov-toggle" onPointerDown={(event) => event.stopPropagation()} onClick={() => setPov((value) => value === "tpp" ? "fpp" : "tpp")} aria-label={pov === "tpp" ? "Switch to first person view" : "Switch to third person view"}>{pov === "tpp" ? "FPP" : "TPP"}</button>
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
         <div className="settings-panel">
