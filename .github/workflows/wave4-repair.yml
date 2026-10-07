@@ -1,0 +1,164 @@
+name: Wave 4 targeted repair
+
+on:
+  push:
+    branches: ["wave4-fix-multiplayer-20261007"]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: wave4-fix-multiplayer-20261007
+          fetch-depth: 1
+      - name: Apply Wave 4 repair
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          p = Path("lib/game-state.mjs")
+          s = p.read_text()
+          s = s.replace('"WATCH_TV",\n  "INTERACT",', '"WATCH_TV",\n  "MUSIC",\n  "INTERACT",')
+          s = s.replace('  INTERACT: "interact",', '  MUSIC: "interact",\n  INTERACT: "interact",')
+          p.write_text(s)
+
+          p = Path("lib/social-state.mjs")
+          s = p.read_text()
+          s = s.replace('  VOICE: "voice",\n});', '  VOICE: "voice",\n  PLAYER: "player",\n});')
+          if "export function normalizePlayerState" not in s:
+              s += '''
+          \nexport function normalizePlayerState(value) {
+            if (!value || typeof value !== "object") return null;
+            const x = Number(value.x), z = Number(value.z), rot = Number(value.rot);
+            if (![x, z, rot].every(Number.isFinite)) return null;
+            const interaction = value.interaction && typeof value.interaction === "object" ? value.interaction : null;
+            return {
+              id: String(value.id || ""),
+              name: String(value.name || "Guest").slice(0, 18),
+              avatarId: String(value.avatarId || "maya"),
+              x: Math.max(-14.5, Math.min(14.5, x)),
+              z: Math.max(-9.5, Math.min(9.5, z)),
+              rot,
+              moving: Boolean(value.moving),
+              speed: Math.max(0, Math.min(12, Number(value.speed) || 0)),
+              interaction: interaction ? { type: String(interaction.type || ""), phase: String(interaction.phase || "sync"), seatStyle: interaction.seatStyle || null, foodKind: interaction.foodKind || null, drinkKind: interaction.drinkKind || null } : null,
+              emote: normalizeEmote(value.emote),
+              timestamp: Number(value.timestamp) || Date.now(),
+            };
+          }
+          '''
+          p.write_text(s)
+
+          p = Path("app/game.jsx")
+          s = p.read_text()
+
+          # Speaker: grounded on the floor and clear of the TV surface.
+          s = s.replace('function MusicSpeaker({ playing = false, volume = 0.8 }) {', 'function MusicSpeaker({ playing = false, volume = 0.8, active = false }) {')
+          s = s.replace('    const pulse = playing ? 1 + Math.sin(clock.getElapsedTime() * 7) * 0.035 * Math.max(0.2, volume) : 1;', '    const pulse = active ? 1 + Math.sin(clock.getElapsedTime() * 7) * 0.08 * Math.max(0.25, volume) : 1;')
+          s = s.replace('    ring.current.material.opacity = 0.18 + volume * 0.42;', '    ring.current.material.opacity = active ? 0.25 + volume * 0.55 : 0.12;')
+          s = s.replace('    <group position={[5.25, 1.15, -8.35]}>', '    <group position={[5.25, 0, -7.75]}>')
+          s = s.replace('      <mesh ref={ring} position={[0, 1.28, 0.39]}', '      <mesh ref={ring} position={[0, 1.28, 0.39]}')
+          s = s.replace('      <Text position={[0, 0.05, 0.38]} fontSize={0.12}', '      <pointLight position={[0, 1.2, 0.65]} intensity={active ? 0.9 : 0.08} distance={3.5} color="#8b7dff" />\n      <mesh position={[0, 0.22, 0.34]}><boxGeometry args={[0.82, 0.035, 0.035]} /><meshBasicMaterial color="#9b8cff" /></mesh>\n      <Text position={[0, 0.05, 0.38]} fontSize={0.12}')
+
+          # TV text: hard single-line truncation to stop long provider titles flooding the screen.
+          s = s.replace('  const title = track?.title || "NO TRACK PLAYING";\n  const artist = track?.artist || "GC HANGOUT TV";', '  const title = (track?.title || "NO TRACK PLAYING").replace(/\\s+/g, " ").trim().slice(0, 34);\n  const artist = (track?.artist || "GC HANGOUT TV").replace(/\\s+/g, " ").trim().slice(0, 24);')
+          s = s.replace('<Text position={[0, 0.08, 0.03]} fontSize={0.36} color="#ffffff" anchorX="center" maxWidth={7.2}>{title}</Text>', '<Text position={[0, 0.08, 0.03]} fontSize={0.30} color="#ffffff" anchorX="center" anchorY="middle">{title}</Text>')
+          s = s.replace('<Text position={[0, -0.34, 0.03]} fontSize={0.19} color="#aeb6d5" anchorX="center" maxWidth={7}>{artist}</Text>', '<Text position={[0, -0.34, 0.03]} fontSize={0.17} color="#aeb6d5" anchorX="center" anchorY="middle">{artist}</Text>')
+
+          # Add remote players.
+          const roomMarker = 'function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {'
+          remote = '''
+          function RemotePlayer({ state }) {
+            const group = useRef();
+            const avatar = AVATARS.find((item) => item.id === state.avatarId) || AVATARS[0];
+            const interaction = state.interaction;
+            const pose = interaction?.type === "SIT" ? (interaction.seatStyle === "sofa" ? "sit-sofa" : "sit-chair")
+              : interaction?.type === "SLEEP" ? "sleep"
+              : interaction?.type === "EAT" ? "eat"
+              : interaction?.type === "DRINK" ? "drink"
+              : "idle";
+            useFrame(() => {
+              if (!group.current) return;
+              group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, state.x, 0.28);
+              group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, state.z, 0.28);
+              const target = state.rot;
+              let delta = target - group.current.rotation.y;
+              delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+              group.current.rotation.y += delta * 0.28;
+            });
+            return (
+              <group ref={group} position={[state.x, 0, state.z]} rotation={[0, state.rot, 0]}>
+                <HumanAvatar avatar={avatar} name={state.name} moving={state.moving} pose={pose} seatStyle={interaction?.seatStyle} foodKind={interaction?.foodKind} drinkKind={interaction?.drinkKind} interactionPhase={interaction?.phase} emote={state.emote} />
+              </group>
+            );
+          }
+
+          function ClubLighting() {
+            const beams = useRef([]);
+            const fixtures = [
+              [-10, 4.55, -3.5, "#8b7dff"], [-3.5, 4.55, -2, "#45d9ff"], [3.5, 4.55, -2, "#ff5fc7"],
+              [10, 4.55, 2, "#6eff8a"], [-7, 4.55, 6, "#ffb24d"], [7, 4.55, 6, "#8b7dff"],
+            ];
+            useFrame(({ clock }) => {
+              const t = clock.getElapsedTime();
+              beams.current.forEach((beam, i) => {
+                if (!beam) return;
+                beam.rotation.y = t * (0.45 + i * 0.035) * (i % 2 ? -1 : 1);
+                beam.rotation.z = Math.sin(t * 0.8 + i) * 0.12;
+                const pulse = 0.5 + 0.5 * Math.sin(t * 3.2 + i * 1.7);
+                beam.children[0]?.material && (beam.children[0].material.opacity = 0.06 + pulse * 0.09);
+              });
+            });
+            return (
+              <group>
+                {fixtures.map(([x,y,z,color], i) => (
+                  <group key={i} ref={(node) => { beams.current[i] = node; }} position={[x,y,z]}>
+                    <mesh rotation={[Math.PI, 0, 0]}><coneGeometry args={[0.65, 2.8, 16, 1, true]} /><meshBasicMaterial color={color} transparent opacity={0.08} depthWrite={false} /></mesh>
+                    <mesh><boxGeometry args={[0.55, 0.10, 0.55]} /><meshStandardMaterial color="#11131b" emissive={color} emissiveIntensity={1.8} /></mesh>
+                    <pointLight color={color} intensity={1.7} distance={8} />
+                  </group>
+                ))}
+              </group>
+            );
+          }
+          '''
+          if "function RemotePlayer" not in s:
+              s = s.replace(roomMarker, remote + "\n" + roomMarker)
+          s = s.replace('function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {', 'function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote, remotePlayers }) {')
+          s = s.replace('       <Furniture />\n       <TVScreen', '       <ClubLighting />\n       <Furniture />\n       <TVScreen')
+          s = s.replace('<MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} />', '<MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC"} />')
+          s = s.replace('       <LocalPlayer state={player}', '       {remotePlayers.map((item) => <RemotePlayer key={item.id} state={item} />)}\n       <LocalPlayer state={player}')
+
+          # Game state + speaker interaction.
+          s = s.replace('  const [emote, setEmote] = useState(null);', '  const [emote, setEmote] = useState(null);\n  const [remotePlayers, setRemotePlayers] = useState([]);')
+          s = s.replace('  const handleEmote = useCallback((next) => {', '  const handleRemotePlayers = useCallback((next) => { setRemotePlayers(Array.isArray(next) ? next.filter((item) => item?.id && item.id !== player.id) : []); }, [player.id]);\n\n  const handleEmote = useCallback((next) => {')
+          s = s.replace('anchor.type === "WATCH_TV");', 'anchor.type === "WATCH_TV" || anchor.type === "MUSIC");')
+          s = s.replace('  const universalActive = Boolean(interaction);', '  const universalActive = Boolean(interaction);')
+          s = s.replace('            name={name.trim().slice(0, 18) || "You"}\n        onMusicState={handleMusicState}', '            name={name.trim().slice(0, 18) || "You"}\n        player={player}\n        interaction={interaction}\n        emote={emote}\n        onRemotePlayers={handleRemotePlayers}\n        onMusicState={handleMusicState}')
+          s = s.replace('          <Room player={player}', '          <Room remotePlayers={remotePlayers} player={player}')
+          s = s.replace('      {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : "♙"}', '      {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : universalInteraction?.type === "MUSIC" ? "🔊" : "♙"}')
+          s = s.replace(' : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}', ' : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : universalInteraction?.type === "MUSIC" ? "Adjust music volume" : "Sit"}')
+          p.write_text(s)
+          PY
+      - name: Verify
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/game.jsx app/social-hud.jsx app/globals.css lib/game-state.mjs lib/social-state.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix Wave 4 speaker and multiplayer sync"
+          git push origin wave4-fix-multiplayer-20261007
+          rm -f .github/workflows/wave4-repair.yml
+          git add .github/workflows/wave4-repair.yml
+          git commit -m "Remove one-shot Wave 4 repair workflow"
+          git push origin wave4-fix-multiplayer-20261007
