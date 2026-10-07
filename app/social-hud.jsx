@@ -321,7 +321,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMusicState(next);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_REQUEST }, ({ payload }) => {
-      if (musicStateRef.current.leaderId !== clientIdRef.current) return;
+      const currentLeader = [...activePresenceIdsRef.current].sort()[0] || clientIdRef.current;
+      if (currentLeader !== clientIdRef.current) return;
       const action = String(payload?.action || "");
       const requesterId = String(payload?.senderId || "");
       if (!requesterId) return;
@@ -333,8 +334,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (action === "add") {
         const track = normalizeMusicTrack(payload.track);
         if (!track) return;
-        const pendingByRequester = [...state.queue, ...(state.current ? [state.current] : [])]
-          .filter((item) => item.requesterId === requesterId).length;
+        const pendingByRequester = state.queue.filter((item) => item.requesterId === requesterId).length;
         if (pendingByRequester >= MUSIC_PENDING_LIMIT || state.queue.length >= MUSIC_QUEUE_LIMIT) return;
         if (state.current?.videoId === track.videoId || state.queue.some((item) => item.videoId === track.videoId)) return;
         const queue = [...state.queue, { ...track, requesterId, requesterName: String(payload.requesterName || track.requesterName || "Guest").slice(0, 18), requestedAt: now }].slice(0, MUSIC_QUEUE_LIMIT);
@@ -805,7 +805,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
             {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · Anyone can queue. Three unique skip votes or more than half of active players advances the room. No local uploads.</small>
+          <small className="social-note">{musicStatus} · Anyone can queue. Three unique skip votes or more than half of active players advances the room. No local uploads. YouTube content remains in the official player.</small>
+          <small className="youtube-attribution">YouTube source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
         </section>
       )}
 
