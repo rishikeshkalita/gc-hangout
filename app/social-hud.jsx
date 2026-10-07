@@ -234,7 +234,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [closePeer, ensurePeer, sendSignal]);
+  }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
 
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
