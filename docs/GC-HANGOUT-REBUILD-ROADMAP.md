@@ -970,3 +970,10 @@ For every wave, record:
 - Corrected touch strafe mapping in `app/game.jsx` so left drag produces left movement and right drag produces right movement relative to the camera.
 - Commit: `e88c5cbf889d65e3a07c7fcf56d781d81593fdf2`.
 - Wave 2 remains **NOT VERIFIED** until the corrected production build is exercised on iPhone.
+
+
+### 2026-10-07 — bed depth and sofa shoe correction
+- Fresh iPhone screenshots showed the sleep pose sinking too far into the mattress and sofa shoes being occluded by the sofa cushion/front edge.
+- Corrected sleep visual elevation from `0.72` to `1.02` and moved sofa shoes forward to `z=0.88` with a slightly lower shoe height.
+- Commit: `5457344fd14847b05cfc6d8b1a9fc93eeb6c0cf4`.
+- Wave 2 remains **NOT VERIFIED** until fresh iPhone acceptance confirms both views.
