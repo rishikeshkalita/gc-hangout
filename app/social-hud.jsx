@@ -32,7 +32,6 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const [draft, setDraft] = useState("");
   const [tracks, setTracks] = useState([]);
   const [musicSearch, setMusicSearch] = useState("lounge");
-  const [localAudioUrl, setLocalAudioUrl] = useState(null);
   const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, updatedAt: Date.now(), senderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
@@ -345,7 +344,6 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
     const url = URL.createObjectURL(file);
     localAudioUrlRef.current = url;
-    setLocalAudioUrl(url);
     setMusicState({
       track: {
         id: `local-${clientIdRef.current}-${Date.now()}`,
