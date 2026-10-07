@@ -369,9 +369,11 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         if (voiceEnabledRef.current && clientIdRef.current < key) void ensurePeer(key, true);
       }
     });
-    channel.on("presence", { event: "leave" }, ({ key }) => {
+    channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
       closePeer(key);
       if (remotePlayersRef.current.delete(key)) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+      const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
+      pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
     const playerTimer = window.setInterval(publishPlayer, 100);
     const pruneTimer = window.setInterval(() => {
@@ -407,6 +409,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         music,
       });
       publishPlayer();
+      void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
     };
 
     void channel.subscribe(async (status) => {
