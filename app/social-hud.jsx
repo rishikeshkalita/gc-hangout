@@ -65,6 +65,10 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const playerStateRef = useRef(playerState);
   const remotePlayersRef = useRef(new Map());
   const lastActivityInteractionRef = useRef("");
+  const socialReadyRef = useRef(false);
+  const gameReadyRef = useRef(false);
+  const sessionStartedRef = useRef(false);
+  const reconnectTimerRef = useRef(null);
 
   const mergeRemotePlayer = useCallback((payload) => {
     if (!payload || payload.senderId === clientIdRef.current) return;
@@ -75,6 +79,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       id,
       name: String(payload.name || "Guest").slice(0, 18),
       avatarId: String(payload.avatarId || "maya"),
+      interactionType: String(payload.interactionType || ""),
+      interactionPhase: String(payload.interactionPhase || "sync"),
+      emote: payload.emote ? String(payload.emote) : null,
       x: Number(payload.x),
       z: Number(payload.z),
       rot: Number(payload.rot) || 0,
@@ -98,8 +105,14 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
 
   const send = useCallback(async (event, payload) => {
     const channel = channelRef.current;
-    if (!channel) return;
-    await channel.send({ type: "broadcast", event, payload: { ...payload, senderId: clientIdRef.current } });
+    if (!channel || !socialReadyRef.current) return false;
+    try {
+      const result = await channel.send({ type: "broadcast", event, payload: { ...payload, senderId: clientIdRef.current } });
+      return result === "ok" || result?.status === "ok" || result === undefined;
+    } catch (error) {
+      console.warn("GC Hangout social send failed", error);
+      return false;
+    }
   }, []);
 
 
@@ -312,7 +325,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
 
     const publishPlayer = () => {
       const state = playerStateRef.current;
-      if (!state) return;
+      if (!state || !gameReadyRef.current) return;
       void gameChannel.send({
         type: "broadcast",
         event: SOCIAL_EVENTS.PLAYER,
@@ -320,6 +333,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
           senderId: clientIdRef.current,
           name: nameRef.current || "Guest",
           avatarId: state.avatar?.id || "maya",
+          interactionType: interaction?.anchor?.type || "",
+          interactionPhase: interaction?.phase || "sync",
+          emote: state.emote || null,
           x: Number(state.x) || 0,
           z: Number(state.z) || 0,
           rot: Number(state.rot) || 0,
@@ -397,6 +413,8 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
     }, 700);
     const sendInitialPlayer = async () => {
+      if (sessionStartedRef.current || !socialReadyRef.current || !gameReadyRef.current) return;
+      sessionStartedRef.current = true;
       const state = playerStateRef.current;
       const music = musicStateRef.current.track ? {
         track: musicStateRef.current.track,
@@ -409,6 +427,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         kind: "player",
         name: nameRef.current || "Guest",
         avatarId: state?.avatar?.id || "maya",
+        interactionType: interaction?.anchor?.type || "",
+        interactionPhase: interaction?.phase || "sync",
+        emote: state?.emote || null,
         x: Number(state?.x) || 0,
         z: Number(state?.z) || 0,
         rot: Number(state?.rot) || 0,
@@ -424,13 +445,70 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
     };
 
-    void channel.subscribe();
-    void gameChannel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") await sendInitialPlayer();
-      else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
-        console.warn("GC Hangout game realtime status:", status);
+    const scheduleReconnect = (targetChannel, kind) => {
+      if (reconnectTimerRef.current) return;
+      reconnectTimerRef.current = window.setTimeout(() => {
+        reconnectTimerRef.current = null;
+        if (kind === "social") {
+          socialReadyRef.current = false;
+          void targetChannel.subscribe(handleSocialStatus);
+        } else {
+          gameReadyRef.current = false;
+          void targetChannel.subscribe(handleGameStatus);
+        }
+      }, 900);
+    };
+
+    const handleSocialStatus = (status) => {
+      socialReadyRef.current = status === "SUBSCRIBED";
+      if (status === "SUBSCRIBED") {
+        void channel.track({
+          name: nameRef.current || "Guest",
+          voice: voiceEnabledRef.current,
+          music: musicStateRef.current.track ? {
+            track: musicStateRef.current.track,
+            position: musicStateRef.current.position,
+            playing: musicStateRef.current.playing,
+            volume: musicStateRef.current.volume,
+            updatedAt: musicStateRef.current.updatedAt,
+          } : null,
+        });
+        if (voiceEnabledRef.current) {
+          const state = channel.presenceState();
+          Object.keys(state)
+            .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
+            .forEach((id) => void ensurePeer(id, true));
+        }
+        void sendInitialPlayer();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.warn("GC Hangout social realtime status:", status);
+        scheduleReconnect(channel, "social");
       }
-    });
+    };
+
+    const handleGameStatus = async (status) => {
+      gameReadyRef.current = status === "SUBSCRIBED";
+      if (status === "SUBSCRIBED") {
+        await channel.track({
+          name: nameRef.current || "Guest",
+          voice: voiceEnabledRef.current,
+          music: musicStateRef.current.track ? {
+            track: musicStateRef.current.track,
+            position: musicStateRef.current.position,
+            playing: musicStateRef.current.playing,
+            volume: musicStateRef.current.volume,
+            updatedAt: musicStateRef.current.updatedAt,
+          } : null,
+        });
+        await sendInitialPlayer();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.warn("GC Hangout game realtime status:", status);
+        scheduleReconnect(gameChannel, "game");
+      }
+    };
+
+    void channel.subscribe(handleSocialStatus);
+    void gameChannel.subscribe(handleGameStatus);
 
     return () => {
       peersRef.current.forEach((pc) => pc.close());
@@ -440,6 +518,11 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       remoteAudioRef.current.clear();
       window.clearInterval(playerTimer);
       window.clearInterval(pruneTimer);
+      if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+      socialReadyRef.current = false;
+      gameReadyRef.current = false;
+      sessionStartedRef.current = false;
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
