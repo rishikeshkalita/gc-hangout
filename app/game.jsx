@@ -644,9 +644,9 @@ function TVScreen({ watching = false, track = null }) {
   return (
     <group position={[0, 2.2, -8.92]}>
       <mesh><planeGeometry args={[8.05, 2.34]} /><meshBasicMaterial color="#111827" /></mesh>
-      <Text position={[0, 0.72, 0.03]} fontSize={0.2} color="#aeb6d5" anchorX="center">{status}</Text>
-      <Text position={[0, 0.25, 0.03]} fontSize={0.31} color="#ffffff" anchorX="center" textAlign="center">{title}</Text>
-      <Text position={[0, -0.22, 0.03]} fontSize={0.18} color="#aeb6d5" anchorX="center" textAlign="center">{artist}</Text>
+      <Text position={[0, 0.72, 0.03]} fontSize={0.17} color="#aeb6d5" anchorX="center" overflowWrap="nowrap">{status}</Text>
+      <Text position={[0, 0.27, 0.03]} fontSize={0.26} color="#ffffff" anchorX="center" overflowWrap="nowrap" maxWidth={6.8}>{title}</Text>
+      <Text position={[0, -0.18, 0.03]} fontSize={0.16} color="#aeb6d5" anchorX="center" overflowWrap="nowrap" maxWidth={6.8}>{artist}</Text>
       <mesh position={[0, -0.67, 0.03]}>
         <planeGeometry args={[5.7, 0.055]} />
         <meshBasicMaterial color="#4b5563" />

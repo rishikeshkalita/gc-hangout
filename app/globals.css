@@ -567,10 +567,13 @@ button { border: 0; cursor: pointer; }
 .music-volume input { width: 100%; accent-color: #7567ee; }
 .music-volume b { min-width: 34px; color: #d8ceff; font-size: 10px; text-align: right; }
 .chat-toasts {
-  top: calc(70px + env(safe-area-inset-top));
+  top: calc(72px + env(safe-area-inset-top));
   bottom: auto;
-  right: max(16px, env(safe-area-inset-right));
-  width: min(330px, calc(100vw - 32px));
+  left: 50%;
+  right: auto;
+  width: min(420px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  z-index: 45;
 }
 .chat-toast { animation: chat-toast-in .18s ease-out; }
 @keyframes chat-toast-in {
@@ -579,9 +582,11 @@ button { border: 0; cursor: pointer; }
 }
 @media (max-width: 700px) {
   .chat-toasts {
-    top: calc(62px + env(safe-area-inset-top));
+    top: calc(64px + env(safe-area-inset-top));
     bottom: auto;
-    right: max(10px, env(safe-area-inset-right));
-    width: min(300px, calc(100vw - 20px));
+    left: 50%;
+    right: auto;
+    width: min(320px, calc(100vw - 20px));
+    transform: translateX(-50%);
   }
 }

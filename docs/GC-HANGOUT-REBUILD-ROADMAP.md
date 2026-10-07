@@ -382,14 +382,16 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 - [x] Supabase Realtime room channel for ephemeral social events.
 - [x] Shared provider music state with play/pause/position synchronization.
+- [x] Universal shared music volume control and animated in-world speaker feedback.
 - [x] Jamendo search through the existing legitimate provider route.
 - [x] Provider fallback and playable-track validation.
 - [x] Next-track control.
 - [x] Local Add Song picker for MP3/WAV/M4A/AAC/OGG/WebM with MIME/extension validation.
 - [x] Local selected-audio playback without pretending a device blob URL is remotely shareable.
 - [x] Compact chat composer with 16px mobile-safe input.
-- [x] Temporary non-blocking chat notifications.
+- [x] Temporary non-blocking chat notifications positioned at the top safe area.
 - [x] WebRTC voice transport with Supabase Realtime signaling.
+- [x] Music resume retries when microphone capture interrupts iOS Safari playback.
 - [x] Microphone permission handling and mute/unmute.
 - [x] Voice teardown/presence cleanup.
 - [x] Wave / clap / dance emotes.
@@ -422,6 +424,13 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 - [ ] Fresh iPhone/browser acceptance of chat/music/voice/emotes.
 - [ ] Two-client voice/music/chat acceptance.
 - [ ] **Status: NOT VERIFIED**
+
+### 2026-10-07 — Wave 4 polish pass — 2026-10-07
+
+- TV track metadata is now constrained to stable single-line regions to prevent title/artist flooding.
+- Chat toasts are centered at the top safe area instead of competing with the joystick/social toolbar.
+- Microphone startup retries active music playback after iOS Safari capture interruption without changing shared play/pause state.
+- Added a regression test for shared music volume clamping.
 
 ### 2026-10-07 — Wave 4 implementation record
 
