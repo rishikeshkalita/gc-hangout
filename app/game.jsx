@@ -358,7 +358,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 function Sofa({ position = [0, 0, 0] }) {
   const FLOOR_OFFSET = -0.245;
   return (
-    <group position={[position[0], position[1] + FLOOR_OFFSET, position[2]}>
+    <group position={[position[0], position[1] + FLOOR_OFFSET, position[2]]}>
       <RoundedBox args={[5.4, 0.55, 1.05]} position={[0, 0.52, 0]} radius={0.14} smoothness={5} castShadow><meshStandardMaterial color="#3f4b61" roughness={0.85} /></RoundedBox>
       <RoundedBox args={[5.4, 1.0, 0.3]} position={[0, 1.0, -0.38]} radius={0.12} smoothness={5} castShadow><meshStandardMaterial color="#48556c" roughness={0.85} /></RoundedBox>
       {[-2.35, 2.35].map((x) => <RoundedBox key={x} args={[0.32, 0.85, 0.9]} position={[x, 0.9, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#48556c" /></RoundedBox>)}
