@@ -1174,7 +1174,7 @@ For every wave, record:
 - **Implementation:** replaced the Jamendo catalog and local/manual upload path with YouTube Data API search plus the official YouTube IFrame Player API.
 - **Shared state:** added a revisioned room music state containing current video, queue, requester metadata, room clock, play/pause state, shared volume, and unique skip votes.
 - **Authority:** the lowest active Supabase Presence client ID is the deterministic room music leader. Music requests are sent to that leader; state changes are revisioned and rebroadcast. Leader handoff recovers the newest state from Presence metadata.
-- **Queue rules:** maximum 25 queued videos, maximum 3 pending entries per requester, duplicate video IDs rejected, and skip advances at 3 unique votes or more than half of active room members.
+- **Queue rules:** maximum 25 queued videos, maximum 3 pending entries per requester, duplicate video IDs rejected, and skip advances only when more than half of active room members have unique votes.
 - **Playback:** one visible YouTube player per client, room-clock synchronization, bounded drift correction, idempotent end handling, autoplay-block recovery, and graceful rejection of unavailable/non-embeddable videos.
 - **Voice isolation:** the old HTMLAudioElement/music recovery hooks were removed; microphone/WebRTC lifecycle no longer owns or resets music playback.
 - **UI:** local file upload was removed. Music search/queue UI is YouTube-labelled; physical floor speaker remains the room-volume interaction point.
