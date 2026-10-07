@@ -668,7 +668,7 @@ function MusicSpeaker({ playing = false, volume = 0.8 }) {
     ring.current.material.opacity = 0.18 + volume * 0.42;
   });
   return (
-    <group position={[0, 1.15, -7.95]}>
+    <group position={[5.25, 1.15, -8.35]}>
       <RoundedBox args={[1.2, 1.8, 0.65]} position={[0, 0.9, 0]} radius={0.12} smoothness={5} castShadow>
         <meshStandardMaterial color="#151923" roughness={0.48} metalness={0.18} />
       </RoundedBox>
