@@ -845,6 +845,16 @@ Examples:
 - **Browser result:** **NOT VERIFIED**; no fresh iPhone build has been deployed.
 - **Deployment:** 0 new attempts; Vercel daily deployment quota remains exhausted.
 - **Current gate:** **NOT VERIFIED**. Do not merge to main or start Wave 3 until the fresh device build passes the full furniture/movement matrix.
+### Wave 2 interaction corrections — 2026-10-07 seating/joystick pass
+
+- **New iPhone evidence:** seated posture is visible but too upright with feet hanging below the chair; left/right joystick movement is reversed; dining chair 3 can exit into the right-side obstacle; Sit is not reliably offered around all chairs; seated eating needs a direct action.
+- **Interaction model correction:** Sit remains a contextual persistent bottom action whenever a seat is within a generous interaction radius. Seat anchors are centered on the actual furniture rather than requiring a narrow approach coordinate.
+- **Dining correction:** all six chair interaction radii widened; front/back trigger points moved onto the chair approach; chair 3 exit moved away from the right-side obstacle; seated Eat action added and exposed separately above the Stand/Exit control.
+- **Movement correction:** mobile joystick horizontal input is inverted in the movement mapping so physical left produces leftward movement and physical right produces rightward movement.
+- **Pose correction:** seated visual offset lowered and limb bend reduced so the avatar sits deeper in the chair.
+- **Current source commits:** b0acbe83764fbfbfc015d059fc3eca4920613614, 210044b6d6f9ae95556f59354edf8bcc4cab5ffc, 61e3674a1273ca53429158aea49fcca90b3fb2c5.
+- **Verification:** no new workflow run is currently reported for the latest commit; fresh iPhone verification remains required.
+- **Gate:** Wave 2 remains **NOT VERIFIED**. Do not merge or start Wave 3 until joystick direction, every chair, sofa seating, seated Eat, exits, and Sleep are re-tested on device.
 ### Wave update format
 
 For every wave, record:
