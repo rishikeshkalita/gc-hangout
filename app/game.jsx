@@ -632,17 +632,21 @@ function DiningBar() {
 }
 
 function TVScreen({ watching = false, track = null }) {
-  const title = track?.title || "NO TRACK PLAYING";
-  const artist = track?.artist || "GC HANGOUT TV";
+  const clampText = (value, length) => {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+  };
+  const title = clampText(track?.title || "NO TRACK PLAYING", 30);
+  const artist = clampText(track?.artist || "GC HANGOUT TV", 24);
   const status = watching ? "WATCHING" : "TV READY";
   const progress = track?.duration > 0 ? Math.min(1, Math.max(0, Number(track.position || 0) / Number(track.duration))) : 0;
 
   return (
     <group position={[0, 2.2, -8.92]}>
       <mesh><planeGeometry args={[8.05, 2.34]} /><meshBasicMaterial color="#111827" /></mesh>
-      <Text position={[0, 0.48, 0.03]} fontSize={0.28} color="#e7e9ff" anchorX="center">{status}</Text>
-      <Text position={[0, 0.08, 0.03]} fontSize={0.36} color="#ffffff" anchorX="center" maxWidth={7.2}>{title}</Text>
-      <Text position={[0, -0.34, 0.03]} fontSize={0.19} color="#aeb6d5" anchorX="center" maxWidth={7}>{artist}</Text>
+      <Text position={[0, 0.72, 0.03]} fontSize={0.2} color="#aeb6d5" anchorX="center">{status}</Text>
+      <Text position={[0, 0.25, 0.03]} fontSize={0.31} color="#ffffff" anchorX="center" textAlign="center">{title}</Text>
+      <Text position={[0, -0.22, 0.03]} fontSize={0.18} color="#aeb6d5" anchorX="center" textAlign="center">{artist}</Text>
       <mesh position={[0, -0.67, 0.03]}>
         <planeGeometry args={[5.7, 0.055]} />
         <meshBasicMaterial color="#4b5563" />
@@ -651,6 +655,36 @@ function TVScreen({ watching = false, track = null }) {
         <circleGeometry args={[0.075, 12]} />
         <meshBasicMaterial color="#d8ceff" />
       </mesh>
+    </group>
+  );
+}
+
+function MusicSpeaker({ playing = false, volume = 0.8 }) {
+  const ring = useRef();
+  useFrame(({ clock }) => {
+    if (!ring.current) return;
+    const pulse = playing ? 1 + Math.sin(clock.getElapsedTime() * 7) * 0.035 * Math.max(0.2, volume) : 1;
+    ring.current.scale.setScalar(pulse);
+    ring.current.material.opacity = 0.18 + volume * 0.42;
+  });
+  return (
+    <group position={[0, 1.15, -7.95]}>
+      <RoundedBox args={[1.2, 1.8, 0.65]} position={[0, 0.9, 0]} radius={0.12} smoothness={5} castShadow>
+        <meshStandardMaterial color="#151923" roughness={0.48} metalness={0.18} />
+      </RoundedBox>
+      <mesh position={[0, 1.28, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.28, 0.28, 0.08, 32]} />
+        <meshStandardMaterial color="#2e3442" />
+      </mesh>
+      <mesh position={[0, 0.58, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.08, 32]} />
+        <meshStandardMaterial color="#596173" />
+      </mesh>
+      <mesh ref={ring} position={[0, 1.28, 0.39]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.31, 0.36, 32]} />
+        <meshBasicMaterial color="#b8aaff" transparent opacity={0.35} />
+      </mesh>
+      <Text position={[0, 0.05, 0.38]} fontSize={0.12} color="#b8aaff" anchorX="center">MUSIC</Text>
     </group>
   );
 }
@@ -720,6 +754,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
 
       <Furniture />
       <TVScreen watching={interaction?.anchor?.type === "WATCH_TV"} track={tvState?.track} />
+      <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} />
       <WallPhotoFrame />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
@@ -773,7 +808,11 @@ export default function Game() {
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
   const handleMusicState = useCallback((state) => {
-    setTvState({ track: state.track ? { ...state.track, position: state.position } : null });
+    setTvState({
+      track: state.track ? { ...state.track, position: state.position } : null,
+      playing: Boolean(state.playing),
+      volume: Number(state.volume ?? 0.8),
+    });
   }, []);
 
   const handleEmote = useCallback((next) => {
