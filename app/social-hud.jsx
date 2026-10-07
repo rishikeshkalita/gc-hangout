@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { EMOTES, SOCIAL_EVENTS, createClientId, formatChatTime, normalizeEmote, normalizeMusicState, sanitizeChatMessage } from "../lib/social-state.mjs";
+import { EMOTES, MUSIC_PENDING_LIMIT, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -33,9 +33,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [draft, setDraft] = useState("");
   const [tracks, setTracks] = useState([]);
   const [musicSearch, setMusicSearch] = useState("lounge");
-  const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, volume: 0.8, updatedAt: Date.now(), senderId: "" });
+  const [musicState, setMusicState] = useState({ current: null, track: null, queue: [], skipVotes: [], revision: 0, position: 0, startedAt: 0, playing: false, volume: 0.8, updatedAt: Date.now(), leaderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
-  const [uploadBusy, setUploadBusy] = useState(false);
+  const [musicStatus, setMusicStatus] = useState("Shared YouTube room");
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const speakerControlActive = Boolean(
     speakerActive &&
@@ -51,17 +51,23 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const supabaseRef = useRef(null);
   const channelRef = useRef(null);
   const clientIdRef = useRef(createClientId());
-  const audioRef = useRef(null);
+  const youtubePlayerRef = useRef(null);
+  const youtubeContainerRef = useRef(null);
+  const youtubeReadyRef = useRef(false);
+  const youtubeApiPromiseRef = useRef(null);
+  const youtubeLoadedVideoRef = useRef("");
+  const youtubeProgrammaticRef = useRef(false);
   const musicStateRef = useRef(musicState);
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
   const pendingCandidatesRef = useRef(new Map());
   const remoteAudioRef = useRef(new Map());
   const remoteStreamsRef = useRef(new Map());
-  const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
-  const musicPlaybackSnapshotRef = useRef(null);
   const sharedAudioUnlockedRef = useRef(Boolean(initialAudioUnlocked));
+  const musicPresenceRef = useRef(new Map());
+  const activePresenceIdsRef = useRef(new Set([clientIdRef.current]));
+  const endedRevisionRef = useRef(-1);
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
   const interactionRef = useRef(interaction);
@@ -307,22 +313,65 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const next = normalizeMusicState(payload);
-      if (next) {
-        if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
-        const previous = musicStateRef.current;
-        if (next.track?.id !== previous.track?.id || next.playing !== previous.playing) {
-          const title = next.track?.title ? ` “${next.track.title}”` : "";
-          pushChatToast({
-            id: `music-${payload.senderId || "remote"}-${payload.updatedAt || Date.now()}`,
-            name: String(payload.senderName || payload.name || "Guest").slice(0, 18),
-            message: next.playing ? `🎵 started music${title}` : "⏸️ paused the music",
-            timestamp: Number(payload.updatedAt) || Date.now(),
-            local: false,
-            activity: true,
-          });
+      if (!next) return;
+      const previous = musicStateRef.current;
+      if (next.revision < previous.revision) return;
+      if (next.revision === previous.revision && next.updatedAt <= previous.updatedAt && next.leaderId === previous.leaderId) return;
+      if (next.playing && next.current) next.position = currentMusicPosition(next);
+      setMusicState(next);
+    });
+    channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_REQUEST }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      if (musicStateRef.current.leaderId !== clientIdRef.current) return;
+      const action = String(payload?.action || "");
+      const requesterId = String(payload?.senderId || "");
+      if (!requesterId) return;
+      const now = Date.now();
+      const state = normalizeMusicState(musicStateRef.current);
+      if (!state) return;
+      let next = state;
+
+      if (action === "add") {
+        const track = normalizeMusicTrack(payload.track);
+        if (!track) return;
+        const pendingByRequester = [...state.queue, ...(state.current ? [state.current] : [])]
+          .filter((item) => item.requesterId === requesterId).length;
+        if (pendingByRequester >= MUSIC_PENDING_LIMIT || state.queue.length >= MUSIC_QUEUE_LIMIT) return;
+        if (state.current?.videoId === track.videoId || state.queue.some((item) => item.videoId === track.videoId)) return;
+        const queue = [...state.queue, { ...track, requesterId, requesterName: String(payload.requesterName || track.requesterName || "Guest").slice(0, 18), requestedAt: now }].slice(0, MUSIC_QUEUE_LIMIT);
+        if (!state.current) {
+          next = { ...state, revision: state.revision + 1, current: queue[0], track: queue[0], queue: queue.slice(1), position: 0, startedAt: now, playing: true, skipVotes: [], updatedAt: now };
+        } else {
+          next = { ...state, revision: state.revision + 1, queue, updatedAt: now };
         }
-        setMusicState(next);
+      } else if (action === "toggle") {
+        if (!state.current) return;
+        const position = currentMusicPosition(state, now);
+        next = { ...state, revision: state.revision + 1, position, startedAt: state.playing ? 0 : now, playing: !state.playing, updatedAt: now, skipVotes: [] };
+      } else if (action === "volume") {
+        next = { ...state, revision: state.revision + 1, volume: Math.max(0, Math.min(1, Number(payload.volume) || 0)), updatedAt: now };
+      } else if (action === "skip") {
+        if (!state.current) return;
+        const votes = [...new Set([...state.skipVotes, requesterId])];
+        const activeCount = Math.max(1, activePresenceIdsRef.current.size);
+        if (votes.length >= 3 || votes.length > activeCount / 2) {
+          const upcoming = state.queue[0] || null;
+          next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], updatedAt: now };
+        } else {
+          next = { ...state, revision: state.revision + 1, skipVotes: votes, updatedAt: now };
+        }
+      } else if (action === "ended") {
+        if (Number(payload.revision) !== state.revision || endedRevisionRef.current === state.revision) return;
+        endedRevisionRef.current = state.revision;
+        const upcoming = state.queue[0] || null;
+        next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], updatedAt: now };
+      } else {
+        return;
       }
+
+      const normalized = normalizeMusicState({ ...next, leaderId: clientIdRef.current });
+      setMusicState(normalized);
+      void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.MUSIC, payload: { ...normalized, senderId: clientIdRef.current } });
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.VOICE }, async ({ payload }) => {
       if (payload?.senderId === clientIdRef.current || payload?.to !== clientIdRef.current) return;
@@ -516,15 +565,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       socialReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
         void channel.track({
+          kind: "player",
           name: nameRef.current || "Guest",
           voice: voiceEnabledRef.current,
-          music: musicStateRef.current.track ? {
-            track: musicStateRef.current.track,
-            position: musicStateRef.current.position,
-            playing: musicStateRef.current.playing,
-            volume: musicStateRef.current.volume,
-            updatedAt: musicStateRef.current.updatedAt,
-          } : null,
+          music: musicStateRef.current,
         });
         if (voiceEnabledRef.current) {
           const state = channel.presenceState();
@@ -577,32 +621,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
 
-  const captureMusicPlayback = useCallback(() => {
-    const audio = audioRef.current;
-    const state = musicStateRef.current;
-    if (!audio || !state.track) return null;
-    return {
-      trackId: state.track.id,
-      playing: Boolean(state.playing),
-      position: Number.isFinite(audio.currentTime) ? audio.currentTime : Number(state.position) || 0,
-    };
-  }, []);
-
-  const resumeMusicAfterVoice = useCallback((snapshot = musicPlaybackSnapshotRef.current) => {
-    const audio = audioRef.current;
-    const state = musicStateRef.current;
-    if (!audio || !state.track || !state.playing) return;
-    if (snapshot?.trackId === state.track.id && Number.isFinite(snapshot.position)) {
-      try { audio.currentTime = Math.max(0, snapshot.position); } catch {}
-    }
-    audio.volume = Math.max(0, Math.min(1, Number(state.volume ?? musicVolume)));
-    void audio.play().catch(() => {});
-    window.setTimeout(() => { void audio.play().catch(() => {}); }, 120);
-    window.setTimeout(() => { void audio.play().catch(() => {}); }, 700);
-  }, [musicVolume]);
-
   const enableVoice = useCallback(async () => {
-    musicPlaybackSnapshotRef.current = captureMusicPlayback();
     if (voiceOn) {
       voiceEnabledRef.current = false;
       const channel = channelRef.current;
@@ -616,7 +635,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMuted(false);
       setVoiceStatus("Tap mic to join voice");
       pushActivity("left voice", "🎙️");
-      resumeMusicAfterVoice();
       return;
     }
     try {
@@ -632,15 +650,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         const state = channel.presenceState();
         for (const peerId of Object.keys(state).filter((id) => id !== clientIdRef.current && clientIdRef.current < id)) await ensurePeer(peerId, true);
       }
-      // iOS Safari can pause the HTMLAudioElement while the microphone permission/session is activated.
-      // Resume after the voice session is established, not before it.
-      resumeMusicAfterVoice();
-      window.setTimeout(resumeMusicAfterVoice, 250);
-      window.setTimeout(resumeMusicAfterVoice, 900);
     } catch (error) {
       setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
     }
-  }, [captureMusicPlayback, ensurePeer, pushActivity, resumeMusicAfterVoice, voiceOn]);
+  }, [ensurePeer, pushActivity, voiceOn]);
 
   const toggleMute = useCallback(() => {
     const next = !muted;
@@ -649,257 +662,53 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [muted]);
 
   const loadMusic = useCallback(async (query = musicSearch) => {
+    const cleanQuery = String(query || "").trim();
+    if (cleanQuery.length < 2) {
+      setTracks([]);
+      setMusicStatus("Search for at least 2 characters.");
+      return;
+    }
     setMusicBusy(true);
     try {
-      const response = await fetch(`/api/music?search=${encodeURIComponent(query || "lounge")}`);
+      const response = await fetch(`/api/music?search=${encodeURIComponent(cleanQuery)}`);
       const data = await response.json();
       setTracks(Array.isArray(data.tracks) ? data.tracks : []);
+      setMusicStatus(data.error || (data.tracks?.length ? "YouTube results ready." : "No embeddable videos found."));
     } catch (error) {
-      console.error("Music catalog load failed", error);
+      console.error("YouTube catalog load failed", error);
       setTracks([]);
+      setMusicStatus("YouTube search is temporarily unavailable.");
     } finally {
       setMusicBusy(false);
     }
   }, [musicSearch]);
 
-  useEffect(() => { void loadMusic("lounge"); }, [loadMusic]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !musicState.track?.audio) return;
-    const sourceChanged = audio.src !== musicState.track.audio;
-    if (sourceChanged) {
-      audio.src = musicState.track.audio;
-      audio.load();
-    }
-    const applyPosition = () => {
-      const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : Number(musicState.track.duration) || 0;
-      const position = Math.max(0, Number(musicState.position) || 0);
-      try { audio.currentTime = duration ? Math.min(position, Math.max(0, duration - 0.2)) : position; } catch {}
-    };
-    if (audio.readyState >= 1) applyPosition();
-    else audio.addEventListener("loadedmetadata", applyPosition, { once: true });
-    audio.volume = musicVolume;
-    if (musicState.playing) {
-      if (sharedAudioUnlockedRef.current) {
-        void audio.play().catch(() => {
-          // Safari may reject a remote autoplay attempt; the next user gesture retries it.
-        });
-      }
-    } else {
-      audio.pause();
-    }
-    return () => audio.removeEventListener("loadedmetadata", applyPosition);
-  }, [musicState.track?.id, musicState.track?.audio, musicState.playing, musicState.position, musicVolume]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.playsInline = true;
-    audio.setAttribute("playsinline", "");
-    audio.setAttribute("webkit-playsinline", "");
-    const recoverAfterVoicePause = () => {
-      if (!voiceEnabledRef.current || !musicStateRef.current.playing) return;
-      window.setTimeout(() => resumeMusicAfterVoice(), 80);
-    };
-    audio.addEventListener("pause", recoverAfterVoicePause);
-    return () => audio.removeEventListener("pause", recoverAfterVoicePause);
-  }, [resumeMusicAfterVoice]);
-
-  useEffect(() => {
-    const unlock = () => {
-      // A user gesture unlocks audible media for this device. The shared track may
-      // arrive before or after this gesture, so remember the unlock independently.
-      sharedAudioUnlockedRef.current = true;
-      const audio = audioRef.current;
-      if (!audio || !musicStateRef.current.track || !musicStateRef.current.playing) return;
-      audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
-      void audio.play().catch(() => {});
-    };
-    window.addEventListener("pointerdown", unlock, { passive: true });
-    window.addEventListener("touchstart", unlock, { passive: true });
-    window.addEventListener("keydown", unlock);
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("touchstart", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = musicVolume;
-    if (musicState.playing) {
-      if (sharedAudioUnlockedRef.current) void audio.play().catch(() => {});
-    } else audio.pause();
-    if (musicState.track && Math.abs(audio.currentTime - musicState.position) > 1.25) {
-      try { audio.currentTime = Math.max(0, musicState.position); } catch {}
-    }
-  }, [musicState.playing, musicState.position, musicVolume]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const audio = audioRef.current;
-      if (!audio || !musicStateRef.current.track || !musicStateRef.current.playing) return;
-      const next = { ...musicStateRef.current, position: audio.currentTime, volume: musicVolume, updatedAt: Date.now(), senderId: clientIdRef.current };
-      setMusicState(next);
-      void send(SOCIAL_EVENTS.MUSIC, next);
-    }, 2000);
-    return () => window.clearInterval(timer);
-  }, [musicVolume, pushActivity, send]);
-
-  useEffect(() => {
-    const channel = channelRef.current;
-    const track = musicState.track;
-    if (!channel || !track || track.local) return;
-    const state = playerStateRef.current;
-    void channel.track({
-      kind: "player",
-      name: nameRef.current || "Guest",
-      avatarId: state?.avatar?.id || "maya",
-      x: Number(state?.x) || 0,
-      z: Number(state?.z) || 0,
-      rot: Number(state?.rot) || 0,
-      moving: Boolean(state?.moving),
-      speed: Number(state?.speed) || 0,
-      voice: voiceEnabledRef.current,
-      music: {
-        track,
-        position: Number(musicState.position) || 0,
-        playing: Boolean(musicState.playing),
-        volume: Number(musicState.volume ?? 0.8),
-        updatedAt: Number(musicState.updatedAt) || Date.now(),
-      },
-    }).catch(() => {});
-  }, [musicState.track?.id, musicState.playing, musicState.volume]);
-
-  useEffect(() => () => {
-    if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const loaded = () => {
-      if (!musicStateRef.current.track?.local) return;
-      setMusicState((state) => state.track?.local ? { ...state, track: { ...state.track, duration: audio.duration || 0 } } : state);
-    };
-    audio.addEventListener("loadedmetadata", loaded);
-    return () => audio.removeEventListener("loadedmetadata", loaded);
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const ended = () => {
-      setMusicState((state) => ({ ...state, playing: false, position: 0, updatedAt: Date.now(), senderId: clientIdRef.current }));
-      void send(SOCIAL_EVENTS.MUSIC, { ...musicStateRef.current, playing: false, position: 0, updatedAt: Date.now() });
-    };
-    audio.addEventListener("ended", ended);
-    return () => audio.removeEventListener("ended", ended);
-  }, [send]);
-
-  const addLocalAudio = useCallback(async (file) => {
-    if (!file || uploadBusy) return;
-    const accepted = /^audio\/(mpeg|wav|x-wav|mp4|aac|ogg|webm)$/.test(file.type) || /\.(mp3|wav|m4a|aac|ogg|webm)$/i.test(file.name);
-    if (!accepted) return;
-    if (file.size > 25 * 1024 * 1024) {
-      pushChatToast({ id: `upload-size-${Date.now()}`, name: "Music", message: "File must be 25 MB or smaller.", timestamp: Date.now(), local: true, activity: true });
-      return;
-    }
-    const supabase = supabaseRef.current;
-    if (!supabase || !SUPABASE_URL || !SUPABASE_KEY) return;
-    setUploadBusy(true);
-    try {
-      const extension = (file.name.match(/\.([^.]+)$/)?.[1] || "mp3").toLowerCase().replace("jpeg", "jpg");
-      const safeBase = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "song";
-      const path = `${clientIdRef.current}/${Date.now()}-${safeBase}.${extension}`;
-      const response = await fetch(`${SUPABASE_URL}/storage/v1/object/gc-hangout-music/${encodeURIComponent(path).replace(/%2F/g, "/")}`, {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": file.type || "application/octet-stream",
-          "x-upsert": "false",
-        },
-        body: file,
-      });
-      if (!response.ok) {
-        const detail = await response.text().catch(() => "");
-        throw new Error(detail || `Upload failed (${response.status})`);
-      }
-      const audio = `${SUPABASE_URL}/storage/v1/object/public/gc-hangout-music/${path.split("/").map(encodeURIComponent).join("/")}`;
-      const track = {
-        id: `shared-${clientIdRef.current}-${Date.now()}`,
-        title: file.name.replace(/\.[^.]+$/, "").slice(0, 100),
-        artist: nameRef.current || "Guest",
-        album: "GC Hangout",
-        audio,
-        duration: 0,
-        shared: true,
-      };
-      const normalized = normalizeMusicState({ track, position: 0, playing: true, volume: musicVolume, updatedAt: Date.now(), senderId: clientIdRef.current });
-      if (!normalized) throw new Error("Invalid shared music track");
-      sharedAudioUnlockedRef.current = true;
-      setMusicState(normalized);
-      pushActivity(`started music “${track.title}”`, "🎵");
-      void send(SOCIAL_EVENTS.MUSIC, { ...normalized, senderName: nameRef.current || "You" });
-    } catch (error) {
-      console.error("GC Hangout music upload failed", error);
-      pushChatToast({ id: `upload-error-${Date.now()}`, name: "Music", message: "Could not share that song. Try again.", timestamp: Date.now(), local: true, activity: true });
-    } finally {
-      setUploadBusy(false);
-    }
-  }, [musicVolume, pushActivity, pushChatToast, send, uploadBusy]);
-
-  const publishMusic = useCallback((next) => {
-    sharedAudioUnlockedRef.current = true;
-    const normalized = normalizeMusicState({ ...next, volume: next.volume ?? musicVolume, senderId: clientIdRef.current });
+  const queueTrack = useCallback((track) => {
+    const normalized = normalizeMusicTrack({ ...track, requesterId: clientIdRef.current, requesterName: nameRef.current || "Guest", requestedAt: Date.now() });
     if (!normalized) return;
-    setMusicState(normalized);
-    const title = normalized.track?.title ? ` “${normalized.track.title}”` : "";
-    pushActivity(normalized.playing ? `started music${title}` : "paused the music", normalized.playing ? "🎵" : "⏸️");
-    void send(SOCIAL_EVENTS.MUSIC, { ...normalized, senderName: nameRef.current || "You" });
-  }, [musicVolume, send]);
-
-  const selectTrack = useCallback((track) => {
-    publishMusic({ track, position: 0, playing: true, updatedAt: Date.now() });
-  }, [publishMusic]);
+    sharedAudioUnlockedRef.current = true;
+    void sendMusicRequest("add", { track: normalized, requesterName: nameRef.current || "Guest" });
+    setPanel("music");
+  }, [sendMusicRequest]);
 
   const toggleMusic = useCallback(() => {
-    if (musicState.track?.local) {
-      const nextPlaying = !musicState.playing;
-      setMusicState((state) => ({ ...state, playing: nextPlaying, position: audioRef.current?.currentTime || state.position, updatedAt: Date.now(), senderId: clientIdRef.current }));
-      pushActivity(nextPlaying ? "started music" : "paused the music", nextPlaying ? "🎵" : "⏸️");
+    sharedAudioUnlockedRef.current = true;
+    if (!musicStateRef.current.current) {
+      if (tracks[0]) queueTrack(tracks[0]);
       return;
     }
-    if (!musicState.track) {
-      if (tracks[0]) selectTrack(tracks[0]);
-      return;
-    }
-    publishMusic({ ...musicStateRef.current, playing: !musicStateRef.current.playing, position: audioRef.current?.currentTime || musicStateRef.current.position, updatedAt: Date.now() });
-  }, [musicState.playing, publishMusic, pushActivity, selectTrack, tracks]);
+    void sendMusicRequest("toggle");
+  }, [queueTrack, sendMusicRequest, tracks]);
 
   const setMusicVolume = useCallback((value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
-    if (musicStateRef.current.track?.local) {
-      setMusicState((state) => ({ ...state, volume }));
-      return;
-    }
-    publishMusic({
-      ...musicStateRef.current,
-      volume,
-      position: audioRef.current?.currentTime || musicStateRef.current.position,
-      updatedAt: Date.now(),
-    });
-  }, [publishMusic]);
+    void sendMusicRequest("volume", { volume });
+  }, [sendMusicRequest]);
 
-  const nextTrack = useCallback(() => {
-    if (!tracks.length) return;
-    const index = tracks.findIndex((track) => track.id === musicStateRef.current.track?.id);
-    selectTrack(tracks[(index + 1 + tracks.length) % tracks.length]);
-  }, [selectTrack, tracks]);
+  const voteSkip = useCallback(() => {
+    if (!musicStateRef.current.current) return;
+    void sendMusicRequest("skip");
+  }, [sendMusicRequest]);
 
   const sendChat = useCallback(() => {
     const message = sanitizeChatMessage(draft);
@@ -935,7 +744,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
   return (
     <>
-      <audio ref={audioRef} preload="auto" />
       <div className="chat-toasts" aria-live="polite">
         {chatToasts.map((item) => <div className={`chat-toast ${item.activity ? "activity" : ""}`} key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
       </div>
@@ -966,28 +774,45 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         </section>
       )}
 
+      {musicState.current && (
+        <section className="youtube-room-player" aria-label="Shared YouTube player">
+          <div className="youtube-player-frame"><div ref={youtubeContainerRef} /></div>
+          <div className="youtube-player-meta">
+            <strong>{musicState.current.title}</strong>
+            <span>{musicState.current.artist} · {musicState.playing ? "Watching together" : "Paused"}</span>
+          </div>
+        </section>
+      )}
+
       {panel === "music" && (
         <section className="social-panel music-panel" onPointerDown={(event) => event.stopPropagation()}>
-          <div className="social-panel-head"><strong>Shared music</strong><span>{musicState.track ? `${musicState.track.title} · ${musicState.track.artist}` : "No track selected"}</span></div>
+          <div className="social-panel-head"><strong>Shared YouTube</strong><span>{musicState.current ? `${musicState.current.title} · ${musicState.current.artist}` : "Nothing playing"}</span></div>
           <div className="music-now">
-            <div className="music-main-row"><button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause" : "Play"}{musicState.track ? ` · ${musicState.track.title}` : ""}</button><button className="music-next" onClick={nextTrack} disabled={!tracks.length} aria-label="Next track">Next</button></div>
-            <span>{Math.floor(musicState.position || 0)}s</span>
+            <div className="music-main-row">
+              <button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause room" : "Play room"}{musicState.current ? ` · ${musicState.current.title}` : ""}</button>
+              <button className="music-next" onClick={voteSkip} disabled={!musicState.current}>Skip vote</button>
+            </div>
+            <span>{musicState.current ? `${Math.floor(currentMusicPosition(musicState))}s · ${musicState.skipVotes.length} vote${musicState.skipVotes.length === 1 ? "" : "s"}` : "Queue a video to start the room"}</span>
           </div>
-          <div className="speaker-volume-note">Walk to the floor speaker and interact to change room volume.</div>
+          <div className="speaker-volume-note">Room volume is shared. Walk to the floor speaker to change it.</div>
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
-            <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search music" inputMode="search" enterKeyHint="search" />
+            <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search YouTube music" inputMode="search" enterKeyHint="search" />
             <button type="submit" disabled={musicBusy}>{musicBusy ? "…" : "Search"}</button>
           </form>
-          <label className="add-song">＋ {uploadBusy ? "Sharing…" : "Add Song"}<input type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,.webm,audio/*" onChange={(event) => { void addLocalAudio(event.target.files?.[0]); event.target.value = ""; }} /></label>
           <div className="track-list">
-            {tracks.slice(0, 8).map((track) => (
-              <button key={track.id} className={musicState.track?.id === track.id ? "track selected" : "track"} onClick={() => selectTrack(track)}>
-                <span><b>{track.title}</b><small>{track.artist}</small></span><em>{Math.round(track.duration)}s</em>
+            {tracks.map((track) => (
+              <button key={track.id} className="track" onClick={() => queueTrack(track)}>
+                <img src={track.thumbnail} alt="" />
+                <span><b>{track.title}</b><small>{track.artist}</small></span><em>＋ Queue</em>
               </button>
             ))}
-            {!tracks.length && <div className="social-empty">No playable tracks found.</div>}
+            {!tracks.length && <div className="social-empty">Search YouTube to add a video to the shared queue.</div>}
           </div>
-          <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Custom songs upload to the shared room, so every player hears the same song.</small>
+          <div className="music-queue">
+            <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
+            {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
+          </div>
+          <small className="social-note">{musicStatus} · Anyone can queue. Three unique skip votes or more than half of active players advances the room. No local uploads.</small>
         </section>
       )}
 
