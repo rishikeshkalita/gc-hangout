@@ -32,7 +32,7 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
   { id: "food-table", type: "EAT", label: "Eat", x: 9.7, z: 4.55, rot: 0, targetX: 9.7, targetZ: 4.55, targetRot: 0, triggerX: 9.7, triggerZ: 4.55, exitX: 7.6, exitZ: 4.55, radius: 0.9 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 9.7, z: 5.8, rot: 0, targetX: 9.7, targetZ: 5.8, targetRot: 0, triggerX: 9.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.0 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 12.75, exitZ: 3.9, radius: 1.0 },
+  { id: "drink-table", type: "DRINK", label: "Drink", x: 12.75, z: 4.15, rot: -Math.PI / 2, targetX: 12.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 12.75, triggerZ: 4.15, exitX: 11.8, exitZ: 3.8, radius: 1.0 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -100,7 +100,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     const gesture = pose === "eat" || pose === "drink";
     const eating = pose === "eat";
 
-    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.13 : chairSeat ? 0.0 : 0;
+    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.34 : chairSeat ? 0.16 : 0;
     group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
 
@@ -115,13 +115,13 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     }
     if (legs.current[0]) {
       legs.current[0].rotation.x = seated ? -1.05 : moving ? -stride : 0;
-      legs.current[0].position.y = seated ? 0.34 : 0.45;
-      legs.current[0].position.z = seated ? 0.16 : 0;
+      legs.current[0].position.y = seated ? 0.46 : 0.45;
+      legs.current[0].position.z = seated ? 0.08 : 0;
     }
     if (legs.current[1]) {
       legs.current[1].rotation.x = seated ? -1.05 : moving ? stride : 0;
-      legs.current[1].position.y = seated ? 0.34 : 0.45;
-      legs.current[1].position.z = seated ? 0.16 : 0;
+      legs.current[1].position.y = seated ? 0.46 : 0.45;
+      legs.current[1].position.z = seated ? 0.08 : 0;
     }
   });
 
@@ -515,6 +515,24 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
   );
 }
 
+function findSafeExit(anchor, fallback) {
+  const preferred = anchor?.exitX != null && anchor?.exitZ != null
+    ? { x: anchor.exitX, z: anchor.exitZ }
+    : fallback;
+  const candidates = [
+    preferred,
+    { x: preferred.x - 0.7, z: preferred.z },
+    { x: preferred.x + 0.7, z: preferred.z },
+    { x: preferred.x, z: preferred.z - 0.7 },
+    { x: preferred.x, z: preferred.z + 0.7 },
+    { x: preferred.x - 1.2, z: preferred.z },
+    { x: preferred.x + 1.2, z: preferred.z },
+    { x: preferred.x, z: preferred.z - 1.2 },
+    { x: preferred.x, z: preferred.z + 1.2 },
+  ];
+  return candidates.find((candidate) => !blocked(candidate.x, candidate.z)) || fallback;
+}
+
 export default function Game() {
   const [player, setPlayer] = useState(() => ({ id: "local", name: "You", avatar: AVATARS[0], x: 0, z: 1.5, rot: Math.PI, moving: false, speed: 0 }));
   const [name, setName] = useState("You");
@@ -528,6 +546,9 @@ export default function Game() {
   const motionResetKey = useRef(0);
 
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
+
+  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP");
+  const universalActive = interaction?.anchor?.type === "SIT" || interaction?.anchor?.type === "SLEEP";
 
   const beginInteraction = (anchor) => {
     if (!anchor) return;
@@ -544,9 +565,7 @@ export default function Game() {
     const current = interaction;
     if (!current) return;
     const anchor = current.anchor;
-    const exit = anchor.exitX != null && anchor.exitZ != null
-      ? { x: anchor.exitX, z: anchor.exitZ }
-      : restoreMotion.current;
+    const exit = findSafeExit(anchor, restoreMotion.current);
     setInteraction({ ...current, status: "released", phase: "release" });
     const exitRot = Math.atan2(player.z - exit.z, player.x - exit.x);
     setPlayer((state) => ({ ...state, x: exit.x, z: exit.z, rot: exitRot, moving: false, speed: 0 }));
@@ -586,9 +605,9 @@ export default function Game() {
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
-      {!interaction && nearby.filter((anchor) => !anchor.requiresSitting).length > 0 && (
+      {!interaction && nearby.filter((anchor) => !anchor.requiresSitting && anchor.type !== "SIT" && anchor.type !== "SLEEP").length > 0 && (
         <div className="interaction-actions" onPointerDown={(event) => event.stopPropagation()}>
-          {nearby.filter((anchor) => !anchor.requiresSitting).slice(0, 2).map((anchor) => (
+          {nearby.filter((anchor) => !anchor.requiresSitting && anchor.type !== "SIT" && anchor.type !== "SLEEP").slice(0, 2).map((anchor) => (
             <button key={anchor.id} className="interaction-hint" onClick={() => beginInteraction(anchor)}>
               <strong>{anchor.label}</strong><span>{anchor.type === "SIT" ? "Sit here" : "Tap to interact"}</span>
             </button>
@@ -650,6 +669,22 @@ export default function Game() {
       >
         <div className="joystick"><span style={{ transform: `translate(${joystick.x * 30}px, ${-joystick.y * 30}px)` }} /></div>
       </div>
+
+      <button
+        className={`interaction-button${universalActive ? " active" : ""}${universalInteraction ? " available" : ""}`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => {
+          if (universalActive) {
+            endInteraction();
+            return;
+          }
+          if (universalInteraction) beginInteraction(universalInteraction);
+        }}
+        aria-label={universalActive ? "Stand up or wake up" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
+        title={universalActive ? "Stand / wake" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
+      >
+        {universalActive ? "↗" : "♙"}
+      </button>
 
       <button className="settings" onClick={() => setSettingsOpen((value) => !value)} aria-label="Open settings">⚙️</button>
       {settingsOpen && (
