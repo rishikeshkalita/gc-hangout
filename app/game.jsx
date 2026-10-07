@@ -769,7 +769,7 @@ function ClubLighting({ playing = false }) {
       if (!ref.current) return;
       ref.current.rotation.y = t * (0.12 + index * 0.035) * (index % 2 ? -1 : 1) + index * 2.1;
       ref.current.rotation.z = Math.sin(t * 0.35 + index) * 0.12;
-      ref.current.material.opacity = 0.06 + energy * (0.035 + Math.sin(t * 2.2 + index) * 0.012);
+      ref.current.opacity = 0.06 + energy * (0.035 + Math.sin(t * 2.2 + index) * 0.012);
     });
   });
   return (
