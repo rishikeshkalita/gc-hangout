@@ -345,6 +345,16 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ---
 
+### 2026-10-07 — Wave 3 verification infrastructure
+
+- Added `.github/workflows/ci.yml` on Node 24 to run `npm ci`, `npm test`, and `npm run build` on pushes and pull requests.
+- Current Wave 3 source commit `8bb4b78e8047be78dc66fa4bdb1e23fba3ae5163` has a **READY** Vercel production build at `dpl_2VpQ4QnrwaizvMDA3SgChvxUAfQh`.
+- GitHub Actions did not expose a workflow run through the available repository connector, so automated test execution is **NOT VERIFIED** from this tool session.
+- Browser/device behavior remains **NOT VERIFIED**. The production build is available for fresh iPhone interaction acceptance.
+- Wave 2 remains **NOT VERIFIED** and is still a prerequisite acceptance gate; Wave 3 is likewise **NOT VERIFIED**.
+
+---
+
 ### 2026-10-07 — Wave 3 implementation pass
 
 - **Implementation commits on main:** `3df21db0bd8e69e81d4eca346d8adeb0cbaba94f`, `5aea53d21e4168c7c67f88e91f469dc64d3f9282`, `b2f83b7d8f18c2e69357425361a29829ffb4edd1`, `8e8177c4aeb338dd96bd12b6e98bd869011e3c54`, `2c6b29c88167c3b98570fe3af44d813600628e26`, `8bb4b78e8047be78dc66fa4bdb1e23fba3ae5163`.
