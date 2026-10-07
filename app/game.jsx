@@ -772,6 +772,15 @@ export default function Game() {
 
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
+  const handleMusicState = useCallback((state) => {
+    setTvState({ track: state.track ? { ...state.track, position: state.position } : null });
+  }, []);
+
+  const handleEmote = useCallback((next) => {
+    setEmote(next);
+    window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
+  }, []);
+
   const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK" || anchor.type === "WATCH_TV");
   const universalActive = Boolean(interaction);
 
@@ -840,11 +849,8 @@ export default function Game() {
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
       <SocialHud
         name={name.trim().slice(0, 18) || "You"}
-        onMusicState={useCallback((state) => setTvState({ track: state.track ? { ...state.track, position: state.position } : null }), [])}
-        onEmote={useCallback((next) => {
-          setEmote(next);
-          window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
-        }, [])}
+        onMusicState={handleMusicState}
+        onEmote={handleEmote}
       />
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
         <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
