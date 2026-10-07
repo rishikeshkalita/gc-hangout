@@ -371,14 +371,30 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     };
 
     channel.on("presence", { event: "sync" }, () => {
-      if (!voiceEnabledRef.current) return;
       const state = channel.presenceState();
+      for (const [key, metas] of Object.entries(state || {})) {
+        if (key === clientIdRef.current) continue;
+        const meta = Array.isArray(metas) ? metas[0] : metas;
+        if (!musicStateRef.current.track && meta?.music) {
+          const next = normalizeMusicState(meta.music);
+          if (next?.track) {
+            if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
+            setMusicState(next);
+          }
+        }
+      }
+      if (!voiceEnabledRef.current) return;
       Object.keys(state)
         .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
         .forEach((id) => void ensurePeer(id, true));
     });
     channel.on("presence", { event: "join" }, ({ key }) => {
       if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
+    });
+    channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+      closePeer(key);
+      const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
+      pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
     gameChannel.on("presence", { event: "sync" }, () => {
       const state = gameChannel.presenceState();
@@ -402,7 +418,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     });
     gameChannel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
-      closePeer(key);
       if (remotePlayersRef.current.delete(key)) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
       const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
       pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
@@ -492,6 +507,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         void sendInitialPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
         console.warn("GC Hangout social realtime status:", status);
+        sessionStartedRef.current = false;
         scheduleReconnect(channel, "social");
       }
     };
@@ -499,20 +515,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const handleGameStatus = async (status) => {
       gameReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
-        await channel.track({
-          name: nameRef.current || "Guest",
-          voice: voiceEnabledRef.current,
-          music: musicStateRef.current.track ? {
-            track: musicStateRef.current.track,
-            position: musicStateRef.current.position,
-            playing: musicStateRef.current.playing,
-            volume: musicStateRef.current.volume,
-            updatedAt: musicStateRef.current.updatedAt,
-          } : null,
-        });
         await sendInitialPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
         console.warn("GC Hangout game realtime status:", status);
+        sessionStartedRef.current = false;
         scheduleReconnect(gameChannel, "game");
       }
     };
