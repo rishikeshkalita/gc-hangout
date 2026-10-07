@@ -63,6 +63,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const sharedAudioUnlockedRef = useRef(Boolean(initialAudioUnlocked));
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
+  const interactionRef = useRef(interaction);
+  const emoteRef = useRef(emote);
   const remotePlayersRef = useRef(new Map());
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
@@ -95,6 +97,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => { playerStateRef.current = playerState; }, [playerState]);
+  useEffect(() => { interactionRef.current = interaction; }, [interaction]);
+  useEffect(() => { emoteRef.current = emote; }, [emote]);
   useEffect(() => { musicStateRef.current = musicState; onMusicState?.(musicState); }, [musicState, onMusicState]);
 
   const pushChatToast = useCallback((entry) => {
@@ -333,12 +337,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           senderId: clientIdRef.current,
           name: nameRef.current || "Guest",
           avatarId: state.avatar?.id || "maya",
-          interactionType: interaction?.anchor?.type || "",
-          interactionPhase: interaction?.phase || "sync",
-          seatStyle: interaction?.anchor?.seatStyle || null,
-          foodKind: interaction?.anchor?.foodKind || "pizza",
-          drinkKind: interaction?.anchor?.drinkKind || "water",
-          emote: emote || null,
+          interactionType: interactionRef.current?.anchor?.type || "",
+          interactionPhase: interactionRef.current?.phase || "sync",
+          seatStyle: interactionRef.current?.anchor?.seatStyle || null,
+          foodKind: interactionRef.current?.anchor?.foodKind || "pizza",
+          drinkKind: interactionRef.current?.anchor?.drinkKind || "water",
+          emote: emoteRef.current || null,
           x: Number(state.x) || 0,
           z: Number(state.z) || 0,
           rot: Number(state.rot) || 0,
@@ -430,12 +434,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         kind: "player",
         name: nameRef.current || "Guest",
         avatarId: state?.avatar?.id || "maya",
-        interactionType: interaction?.anchor?.type || "",
-        interactionPhase: interaction?.phase || "sync",
-        seatStyle: interaction?.anchor?.seatStyle || null,
-        foodKind: interaction?.anchor?.foodKind || "pizza",
-        drinkKind: interaction?.anchor?.drinkKind || "water",
-        emote: emote || null,
+        interactionType: interactionRef.current?.anchor?.type || "",
+        interactionPhase: interactionRef.current?.phase || "sync",
+        seatStyle: interactionRef.current?.anchor?.seatStyle || null,
+        foodKind: interactionRef.current?.anchor?.foodKind || "pizza",
+        drinkKind: interactionRef.current?.anchor?.drinkKind || "water",
+        emote: emoteRef.current || null,
         x: Number(state?.x) || 0,
         z: Number(state?.z) || 0,
         rot: Number(state?.rot) || 0,
