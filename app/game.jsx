@@ -937,7 +937,7 @@ export default function Game() {
     });
   }, []);
 
-  const handlePairAction = useCallback((next) => {\n    setPairAction(next);\n    window.setTimeout(() => setPairAction((current) => current?.until === next.until ? null : current), Math.max(0, next.until - Date.now()));\n  }, []);\n\n  const handlePairAction = useCallback((next) => {
+  const handlePairAction = useCallback((next) => {
     setPairAction(next);
     window.setTimeout(() => setPairAction((current) => current?.until === next.until ? null : current), Math.max(0, next.until - Date.now()));
   }, []);
