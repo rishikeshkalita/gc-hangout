@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false, playerState = null, onRemotePlayers }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -56,8 +56,11 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const voiceEnabledRef = useRef(false);
   const musicPlaybackSnapshotRef = useRef(null);
   const nameRef = useRef(name);
+  const playerStateRef = useRef(playerState);
+  const remotePlayersRef = useRef(new Map());
 
   useEffect(() => { nameRef.current = name; }, [name]);
+  useEffect(() => { playerStateRef.current = playerState; }, [playerState]);
   useEffect(() => { musicStateRef.current = musicState; onMusicState?.(musicState); }, [musicState, onMusicState]);
 
   const pushChatToast = useCallback((entry) => {
@@ -148,6 +151,25 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     });
     channelRef.current = channel;
 
+    channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const id = String(payload?.senderId || "");
+      if (!id || !Number.isFinite(Number(payload?.x)) || !Number.isFinite(Number(payload?.z))) return;
+      const current = remotePlayersRef.current.get(id) || {};
+      const next = {
+        id,
+        name: String(payload.name || "Guest").slice(0, 18),
+        avatarId: String(payload.avatarId || "maya"),
+        x: Number(payload.x),
+        z: Number(payload.z),
+        rot: Number(payload.rot) || 0,
+        moving: Boolean(payload.moving),
+        speed: Number(payload.speed) || 0,
+        lastSeen: Date.now(),
+      };
+      remotePlayersRef.current.set(id, { ...current, ...next });
+      onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+    });
     channel.on("broadcast", { event: SOCIAL_EVENTS.CHAT }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const message = sanitizeChatMessage(payload?.message);
@@ -220,9 +242,43 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     });
     channel.on("presence", { event: "leave" }, ({ key }) => closePeer(key));
 
+    const publishPlayer = () => {
+      const state = playerStateRef.current;
+      if (!state) return;
+      void channel.send({
+        type: "broadcast",
+        event: SOCIAL_EVENTS.PLAYER,
+        payload: {
+          senderId: clientIdRef.current,
+          name: nameRef.current || "Guest",
+          avatarId: state.avatar?.id || "maya",
+          x: Number(state.x) || 0,
+          z: Number(state.z) || 0,
+          rot: Number(state.rot) || 0,
+          moving: Boolean(state.moving),
+          speed: Number(state.speed) || 0,
+          timestamp: Date.now(),
+        },
+      });
+    };
+    const playerTimer = window.setInterval(publishPlayer, 100);
+    const pruneTimer = window.setInterval(() => {
+      const cutoff = Date.now() - 1800;
+      let changed = false;
+      for (const [id, player] of remotePlayersRef.current) {
+        if (player.lastSeen < cutoff) {
+          remotePlayersRef.current.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+    }, 700);
+    const sendInitialPlayer = () => publishPlayer();
+
     void channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
         await channel.track({ name: nameRef.current, voice: voiceEnabledRef.current });
+        sendInitialPlayer();
       }
     });
 
