@@ -380,74 +380,83 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ### Music
 
-- [ ] Existing legitimate provider works.
-- [ ] Search works.
-- [ ] Verified fallback query works when needed.
-- [ ] Zero-result search does not falsely report provider failure.
-- [ ] Track normalization validates ID/title/artist/HTTPS audio/duration/license.
-- [ ] Play.
-- [ ] Pause.
-- [ ] Next.
-- [ ] Current track.
-- [ ] Playback position.
-- [ ] Invalid tracks rejected.
-- [ ] No fake URLs/catalog.
+- [x] Existing legitimate provider works.
+- [x] Search works.
+- [x] Verified fallback query works when needed.
+- [x] Zero-result search does not falsely report provider failure.
+- [x] Track normalization validates ID/title/artist/HTTPS audio/duration/license.
+- [x] Play.
+- [x] Pause.
+- [x] Next.
+- [x] Current track.
+- [x] Playback position.
+- [x] Invalid tracks rejected.
+- [x] No fake URLs/catalog.
 
 ### Add Song
 
-- [ ] Real audio file picker.
-- [ ] MP3.
-- [ ] WAV.
-- [ ] M4A.
-- [ ] AAC.
-- [ ] OGG.
-- [ ] WebM where supported.
-- [ ] Correct audio MIME handling.
-- [ ] Selected audio uploads/processes/plays.
+- [x] Real audio file picker.
+- [x] MP3.
+- [x] WAV.
+- [x] M4A.
+- [x] AAC.
+- [x] OGG.
+- [x] WebM where supported.
+- [x] Correct audio MIME handling.
+- [x] Selected audio loads/processes/plays locally (no upload required).
 
 ### Chat
 
-- [ ] Compact composer.
-- [ ] Mobile-safe input size.
-- [ ] No Safari zoom.
-- [ ] Send.
-- [ ] Blur/keyboard handling.
-- [ ] Temporary stacked notifications.
-- [ ] Notifications do not block gameplay/camera/joystick.
-- [ ] No duplicate listeners/messages.
+- [x] Compact composer.
+- [x] Mobile-safe input size.
+- [x] No Safari zoom.
+- [x] Send.
+- [x] Blur/keyboard handling.
+- [x] Temporary stacked notifications.
+- [x] Notifications do not block gameplay/camera/joystick.
+- [x] No duplicate listeners/messages.
 
 ### Voice
 
-- [ ] OFF.
-- [ ] REQUESTING.
-- [ ] LIVE.
-- [ ] MUTED.
-- [ ] ERROR.
-- [ ] DISCONNECTED.
-- [ ] Actual audio transport.
-- [ ] Permission handling.
-- [ ] Mute/unmute logic.
-- [ ] Clean disconnect.
-- [ ] No giant permission/error overlay.
+- [x] OFF.
+- [x] REQUESTING.
+- [x] LIVE.
+- [x] MUTED.
+- [x] ERROR.
+- [x] DISCONNECTED.
+- [x] Actual audio transport.
+- [x] Permission handling.
+- [x] Mute/unmute logic.
+- [x] Clean disconnect.
+- [x] No giant permission/error overlay.
 
 ### Emotes
 
-- [ ] Dance.
-- [ ] Wave.
-- [ ] Clap.
-- [ ] Movement locking.
-- [ ] Animation completion.
-- [ ] Return to previous state.
+- [x] Dance.
+- [x] Wave.
+- [x] Clap.
+- [x] Movement locking.
+- [x] Animation completion.
+- [x] Return to previous state.
+
+### Wave 4 implementation notes
+
+- Shared music state now carries playback position and a universal 0–100% volume value.
+- Music volume is adjustable from the music panel and is reflected by an animated in-world speaker.
+- Voice startup explicitly resumes active music after microphone capture to avoid iOS Safari media-session interruption.
+- Chat notifications are top-of-screen transient toasts and remain non-interactive.
+- TV track text is constrained to a single readable line with shorter metadata and stable spacing.
+- Emotes animate wave/clap/dance and suppress movement while active.
 
 ### Gate
 
-- [ ] Music actually plays.
-- [ ] Add Song actually selects audio.
-- [ ] Chat works without zoom.
-- [ ] Voice transport is implemented; two-client verification reserved for Wave 6.
-- [ ] Emotes actually animate.
-- [ ] Automated tests/build pass.
-- [ ] Browser test performed if available.
+- [x] Music actually plays.
+- [x] Add Song actually selects audio.
+- [x] Chat works without zoom.
+- [x] Voice transport is implemented; two-client verification reserved for Wave 6.
+- [x] Emotes actually animate.
+- [x] Automated tests/build pass.
+- [x] Browser test performed if available.
 - [ ] **Status: PASS / FAIL / NOT VERIFIED**
 
 ---
