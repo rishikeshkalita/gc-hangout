@@ -345,6 +345,18 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ---
 
+### 2026-10-07 — Wave 3 implementation pass
+
+- **Implementation commits on main:** `3df21db0bd8e69e81d4eca346d8adeb0cbaba94f`, `5aea53d21e4168c7c67f88e91f469dc64d3f9282`, `b2f83b7d8f18c2e69357425361a29829ffb4edd1`, `8e8177c4aeb338dd96bd12b6e98bd869011e3c54`, `2c6b29c88167c3b98570fe3af44d813600628e26`, `8bb4b78e8047be78dc66fa4bdb1e23fba3ae5163`.
+- **Implemented:** explicit interaction phase timings and pose metadata; seat/interaction reservation primitives; visible consumable food variants (pizza/chips/burger/fruit/sandwich); visible drink variants (water/soda/juice/coffee); hand-to-mouth/raise/lower prop animation; TV interaction state surface with title/artist/progress-ready fields; TV action added to the compact universal interaction control.
+- **Automated tests:** Wave 3 state tests added for metadata, pose mapping, phase timings, and reservation ownership. CI verification is pending.
+- **Browser result:** **NOT VERIFIED**. No fresh browser/device acceptance has been performed for the Wave 3 pass.
+- **Deployment:** no deliberate Wave 3 deployment; Vercel remote deployment remains reserved for explicit device verification.
+- **Gate:** **NOT VERIFIED**. Wave 2's outstanding device gate remains outstanding, and Wave 3 is not being declared complete until CI plus repeated interaction acceptance passes.
+- **Known limitation:** TV has a real interaction/display state but no real music provider playback yet; that belongs to Wave 4.
+
+---
+
 ## WAVE 4 — MUSIC + CHAT + VOICE + EMOTES
 
 **Goal:** build the complete local social feature set before multiplayer synchronization.
