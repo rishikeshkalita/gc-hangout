@@ -277,7 +277,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, emote }) {
+function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, emote, pairAction }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -470,7 +470,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 
   return (
     <group ref={playerGroup}>
-      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} foodKind={interaction?.anchor?.foodKind} drinkKind={interaction?.anchor?.drinkKind} interactionPhase={interaction?.phase} pov={pov} emote={emote} />
+      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} foodKind={interaction?.anchor?.foodKind} drinkKind={interaction?.anchor?.drinkKind} interactionPhase={interaction?.phase} pov={pov} emote={emote} pairAction={pairAction} />
     </group>
   );
 }
@@ -851,7 +851,7 @@ function RemotePlayers({ players = [] }) {
   return <group>{players.map((state) => <RemotePlayer key={state.id} state={state} />)}</group>;
 }
 
-function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {
+function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote, pairAction }) {
   return (
     <>
       <ambientLight intensity={1.72} />
@@ -1065,7 +1065,7 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas dpr={1} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 60 }} gl={{ antialias: false, powerPreference: "low-power", preserveDrawingBuffer: false }}>
-        <Room player={player} remotePlayers={remotePlayers} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
+        <Room player={player} remotePlayers={remotePlayers} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} pairAction={pairAction} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
@@ -1073,6 +1073,7 @@ export default function Game() {
         name={name.trim().slice(0, 18) || "You"}
         onMusicState={handleMusicState}
         onEmote={handleEmote}
+        onPairAction={handlePairAction}
         onRemotePlayers={setRemotePlayers}
         playerState={player}
         interaction={interaction}
