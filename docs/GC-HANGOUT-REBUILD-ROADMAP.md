@@ -886,6 +886,14 @@ Examples:
 - **Verification:** automated verification pending for this latest source; fresh iPhone verification required.
 - **Gate:** Wave 2 remains **NOT VERIFIED**. Do not start Wave 3 until joystick direction, universal Sit/Sleep/Exit, sofa/chair posture, dining Eat/Drink, all seat entry/exit paths, and Sleep are re-tested on device.
 
+### Vercel deployment policy correction — 2026-10-07
+
+- **User instruction:** no unnecessary Vercel deployments during development.
+- **Observed:** the linked Vercel/GitHub integration automatically attempted a PR preview after source changes, independent of a manual deployment request; that attempt failed because the Vercel daily deployment quota was exhausted.
+- **Action:** preview deployments were disabled on the gc-hangout Vercel project to prevent further automatic PR preview deployments.
+- **Development policy:** GitHub source + CI/build/tests are the default verification path. A Vercel deployment should only be created when explicitly needed for remote-device testing or Vercel-specific behavior.
+- **Production/device status:** no new production deployment is being claimed; Wave 2 remains **NOT VERIFIED**.
+
 ### Wave update format
 
 For every wave, record:
