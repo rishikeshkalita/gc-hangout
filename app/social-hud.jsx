@@ -474,9 +474,11 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
 
   useEffect(() => {
     const unlock = () => {
+      // A user gesture unlocks audible media for this device. The shared track may
+      // arrive before or after this gesture, so remember the unlock independently.
+      sharedAudioUnlockedRef.current = true;
       const audio = audioRef.current;
       if (!audio || !musicStateRef.current.track || !musicStateRef.current.playing) return;
-      sharedAudioUnlockedRef.current = true;
       audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
       void audio.play().catch(() => {});
     };
