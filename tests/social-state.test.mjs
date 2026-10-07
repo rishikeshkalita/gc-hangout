@@ -8,6 +8,7 @@ import {
   normalizeMusicState,
   normalizeMusicTrack,
   sanitizeChatMessage,
+  currentMusicPosition,
 } from "../lib/social-state.mjs";
 
 test("social client ids are scoped and non-empty", () => {
@@ -59,4 +60,19 @@ test("music volume is clamped to the shared 0..1 range", () => {
   assert.equal(normalizeMusicState({ volume: 2 }).volume, 1);
   assert.equal(normalizeMusicState({ volume: -1 }).volume, 0);
   assert.equal(normalizeMusicState({ volume: 0.35 }).volume, 0.35);
+});
+
+
+test("music state tracks unique pause/resume votes and target intent", () => {
+  const state = normalizeMusicState({
+    current: { videoId: "dQw4w9WgXcQ", title: "Late Lounge", artist: "Guest" },
+    playing: true,
+    pauseVotes: ["a", "a", "b"],
+    pauseTargetPlaying: false,
+    position: 12,
+    startedAt: 0,
+  });
+  assert.deepEqual(state.pauseVotes, ["a", "b"]);
+  assert.equal(state.pauseTargetPlaying, false);
+  assert.equal(currentMusicPosition({ ...state, playing: false }, 1000), 12);
 });
