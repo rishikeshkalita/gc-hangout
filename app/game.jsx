@@ -252,12 +252,12 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
     const forward = touch.active ? touch.y : keyboardForward;
-    const strafe = touch.active ? -touch.x : keyboardStrafe;
+    const strafe = touch.active ? touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction || interaction.phase === "release") {
       if (magnitude > 0.08) {
-        const speed = keys.current.has("shift") || mobile ? 5.2 : 3.8;
+        const speed = keys.current.has("shift") ? 7.0 : mobile ? 6.2 : 5.0;
         const inputLength = Math.hypot(strafe, forward);
         const f = forward / inputLength;
         const s = strafe / inputLength;
@@ -548,7 +548,7 @@ export default function Game() {
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
   const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP");
-  const universalActive = interaction?.anchor?.type === "SIT" || interaction?.anchor?.type === "SLEEP";
+  const universalActive = Boolean(interaction);
 
   const beginInteraction = (anchor) => {
     if (!anchor) return;
@@ -605,19 +605,9 @@ export default function Game() {
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
-      {!interaction && nearby.filter((anchor) => !anchor.requiresSitting && anchor.type !== "SIT" && anchor.type !== "SLEEP").length > 0 && (
-        <div className="interaction-actions" onPointerDown={(event) => event.stopPropagation()}>
-          {nearby.filter((anchor) => !anchor.requiresSitting && anchor.type !== "SIT" && anchor.type !== "SLEEP").slice(0, 2).map((anchor) => (
-            <button key={anchor.id} className="interaction-hint" onClick={() => beginInteraction(anchor)}>
-              <strong>{anchor.label}</strong><span>{anchor.type === "SIT" ? "Sit here" : "Tap to interact"}</span>
-            </button>
-          ))}
-        </div>
-      )}
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
         <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
       )}
-      {interaction && <button className="interaction-hint active" onPointerDown={(event) => event.stopPropagation()} onClick={endInteraction}><strong>{interaction.anchor.label}</strong><span>{interaction.anchor.type === "EAT" ? "Tap to stand / exit" : "Tap to stand / exit"}</span></button>}
 
       <div
         className="touch-controls"
