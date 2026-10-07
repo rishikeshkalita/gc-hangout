@@ -773,7 +773,7 @@ export default function Game() {
   const beginInteraction = (anchor) => {
     if (!anchor) return;
     if (interaction && interaction.anchor.type !== "SIT") return;
-    if (interaction && !canReserveInteraction({ anchorId: interaction.anchor.id, ownerId: "local", status: interaction.status }, anchor.id, "local")) return;
+    if (!interaction && !canReserveInteraction(null, anchor.id, "local")) return;
     const seatedEat = Boolean(anchor.requiresSitting && interaction?.anchor?.type === "SIT");
     const nextAnchor = seatedEat
       ? { ...anchor, seatStyle: interaction.anchor.seatStyle, targetX: player.x, targetZ: player.z, targetRot: player.rot, exitX: player.x, exitZ: player.z }
