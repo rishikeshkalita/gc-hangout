@@ -2,8 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Billboard, Text, RoundedBox } from "@react-three/drei";
+import { Billboard, Text, RoundedBox, useTexture } from "@react-three/drei";
 import * as THREE from "three";
+import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
 
 const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
 const AVATARS = [
@@ -503,6 +504,39 @@ function GraffitiWall() {
   );
 }
 
+function WallPhotoFrame() {
+  const photo = useTexture(GC_HANGOUT_PHOTO_DATA_URL);
+  photo.colorSpace = THREE.SRGBColorSpace;
+
+  return (
+    <group position={[9.35, 3.15, -9.72]}>
+      <RoundedBox args={[4.2, 3.35, 0.16]} radius={0.08} smoothness={4} castShadow>
+        <meshStandardMaterial color="#5b3c2b" roughness={0.58} />
+      </RoundedBox>
+      <mesh position={[0, 0, 0.095]}>
+        <planeGeometry args={[3.72, 2.79]} />
+        <meshBasicMaterial map={photo} toneMapped={false} />
+      </mesh>
+      <RoundedBox args={[3.92, 0.10, 0.08]} position={[0, 1.50, 0.12]} radius={0.025} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[3.92, 0.10, 0.08]} position={[0, -1.50, 0.12]} radius={0.025} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[0.10, 3.10, 0.08]} position={[-1.96, 0, 0.12]} radius={0.025} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[0.10, 3.10, 0.08]} position={[1.96, 0, 0.12]} radius={0.025} smoothness={3} castShadow>
+        <meshStandardMaterial color="#8a6044" roughness={0.5} />
+      </RoundedBox>
+      <mesh position={[0, 0, 0.145]}>
+        <planeGeometry args={[3.58, 2.66]} />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.035} roughness={0.08} metalness={0.08} />
+      </mesh>
+    </group>
+  );
+}
+
 function DiningBar() {
   const bottles = [
     { x: -0.85, color: "#7d2020", scale: 1.0 },
@@ -592,6 +626,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh position={[0, 4.85, 0]}><boxGeometry args={[28.5, 0.12, 18.5]} /><meshStandardMaterial color="#1d222c" roughness={1} /></mesh>
 
       <Furniture />
+      <WallPhotoFrame />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
