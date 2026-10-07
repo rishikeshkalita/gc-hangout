@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Billboard, Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
+import { INTERACTION_PHASE_MS, canReserveInteraction } from "../lib/game-state.mjs";
 
 const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
 const AVATARS = [
@@ -84,16 +85,16 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 7.65, rot: Math.PI, targetX: 11.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 11.2, triggerZ: 8.65, exitX: 11.2, exitZ: 9.15, radius: 1.65 },
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
-  { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
+  { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, foodKind: "pizza", x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
   // Stocked bar: standing interactions are available from all four sides.
-  { id: "bar-drink-south", type: "DRINK", label: "Drink", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
-  { id: "bar-drink-north", type: "DRINK", label: "Drink", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
-  { id: "bar-drink-west", type: "DRINK", label: "Drink", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
-  { id: "bar-drink-east", type: "DRINK", label: "Drink", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
-  { id: "bar-snack-south", type: "EAT", label: "Eat", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
-  { id: "bar-snack-north", type: "EAT", label: "Eat", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
-  { id: "bar-snack-west", type: "EAT", label: "Eat", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
-  { id: "bar-snack-east", type: "EAT", label: "Eat", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-drink-south", type: "DRINK", label: "Drink", drinkKind: "soda", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
+  { id: "bar-drink-north", type: "DRINK", label: "Drink", drinkKind: "juice", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
+  { id: "bar-drink-west", type: "DRINK", label: "Drink", drinkKind: "coffee", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-drink-east", type: "DRINK", label: "Drink", drinkKind: "water", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-snack-south", type: "EAT", label: "Eat", foodKind: "chips", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
+  { id: "bar-snack-north", type: "EAT", label: "Eat", foodKind: "burger", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
+  { id: "bar-snack-west", type: "EAT", label: "Eat", foodKind: "fruit", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-snack-east", type: "EAT", label: "Eat", foodKind: "sandwich", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -143,7 +144,7 @@ function tryMove(x, z, dx, dz) {
   return { x, z };
 }
 
-function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, pov = "tpp" }) {
+function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, foodKind = "pizza", drinkKind = "water", interactionPhase = "sync", pov = "tpp" }) {
   const group = useRef();
   const visual = useRef();
   const arms = useRef([]);
@@ -165,6 +166,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
     const drinking = pose === "drink";
     const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
     const propToMouth = gestureCycle > 0.58;
+    const propVisible = gesture && (interactionPhase === "animate" || interactionPhase === "sync");
 
     group.current.position.y = 0;
     group.current.rotation.x = 0;
@@ -194,6 +196,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
       if (eating) arms.current[1].rotation.y = propToMouth ? -0.10 : 0.08;
       if (heldProp.current) {
+        heldProp.current.visible = propVisible;
         if (eating) {
           heldProp.current.position.set(propToMouth ? 0.29 : 0.36, propToMouth ? 1.43 : 1.10, propToMouth ? 0.36 : 0.30);
         } else if (drinking) {
@@ -243,8 +246,21 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
       <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
       <mesh ref={(node) => { shoes.current[0] = node; }} position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
       <mesh ref={(node) => { shoes.current[1] = node; }} position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
-      {pose === "eat" && <mesh ref={heldProp} position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
-      {pose === "drink" && <mesh ref={heldProp} position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
+      {pose === "eat" && (
+        <group ref={heldProp} position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} visible={false}>
+          {foodKind === "pizza" && <group><mesh castShadow rotation={[0.1, 0.2, 0.15]}><coneGeometry args={[0.13, 0.22, 3]} /><meshStandardMaterial color="#d98b35" roughness={0.72} /></mesh><mesh position={[0, 0.055, 0.02]}><sphereGeometry args={[0.06, 10, 6]} /><meshStandardMaterial color="#e9c95d" roughness={0.65} /></mesh></group>}
+          {foodKind === "chips" && <group><mesh castShadow><boxGeometry args={[0.14, 0.18, 0.1]} /><meshStandardMaterial color="#d85d43" roughness={0.72} /></mesh><mesh position={[0, 0.11, 0]}><boxGeometry args={[0.11, 0.08, 0.08]} /><meshStandardMaterial color="#e6c35c" roughness={0.65} /></mesh></group>}
+          {foodKind === "burger" && <group><mesh position={[0, 0.09, 0]} castShadow><cylinderGeometry args={[0.12, 0.12, 0.07, 12]} /><meshStandardMaterial color="#c98243" roughness={0.72} /></mesh><mesh position={[0, 0.02, 0]}><cylinderGeometry args={[0.105, 0.105, 0.07, 12]} /><meshStandardMaterial color="#5d3423" roughness={0.8} /></mesh><mesh position={[0, -0.05, 0]}><cylinderGeometry args={[0.11, 0.11, 0.06, 12]} /><meshStandardMaterial color="#e2bd59" roughness={0.7} /></mesh></group>}
+          {foodKind === "fruit" && <mesh castShadow><sphereGeometry args={[0.1, 12, 8]} /><meshStandardMaterial color="#d95a4f" roughness={0.65} /></mesh>}
+          {foodKind === "sandwich" && <group><mesh castShadow><boxGeometry args={[0.2, 0.09, 0.14]} /><meshStandardMaterial color="#e5c889" roughness={0.72} /></mesh><mesh position={[0, -0.015, 0]}><boxGeometry args={[0.17, 0.05, 0.11]} /><meshStandardMaterial color="#6c9b54" roughness={0.78} /></mesh></group>}
+        </group>
+      )}
+      {pose === "drink" && (
+        <group ref={heldProp} position={[0.36, 1.05, 0.28]} visible={false}>
+          <mesh castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color={drinkKind === "coffee" ? "#6f4a35" : drinkKind === "soda" ? "#c85a4b" : drinkKind === "juice" ? "#e0a23b" : "#8ed7ef"} transparent opacity={drinkKind === "water" ? 0.78 : 0.96} roughness={0.3} /></mesh>
+          <mesh position={[0, 0.13, 0]}><cylinderGeometry args={[0.05, 0.05, 0.025, 12]} /><meshStandardMaterial color="#e9edf0" transparent opacity={0.8} /></mesh>
+        </group>
+      )}
       </group>
       <Billboard position={[0, 2.18, 0]} follow visible={pov !== "fpp"}><Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">{displayName}</Text></Billboard>
     </group>
@@ -444,7 +460,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 
   return (
     <group ref={playerGroup}>
-      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} pov={pov} />
+      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} foodKind={interaction?.anchor?.foodKind} drinkKind={interaction?.anchor?.drinkKind} interactionPhase={interaction?.phase} pov={pov} />
     </group>
   );
 }
@@ -731,6 +747,7 @@ export default function Game() {
   const beginInteraction = (anchor) => {
     if (!anchor) return;
     if (interaction && interaction.anchor.type !== "SIT") return;
+    if (interaction && !canReserveInteraction({ anchorId: interaction.anchor.id, ownerId: "local", status: interaction.status }, anchor.id, "local")) return;
     const seatedEat = Boolean(anchor.requiresSitting && interaction?.anchor?.type === "SIT");
     const nextAnchor = seatedEat
       ? { ...anchor, seatStyle: interaction.anchor.seatStyle, targetX: player.x, targetZ: player.z, targetRot: player.rot, exitX: player.x, exitZ: player.z }
@@ -759,7 +776,7 @@ export default function Game() {
 
   useEffect(() => {
     if (!interaction || interaction.phase === "release") return undefined;
-    const phases = [["stop", 80], ["align", 160], ["animate", 320], ["sync", 700]];
+    const phases = [["stop", INTERACTION_PHASE_MS.stop], ["align", INTERACTION_PHASE_MS.align], ["animate", INTERACTION_PHASE_MS.animate], ["sync", INTERACTION_PHASE_MS.sync]];
     let timer;
     let index = 0;
     const advance = () => {
