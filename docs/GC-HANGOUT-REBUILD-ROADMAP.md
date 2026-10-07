@@ -1057,9 +1057,10 @@ For every wave, record:
 - [ ] Food/eating.
 - [ ] Drinks/drinking.
 - [ ] TV.
-- [ ] Music playback.
-- [ ] Add Song.
-- [ ] Synchronized music.
+- [ ] YouTube shared music playback.
+- [ ] YouTube search and shared queue.
+- [ ] Synchronized music with drift correction.
+- [ ] Skip voting and automatic queue advance.
 - [ ] Chat without mobile zoom.
 - [ ] Actual voice transport.
 - [ ] Mute/unmute.
@@ -1166,3 +1167,20 @@ For every wave, record:
 - **Verification:** clean Vercel sandbox: `npm install`, `npm test` PASS, `npm run build` PASS. Two-client production Supabase WebSocket test PASS for private Presence + Broadcast.
 - **Deployment:** latest production rollout is blocked by Vercel Hobby `api-deployments-free-per-day` (100/day; retry reported as 24 hours). Existing READY deployment is older than the latest multiplayer commit.
 - **Browser result:** fresh real-device multiplayer acceptance is **NOT VERIFIED** because the latest commit could not be deployed. Do not mark the multiplayer gate VERIFIED until two real devices load the latest deployment and confirm join/leave, movement, interactions, emotes, chat, music, and voice.
+
+
+### 2026-10-08 — Wave 4 YouTube jukebox implementation
+
+- **Implementation:** replaced the Jamendo catalog and local/manual upload path with YouTube Data API search plus the official YouTube IFrame Player API.
+- **Shared state:** added a revisioned room music state containing current video, queue, requester metadata, room clock, play/pause state, shared volume, and unique skip votes.
+- **Authority:** the lowest active Supabase Presence client ID is the deterministic room music leader. Music requests are sent to that leader; state changes are revisioned and rebroadcast. Leader handoff recovers the newest state from Presence metadata.
+- **Queue rules:** maximum 25 queued videos, maximum 3 pending entries per requester, duplicate video IDs rejected, and skip advances at 3 unique votes or more than half of active room members.
+- **Playback:** one visible YouTube player per client, room-clock synchronization, bounded drift correction, idempotent end handling, autoplay-block recovery, and graceful rejection of unavailable/non-embeddable videos.
+- **Voice isolation:** the old HTMLAudioElement/music recovery hooks were removed; microphone/WebRTC lifecycle no longer owns or resets music playback.
+- **UI:** local file upload was removed. Music search/queue UI is YouTube-labelled; physical floor speaker remains the room-volume interaction point.
+- **Configuration:** add server-only `YOUTUBE_API_KEY`; search uses submit-based requests and verifies embeddability/Made-for-Kids status before returning videos.
+- **Tests:** added pure shared-state coverage for YouTube track normalization, queue deduplication, room-clock position, queue advancement, and duration parsing.
+- **Automated verification:** the first post-change GitHub CI run was blocked at `actions/setup-node@v7` infrastructure setup, before install/test/build. This is not treated as a code-pass.
+- **Browser/device result:** **NOT VERIFIED**. Real two-device acceptance is still required for search, queue, synchronized playback, skip voting, autoplay, speaker volume, and voice coexistence.
+- **Deployment count:** 0 deliberate Vercel deployments. Existing Vercel deployment quota remains exhausted; no new production deployment is claimed.
+- **Gate:** Wave 4 remains **NOT VERIFIED**.
