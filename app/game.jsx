@@ -749,49 +749,53 @@ function Furniture() {
 }
 
 function ClubLighting({ playing = false }) {
-  const washA = useRef();
-  const washB = useRef();
   const beamA = useRef();
   const beamB = useRef();
   const beamC = useRef();
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    const energy = playing ? 1 : 0.28;
-    if (washA.current) {
-      washA.current.intensity = 0.65 + energy * (0.25 + Math.sin(t * 2.1) * 0.15);
-      washA.current.color.setHSL(0.78 + Math.sin(t * 0.35) * 0.08, 0.8, 0.56);
-    }
-    if (washB.current) {
-      washB.current.intensity = 0.55 + energy * (0.22 + Math.sin(t * 1.7 + 1.5) * 0.12);
-      washB.current.color.setHSL(0.55 + Math.sin(t * 0.3 + 2) * 0.06, 0.78, 0.58);
-    }
+    const speed = playing ? 1 : 0.42;
     [beamA, beamB, beamC].forEach((ref, index) => {
-      if (!ref.current) return;
-      ref.current.rotation.y = t * (0.12 + index * 0.035) * (index % 2 ? -1 : 1) + index * 2.1;
-      ref.current.rotation.z = Math.sin(t * 0.35 + index) * 0.12;
-      ref.current.opacity = 0.06 + energy * (0.035 + Math.sin(t * 2.2 + index) * 0.012);
+      const mesh = ref.current;
+      if (!mesh) return;
+      mesh.rotation.y = t * (0.12 + index * 0.035) * (index % 2 ? -1 : 1) + index * 2.1;
+      mesh.rotation.z = Math.sin(t * 0.35 + index) * 0.12;
+      mesh.position.y = 4.72 + Math.sin(t * speed + index) * 0.04;
     });
   });
+
   return (
     <>
-      <pointLight ref={washA} position={[-7, 4.1, -1]} intensity={0.8} distance={13} color="#9a6dff" />
-      <pointLight ref={washB} position={[7, 4.1, 3]} intensity={0.7} distance={13} color="#62a7ff" />
-      <mesh position={[-6.5, 4.72, -1.5]} rotation={[0.18, 0, -0.18]}>
-        <coneGeometry args={[1.9, 4.2, 24, 1, true]} />
-        <meshBasicMaterial ref={beamA} color="#9a6dff" transparent opacity={0.08} depthWrite={false} side={THREE.DoubleSide} />
+      <mesh position={[-7, 4.88, -1.8]}>
+        <cylinderGeometry args={[0.34, 0.5, 0.16, 20]} />
+        <meshStandardMaterial color="#242936" emissive="#8f6cff" emissiveIntensity={playing ? 1.2 : 0.35} />
       </mesh>
-      <mesh position={[0, 4.72, 1.8]} rotation={[-0.08, 0.3, 0.12]}>
-        <coneGeometry args={[1.7, 4.2, 24, 1, true]} />
-        <meshBasicMaterial ref={beamB} color="#52a9ff" transparent opacity={0.08} depthWrite={false} side={THREE.DoubleSide} />
+      <mesh position={[-2.3, 4.88, 2.2]}>
+        <cylinderGeometry args={[0.34, 0.5, 0.16, 20]} />
+        <meshStandardMaterial color="#242936" emissive="#5ca8ff" emissiveIntensity={playing ? 1.1 : 0.3} />
       </mesh>
-      <mesh position={[6.4, 4.72, -0.8]} rotation={[0.12, -0.24, 0.2]}>
-        <coneGeometry args={[1.8, 4.2, 24, 1, true]} />
-        <meshBasicMaterial ref={beamC} color="#ff4fa3" transparent opacity={0.08} depthWrite={false} side={THREE.DoubleSide} />
+      <mesh position={[2.4, 4.88, -1.4]}>
+        <cylinderGeometry args={[0.34, 0.5, 0.16, 20]} />
+        <meshStandardMaterial color="#242936" emissive="#ff4fa3" emissiveIntensity={playing ? 1.15 : 0.3} />
       </mesh>
-      <mesh position={[-7, 4.88, -1.8]}><cylinderGeometry args={[0.34, 0.5, 0.16, 20]} /><meshStandardMaterial color="#242936" emissive="#8f6cff" emissiveIntensity={playing ? 1.2 : 0.35} /></mesh>
-      <mesh position={[-2.3, 4.88, 2.2]}><cylinderGeometry args={[0.34, 0.5, 0.16, 20]} /><meshStandardMaterial color="#242936" emissive="#5ca8ff" emissiveIntensity={playing ? 1.1 : 0.3} /></mesh>
-      <mesh position={[2.4, 4.88, -1.4]}><cylinderGeometry args={[0.34, 0.5, 0.16, 20]} /><meshStandardMaterial color="#242936" emissive="#ff4fa3" emissiveIntensity={playing ? 1.15 : 0.3} /></mesh>
-      <mesh position={[7, 4.88, 2.2]}><cylinderGeometry args={[0.34, 0.5, 0.16, 20]} /><meshStandardMaterial color="#242936" emissive="#63e7cf" emissiveIntensity={playing ? 1.0 : 0.28} /></mesh>
+      <mesh position={[7, 4.88, 2.2]}>
+        <cylinderGeometry args={[0.34, 0.5, 0.16, 20]} />
+        <meshStandardMaterial color="#242936" emissive="#63e7cf" emissiveIntensity={playing ? 1.0 : 0.28} />
+      </mesh>
+
+      <mesh ref={beamA} position={[-6.5, 4.72, -1.5]} rotation={[0.18, 0, -0.18]}>
+        <coneGeometry args={[1.9, 4.2, 20, 1, true]} />
+        <meshBasicMaterial color="#9a6dff" transparent opacity={playing ? 0.1 : 0.055} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={beamB} position={[0, 4.72, 1.8]} rotation={[-0.08, 0.3, 0.12]}>
+        <coneGeometry args={[1.7, 4.2, 20, 1, true]} />
+        <meshBasicMaterial color="#52a9ff" transparent opacity={playing ? 0.1 : 0.055} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={beamC} position={[6.4, 4.72, -0.8]} rotation={[0.12, -0.24, 0.2]}>
+        <coneGeometry args={[1.8, 4.2, 20, 1, true]} />
+        <meshBasicMaterial color="#ff4fa3" transparent opacity={playing ? 0.1 : 0.055} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
     </>
   );
 }
