@@ -353,7 +353,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         if (!state.current) return;
         const votes = [...new Set([...state.skipVotes, requesterId])];
         const activeCount = Math.max(1, activePresenceIdsRef.current.size);
-        if (votes.length >= 3 || votes.length > activeCount / 2) {
+        if (votes.length > activeCount / 2) {
           const upcoming = state.queue[0] || null;
           next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], updatedAt: now };
         } else {
@@ -959,7 +959,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
             {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · Anyone can queue. Three unique skip votes or more than half of active players advances the room. No local uploads. YouTube content remains in the official player.</small>
+          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to advance the room. No local uploads. YouTube content remains in the official player.</small>
           <small className="youtube-attribution">YouTube source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
         </section>
       )}
