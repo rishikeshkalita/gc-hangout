@@ -155,7 +155,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       <mesh position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
       <mesh position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
       {pose === "eat" && <mesh ref={heldProp} position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
-      {pose === "drink" && <mesh ref={heldProp} position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>
+      {pose === "drink" && <mesh ref={heldProp} position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
       </group>
       <Billboard position={[0, 2.18, 0]} follow><Text fontSize={0.18} color={local ? "#d8ceff" : "#ffffff"} anchorX="center" outlineWidth={0.012} outlineColor="#10131b">{displayName}</Text></Billboard>
     </group>
