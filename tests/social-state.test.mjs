@@ -6,6 +6,7 @@ import {
   formatChatTime,
   normalizeEmote,
   normalizeMusicState,
+  normalizeMusicTrack,
   sanitizeChatMessage,
 } from "../lib/social-state.mjs";
 
@@ -25,28 +26,27 @@ test("emotes only accept supported values", () => {
   assert.equal(normalizeEmote("explode"), null);
 });
 
-test("music state normalizes a playable https track", () => {
+test("music state normalizes a YouTube track", () => {
+  const track = normalizeMusicTrack({
+    videoId: "dQw4w9WgXcQ",
+    title: "Late Lounge",
+    artist: "Guest",
+    duration: 180,
+  });
   const state = normalizeMusicState({
-    track: {
-      id: 42,
-      title: "Late Lounge",
-      artist: "Guest",
-      album: "GC",
-      audio: "https://cdn.example.test/track.mp3",
-      duration: 180,
-    },
+    current: track,
     position: 12.5,
     playing: true,
     senderId: "gc-test",
   });
-  assert.equal(state.track.id, "42");
+  assert.equal(state.current.videoId, "dQw4w9WgXcQ");
   assert.equal(state.position, 12.5);
   assert.equal(state.playing, true);
   assert.equal(state.volume, 0.8);
 });
 
-test("invalid music state is rejected", () => {
-  assert.equal(normalizeMusicState({ track: { id: "x", audio: "http://insecure.test/a.mp3", duration: 2 } }), null);
+test("invalid YouTube music state is rejected", () => {
+  assert.equal(normalizeMusicState({ current: { videoId: "bad" } }), null);
   assert.equal(normalizeMusicState(null), null);
 });
 
