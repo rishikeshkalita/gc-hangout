@@ -36,7 +36,11 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, volume: 0.8, updatedAt: Date.now(), senderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
-  const speakerControlActive = Boolean(\n    speakerActive &&\n    playerState &&\n    Math.hypot(Number(playerState.x) - 5.5, Number(playerState.z) + 3.65) <= 2.25\n  );
+  const speakerControlActive = Boolean(
+    speakerActive &&
+    playerState &&
+    Math.hypot(Number(playerState.x) - 5.5, Number(playerState.z) + 3.65) <= 2.25
+  );
   const [voiceOn, setVoiceOn] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("Tap mic to join voice");
