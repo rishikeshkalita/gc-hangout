@@ -218,7 +218,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       config: { broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
-      config: { broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
+      config: { broadcast: { self: false, ack: false }, presence: { key: clientIdRef.current } },
     });
     channelRef.current = channel;
 
@@ -347,13 +347,20 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       }
     };
 
+    channel.on("presence", { event: "sync" }, () => {
+      if (!voiceEnabledRef.current) return;
+      const state = channel.presenceState();
+      Object.keys(state)
+        .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
+        .forEach((id) => void ensurePeer(id, true));
+    });
+    channel.on("presence", { event: "join" }, ({ key }) => {
+      if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
+    });
     gameChannel.on("presence", { event: "sync" }, () => {
       const state = gameChannel.presenceState();
       readPresencePlayers(state);
       const peers = Object.keys(state).filter((id) => id !== clientIdRef.current);
-      if (voiceEnabledRef.current) {
-        peers.filter((id) => clientIdRef.current < id).forEach((id) => void ensurePeer(id, true));
-      }
       // Force every existing client to publish a fresh transform to a newly joined client.
       peers.forEach(() => publishPlayer());
     });
@@ -369,7 +376,6 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
           }
         }
         publishPlayer();
-        if (voiceEnabledRef.current && clientIdRef.current < key) void ensurePeer(key, true);
       }
     });
     gameChannel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
@@ -408,6 +414,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         rot: Number(state?.rot) || 0,
         moving: Boolean(state?.moving),
         speed: Number(state?.speed) || 0,
+      });
+      await channel.track({
+        name: nameRef.current || "Guest",
         voice: voiceEnabledRef.current,
         music,
       });
