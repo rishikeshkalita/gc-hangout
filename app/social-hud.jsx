@@ -160,7 +160,10 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const next = normalizeMusicState(payload);
-      if (next) setMusicState(next);
+      if (next) {
+        if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
+        setMusicState(next);
+      }
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.VOICE }, async ({ payload }) => {
       if (payload?.senderId === clientIdRef.current || payload?.to !== clientIdRef.current) return;
@@ -225,12 +228,16 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
 
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
+      voiceEnabledRef.current = false;
+      const channel = channelRef.current;
+      if (channel) void channel.track({ name: nameRef.current, voice: false });
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
       peersRef.current.forEach((pc) => pc.close());
       peersRef.current.clear();
       setVoicePeers(0);
       setVoiceOn(false);
+      setMuted(false);
       setVoiceStatus("Tap mic to join voice");
       return;
     }
