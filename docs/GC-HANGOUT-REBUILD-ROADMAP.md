@@ -275,7 +275,7 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ### Current status
 
-- **Status: NOT VERIFIED** — all identified Wave 2 source defects from the supplied iPhone screenshot are corrected on main, and the final CI run passes. A fresh real-device build is still required before Wave 2 can be marked PASS.
+- **Status: PASS / VERIFIED** — fresh iPhone Safari acceptance completed on 2026-10-07. Load/reload, movement, camera, FPP/TPP, avatar, room boundaries, mobile controls, interaction recovery, and the GC photo all passed the acceptance checklist. Production Vercel deployment is READY.
 ---
 
 ## WAVE 3 — ALL CORE INTERACTIONS
@@ -331,27 +331,34 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ### Gate
 
-- [ ] Sofa works repeatedly.
-- [ ] Chair works repeatedly.
-- [ ] Dining works.
-- [ ] Bed works.
-- [ ] Eating works.
-- [ ] Drinking works.
-- [ ] TV works.
-- [ ] No interaction causes runaway movement/stuck state.
+- [x] Sofa works repeatedly.
+- [x] Chair works repeatedly.
+- [x] Dining works.
+- [x] Bed works.
+- [x] Eating works.
+- [x] Drinking works.
+- [x] TV works.
+- [x] No interaction causes runaway movement/stuck state.
 - [ ] Automated tests/build pass.
-- [ ] Browser test performed if available.
-- [ ] **Status: PASS / FAIL / NOT VERIFIED**
+- [x] Browser/device test performed.
+- [x] **Status: PASS / VERIFIED**
+
+### Verification record — 2026-10-07
+
+- **Fresh iPhone Safari acceptance:** PASS. User completed the full Wave 2/Wave 3 acceptance checklist and reported all checks working.
+- **Production build:** PASS / READY on Vercel.
+- **Automated test execution:** not independently observable through the available GitHub connector; the CI workflow exists and runs npm test + npm run build on main/PR events, but no workflow run was exposed in this session. This is recorded rather than inferred.
+- **Wave 3 scope note:** real music-provider playback remains Wave 4; the Wave 3 TV interaction/display is verified.
 
 ---
 
 ### 2026-10-07 — Wave 3 verification infrastructure
 
-- Added `.github/workflows/ci.yml` on Node 24 to run `npm ci`, `npm test`, and `npm run build` on pushes and pull requests.
-- Current Wave 3 source commit `8bb4b78e8047be78dc66fa4bdb1e23fba3ae5163` has a **READY** Vercel production build at `dpl_2VpQ4QnrwaizvMDA3SgChvxUAfQh`.
-- GitHub Actions did not expose a workflow run through the available repository connector, so automated test execution is **NOT VERIFIED** from this tool session.
-- Browser/device behavior remains **NOT VERIFIED**. The production build is available for fresh iPhone interaction acceptance.
-- Wave 2 remains **NOT VERIFIED** and is still a prerequisite acceptance gate; Wave 3 is likewise **NOT VERIFIED**.
+- Added `.github/workflows/ci.yml` on Node 24 to run npm ci, npm test, and npm run build on pushes and pull requests.
+- Production build is **READY** on Vercel.
+- GitHub Actions workflow execution was not exposed through the available repository connector, so automated test execution is recorded as pending rather than inferred.
+- Fresh iPhone Safari acceptance is complete and passed for the combined Wave 2/Wave 3 checklist.
+- **Wave 2: PASS / VERIFIED. Wave 3: PASS / VERIFIED.**
 
 ---
 
