@@ -87,6 +87,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
   const visual = useRef();
   const arms = useRef([]);
   const legs = useRef([]);
+  const shoes = useRef([]);
   const heldProp = useRef();
   const { skin, shirt, pants, hair } = avatar;
   const displayName = (name || avatar.label || "You").trim().slice(0, 18).toUpperCase();
@@ -104,7 +105,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
     const propToMouth = gestureCycle > 0.58;
 
-    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.18 : chairSeat ? 0.05 : 0;
+    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? -0.065 : chairSeat ? -0.25 : 0;
     group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
 
@@ -126,13 +127,21 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     }
     if (legs.current[0]) {
       legs.current[0].rotation.x = seated ? -1.18 : moving ? -stride : 0;
-      legs.current[0].position.y = seated ? 0.46 : 0.45;
-      legs.current[0].position.z = seated ? 0.08 : 0;
+      legs.current[0].position.y = seated ? 0.50 : 0.45;
+      legs.current[0].position.z = seated ? 0.20 : 0;
+      if (shoes.current[0]) {
+        shoes.current[0].position.y = seated ? 0.19 : 0.12;
+        shoes.current[0].position.z = seated ? 0.48 : 0.10;
+      }
     }
     if (legs.current[1]) {
       legs.current[1].rotation.x = seated ? -1.18 : moving ? stride : 0;
-      legs.current[1].position.y = seated ? 0.46 : 0.45;
-      legs.current[1].position.z = seated ? 0.08 : 0;
+      legs.current[1].position.y = seated ? 0.50 : 0.45;
+      legs.current[1].position.z = seated ? 0.20 : 0;
+      if (shoes.current[1]) {
+        shoes.current[1].position.y = seated ? 0.19 : 0.12;
+        shoes.current[1].position.z = seated ? 0.48 : 0.10;
+      }
     }
   });
 
@@ -152,8 +161,8 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
       <mesh ref={(node) => { arms.current[1] = node; }} position={[0.45, 1.08, 0]} castShadow><capsuleGeometry args={[0.08, 0.48, 6, 10]} /><meshStandardMaterial color={skin} roughness={0.76} /></mesh>
       <mesh ref={(node) => { legs.current[0] = node; }} position={[-0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
       <mesh ref={(node) => { legs.current[1] = node; }} position={[0.18, 0.45, 0]} castShadow><capsuleGeometry args={[0.095, 0.52, 6, 10]} /><meshStandardMaterial color={pants} roughness={0.84} /></mesh>
-      <mesh position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
-      <mesh position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
+      <mesh ref={(node) => { shoes.current[0] = node; }} position={[-0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
+      <mesh ref={(node) => { shoes.current[1] = node; }} position={[0.18, 0.12, 0.1]} castShadow><capsuleGeometry args={[0.11, 0.22, 6, 10]} /><meshStandardMaterial color="#171b24" roughness={0.72} /></mesh>
       {pose === "eat" && <mesh ref={heldProp} position={[0.34, 1.04, 0.3]} rotation={[0.2, 0.2, -0.25]} castShadow><boxGeometry args={[0.16, 0.06, 0.22]} /><meshStandardMaterial color="#d59a43" roughness={0.7} /></mesh>}
       {pose === "drink" && <mesh ref={heldProp} position={[0.36, 1.05, 0.28]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.2, 12]} /><meshStandardMaterial color="#8ed7ef" transparent opacity={0.85} roughness={0.3} /></mesh>}
       </group>
@@ -347,8 +356,9 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 }
 
 function Sofa({ position = [0, 0, 0] }) {
+  const FLOOR_OFFSET = -0.245;
   return (
-    <group position={position}>
+    <group position={[position[0], position[1] + FLOOR_OFFSET, position[2]}>
       <RoundedBox args={[5.4, 0.55, 1.05]} position={[0, 0.52, 0]} radius={0.14} smoothness={5} castShadow><meshStandardMaterial color="#3f4b61" roughness={0.85} /></RoundedBox>
       <RoundedBox args={[5.4, 1.0, 0.3]} position={[0, 1.0, -0.38]} radius={0.12} smoothness={5} castShadow><meshStandardMaterial color="#48556c" roughness={0.85} /></RoundedBox>
       {[-2.35, 2.35].map((x) => <RoundedBox key={x} args={[0.32, 0.85, 0.9]} position={[x, 0.9, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#48556c" /></RoundedBox>)}
@@ -357,8 +367,9 @@ function Sofa({ position = [0, 0, 0] }) {
 }
 
 function Chair({ position = [0, 0, 0], rotation = 0 }) {
+  const FLOOR_OFFSET = -0.30;
   return (
-    <group position={position} rotation={[0, rotation, 0]}>
+    <group position={[position[0], position[1] + FLOOR_OFFSET, position[2]]} rotation={[0, rotation, 0]}>
       <RoundedBox args={[0.8, 0.36, 0.8]} position={[0, 0.48, 0]} radius={0.1} smoothness={4} castShadow><meshStandardMaterial color="#556071" /></RoundedBox>
       <RoundedBox args={[0.8, 0.9, 0.22]} position={[0, 0.95, -0.3]} radius={0.08} smoothness={4} castShadow><meshStandardMaterial color="#606c7f" /></RoundedBox>
     </group>
