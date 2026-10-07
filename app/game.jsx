@@ -986,7 +986,7 @@ export default function Game() {
             <input
               autoFocus
               value={name === "You" ? "" : name}
-              onChange={(event) => setName(event.target.value.replace(/[\\n\\r]/g, "").slice(0, 18))}
+              onChange={(event) => setName(event.target.value.replace(/[\n\r]/g, "").slice(0, 18))}
               maxLength={18}
               placeholder="Enter your name"
               autoComplete="nickname"
