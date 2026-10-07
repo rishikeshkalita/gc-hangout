@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -335,7 +335,10 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
           avatarId: state.avatar?.id || "maya",
           interactionType: interaction?.anchor?.type || "",
           interactionPhase: interaction?.phase || "sync",
-          emote: state.emote || null,
+          seatStyle: interaction?.anchor?.seatStyle || null,
+          foodKind: interaction?.anchor?.foodKind || "pizza",
+          drinkKind: interaction?.anchor?.drinkKind || "water",
+          emote: emote || null,
           x: Number(state.x) || 0,
           z: Number(state.z) || 0,
           rot: Number(state.rot) || 0,
@@ -429,7 +432,10 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
         avatarId: state?.avatar?.id || "maya",
         interactionType: interaction?.anchor?.type || "",
         interactionPhase: interaction?.phase || "sync",
-        emote: state?.emote || null,
+        seatStyle: interaction?.anchor?.seatStyle || null,
+        foodKind: interaction?.anchor?.foodKind || "pizza",
+        drinkKind: interaction?.anchor?.drinkKind || "water",
+        emote: emote || null,
         x: Number(state?.x) || 0,
         z: Number(state?.z) || 0,
         rot: Number(state?.rot) || 0,
