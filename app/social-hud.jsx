@@ -32,6 +32,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const [draft, setDraft] = useState("");
   const [tracks, setTracks] = useState([]);
   const [musicSearch, setMusicSearch] = useState("lounge");
+  const [localAudioUrl, setLocalAudioUrl] = useState(null);
   const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, updatedAt: Date.now(), senderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
@@ -50,6 +51,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const pendingCandidatesRef = useRef(new Map());
   const remoteAudioRef = useRef(new Map());
   const remoteStreamsRef = useRef(new Map());
+  const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
   const nameRef = useRef(name);
 
@@ -310,6 +312,21 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     return () => window.clearInterval(timer);
   }, [send]);
 
+  useEffect(() => () => {
+    if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const loaded = () => {
+      if (!musicStateRef.current.track?.local) return;
+      setMusicState((state) => state.track?.local ? { ...state, track: { ...state.track, duration: audio.duration || 0 } } : state);
+    };
+    audio.addEventListener("loadedmetadata", loaded);
+    return () => audio.removeEventListener("loadedmetadata", loaded);
+  }, []);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -320,6 +337,31 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     audio.addEventListener("ended", ended);
     return () => audio.removeEventListener("ended", ended);
   }, [send]);
+
+  const addLocalAudio = useCallback((file) => {
+    if (!file) return;
+    const accepted = /^audio\\/(mpeg|wav|x-wav|mp4|aac|ogg|webm)$/.test(file.type) || /\\.(mp3|wav|m4a|aac|ogg|webm)$/i.test(file.name);
+    if (!accepted) return;
+    if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
+    const url = URL.createObjectURL(file);
+    localAudioUrlRef.current = url;
+    setLocalAudioUrl(url);
+    setMusicState({
+      track: {
+        id: `local-${clientIdRef.current}-${Date.now()}`,
+        title: file.name.replace(/\\.[^.]+$/, "").slice(0, 100),
+        artist: "Local file",
+        album: "This device",
+        audio: url,
+        duration: 0,
+        local: true,
+      },
+      position: 0,
+      playing: true,
+      updatedAt: Date.now(),
+      senderId: clientIdRef.current,
+    });
+  }, []);
 
   const publishMusic = useCallback((next) => {
     const normalized = normalizeMusicState({ ...next, senderId: clientIdRef.current });
@@ -333,12 +375,22 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   }, [publishMusic]);
 
   const toggleMusic = useCallback(() => {
+    if (musicState.track?.local) {
+      setMusicState((state) => ({ ...state, playing: !state.playing, position: audioRef.current?.currentTime || state.position, updatedAt: Date.now(), senderId: clientIdRef.current }));
+      return;
+    }
     if (!musicState.track) {
       if (tracks[0]) selectTrack(tracks[0]);
       return;
     }
     publishMusic({ ...musicStateRef.current, playing: !musicStateRef.current.playing, position: audioRef.current?.currentTime || musicStateRef.current.position, updatedAt: Date.now() });
   }, [publishMusic, selectTrack, tracks]);
+
+  const nextTrack = useCallback(() => {
+    if (!tracks.length) return;
+    const index = tracks.findIndex((track) => track.id === musicStateRef.current.track?.id);
+    selectTrack(tracks[(index + 1 + tracks.length) % tracks.length]);
+  }, [selectTrack, tracks]);
 
   const sendChat = useCallback(() => {
     const message = sanitizeChatMessage(draft);
@@ -387,13 +439,14 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
         <section className="social-panel music-panel" onPointerDown={(event) => event.stopPropagation()}>
           <div className="social-panel-head"><strong>Shared music</strong><span>{musicState.track ? `${musicState.track.title} · ${musicState.track.artist}` : "No track selected"}</span></div>
           <div className="music-now">
-            <button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause" : "Play"}{musicState.track ? ` · ${musicState.track.title}` : ""}</button>
+            <div className="music-main-row"><button className="music-main" onClick={toggleMusic}>{musicState.playing ? "Pause" : "Play"}{musicState.track ? ` · ${musicState.track.title}` : ""}</button><button className="music-next" onClick={nextTrack} disabled={!tracks.length} aria-label="Next track">Next</button></div>
             <span>{Math.floor(musicState.position || 0)}s</span>
           </div>
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
             <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search music" inputMode="search" enterKeyHint="search" />
             <button type="submit" disabled={musicBusy}>{musicBusy ? "…" : "Search"}</button>
           </form>
+          <label className="add-song">＋ Add Song<input type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,.webm,audio/*" onChange={(event) => addLocalAudio(event.target.files?.[0])} /></label>
           <div className="track-list">
             {tracks.slice(0, 8).map((track) => (
               <button key={track.id} className={musicState.track?.id === track.id ? "track selected" : "track"} onClick={() => selectTrack(track)}>
@@ -402,7 +455,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
             ))}
             {!tracks.length && <div className="social-empty">No playable tracks found.</div>}
           </div>
-          <small className="social-note">Catalog: Jamendo. Shared state syncs through the room.</small>
+          <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Add Song plays a local MP3/WAV/M4A/AAC/OGG/WebM file on this device.</small>
         </section>
       )}
 
