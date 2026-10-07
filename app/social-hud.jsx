@@ -307,9 +307,10 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     if (!audio || !musicState.track?.audio) return;
     audio.src = musicState.track.audio;
     audio.currentTime = Math.min(musicState.position || 0, Math.max(0, (musicState.track.duration || 1) - 0.2));
+    audio.volume = musicVolume;
     if (musicState.playing) void audio.play().catch(() => {});
     else audio.pause();
-  }, [musicState.track?.id]);
+  }, [musicState.track?.id, musicVolume]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -320,7 +321,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     if (musicState.track && Math.abs(audio.currentTime - musicState.position) > 1.25) {
       try { audio.currentTime = Math.max(0, musicState.position); } catch {}
     }
-  }, [musicState.playing]);
+  }, [musicState.playing, musicState.position, musicVolume]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
