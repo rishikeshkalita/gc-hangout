@@ -291,7 +291,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
     const forward = touch.active ? touch.y : keyboardForward;
-    const strafe = touch.active ? touch.x : keyboardStrafe;
+    const strafe = touch.active ? -touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction || interaction.phase === "release") {
