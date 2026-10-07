@@ -996,3 +996,13 @@ For every wave, record:
 - Sofa seated leg roots were moved forward/upward and their bend reduced; sofa shoes were brought back toward the legs.
 - Commit: `a240f8ca721a8fb1a59f4a69508b295a031cdc92`.
 - Fresh iPhone acceptance remains required for FPP, dining interactions, and sofa seating.
+
+
+### 2026-10-07 — dining-only eating, bar reposition, and FPP pitch correction
+- Fresh iPhone screenshots showed the standing EAT interaction was incorrectly exposed near the dining setup.
+- Removed the standing food-table EAT anchor and filtered all EAT anchors unless the player is seated in one of the six dining/sofa seats; the existing dining seated-EAT flow remains available.
+- Shifted the stocked bar farther right to clear the lamp and moved its collision with it.
+- Added an actionable DRINK anchor at the stocked bar and a seated-only snack EAT anchor.
+- Lowered the FPP look target slightly to correct the upward camera tilt.
+- Commit: `2674f2e1a0ff7a5e1108752decbd3b105d28167b`.
+- Fresh iPhone acceptance remains required for dining-only eating, bar interactions, and FPP framing.
