@@ -977,3 +977,12 @@ For every wave, record:
 - Corrected sleep visual elevation from `0.72` to `1.02` and moved sofa shoes forward to `z=0.88` with a slightly lower shoe height.
 - Commit: `5457344fd14847b05cfc6d8b1a9fc93eeb6c0cf4`.
 - Wave 2 remains **NOT VERIFIED** until fresh iPhone acceptance confirms both views.
+
+
+### 2026-10-07 — dining route, stocked bar, and POV toggle
+- Fresh iPhone screenshot showed the right-side dining approach blocked by the large rectangular obstacle.
+- Moved that obstacle to the left side of the dining zone and moved its collision volume with it, opening the approach route.
+- Replaced it with a stocked dining sideboard/bar containing bottle props, glasses, plates, and snack/food props.
+- Added a compact **FPP / TPP** camera toggle. FPP places the camera at avatar head height while TPP retains the current follow camera.
+- Commits: `01a111f147b72b3f7b047b1f0ba0b8a56e572551`, `9fd5fad2fa1c43a1c65719f48c952e6e51e9e936`.
+- Fresh iPhone acceptance remains required for the new dining route and both camera modes.
