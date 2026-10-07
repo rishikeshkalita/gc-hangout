@@ -681,8 +681,8 @@ export default function Game() {
           }
           if (universalInteraction) beginInteraction(universalInteraction);
         }}
-        aria-label={universalActive ? "Stand up or wake up" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
-        title={universalActive ? "Stand / wake" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
+        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
+        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : "Sit"}
       >
         {universalActive ? "↗" : "♙"}
       </button>
