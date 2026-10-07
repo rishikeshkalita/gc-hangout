@@ -108,8 +108,10 @@ test("interaction lifecycle locks movement until explicit release", () => {
 
 test("interaction anchors include DRINK and generic INTERACT types", () => {
   assert.ok(INTERACTION_TYPES.includes("DRINK"));
+  assert.ok(INTERACTION_TYPES.includes("MUSIC_SPEAKER"));
   assert.ok(INTERACTION_TYPES.includes("INTERACT"));
   assert.equal(createInteractionAnchor({ id: "drink", type: "DRINK", x: 1, z: 2, rot: 0 }).type, "DRINK");
+  assert.equal(createInteractionAnchor({ id: "speaker", type: "MUSIC_SPEAKER", x: 2, z: 3, rot: 0 }).type, "MUSIC_SPEAKER");
   assert.equal(createInteractionAnchor({ id: "generic", type: "INTERACT", x: 2, z: 3, rot: 0 }).type, "INTERACT");
 });
 
