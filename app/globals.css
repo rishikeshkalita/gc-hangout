@@ -692,3 +692,103 @@ button { border: 0; cursor: pointer; }
     grid-template-columns: auto 1fr auto;
   }
 }
+
+/* Shared YouTube jukebox */
+.youtube-room-player {
+  position: fixed;
+  top: calc(70px + env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 42;
+  width: min(360px, 38vw);
+  min-width: 300px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  background: rgba(8,11,17,.94);
+  box-shadow: 0 18px 55px rgba(0,0,0,.35);
+}
+.youtube-player-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 200px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #000;
+}
+.youtube-player-frame > div,
+.youtube-player-frame iframe {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+.youtube-player-meta {
+  display: grid;
+  gap: 2px;
+  padding: 7px 3px 2px;
+}
+.youtube-player-meta strong {
+  overflow: hidden;
+  color: #f3f4f8;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.youtube-player-meta span {
+  color: #969ead;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-queue {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 9px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.035);
+  color: #b9bfcc;
+  font-size: 10px;
+}
+.music-queue > strong { color: #e5e8ee; font-size: 10px; }
+.music-queue > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.music-queue span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-queue small { color: #777f90; }
+.track {
+  grid-template-columns: 46px 1fr auto !important;
+  align-items: center;
+}
+.track img {
+  width: 46px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #111;
+}
+.track em {
+  color: #a99cff;
+  font-size: 9px;
+  font-style: normal;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .youtube-room-player {
+    top: calc(56px + env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    width: min(230px, calc(100vw - 16px));
+    min-width: 200px;
+    padding: 5px;
+    border-radius: 11px;
+  }
+  .youtube-player-frame {
+    min-height: 200px;
+    aspect-ratio: 1 / 1;
+  }
+  .youtube-player-meta { padding: 5px 2px 1px; }
+  .youtube-player-meta strong { font-size: 9px; }
+  .youtube-player-meta span { font-size: 8px; }
+}
