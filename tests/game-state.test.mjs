@@ -11,6 +11,9 @@ import {
   findNearestInteractionAnchor,
   createInteractionState,
   advanceInteraction,
+  INTERACTION_PHASE_MS,
+  getInteractionPose,
+  canReserveInteraction,
 } from "../lib/game-state.mjs";
 
 test("local player is created immediately as a human-avatar identity", () => {
@@ -107,4 +110,39 @@ test("interaction anchors include DRINK and generic INTERACT types", () => {
   assert.ok(INTERACTION_TYPES.includes("INTERACT"));
   assert.equal(createInteractionAnchor({ id: "drink", type: "DRINK", x: 1, z: 2, rot: 0 }).type, "DRINK");
   assert.equal(createInteractionAnchor({ id: "generic", type: "INTERACT", x: 2, z: 3, rot: 0 }).type, "INTERACT");
+});
+
+
+test("interaction metadata preserves seat and consumable props", () => {
+  const anchor = createInteractionAnchor({
+    id: "chair-food",
+    type: "EAT",
+    x: 4,
+    z: 2,
+    seatStyle: "chair",
+    requiresSitting: true,
+    foodKind: "pizza",
+    radius: 1.5,
+  });
+  assert.equal(anchor.seatStyle, "chair");
+  assert.equal(anchor.requiresSitting, true);
+  assert.equal(anchor.foodKind, "pizza");
+});
+
+test("interaction poses and phase timings are explicit", () => {
+  assert.equal(getInteractionPose("SIT"), "sit");
+  assert.equal(getInteractionPose("SLEEP"), "sleep");
+  assert.equal(getInteractionPose("EAT"), "eat");
+  assert.equal(getInteractionPose("DRINK"), "drink");
+  assert.equal(getInteractionPose("WATCH_TV"), "watch");
+  assert.equal(INTERACTION_PHASE_MS.animate, 420);
+});
+
+test("interaction reservation is owner-safe", () => {
+  const anchor = createInteractionAnchor({ id: "seat", type: "SIT" });
+  const state = createInteractionState(anchor, "p1", 10);
+  assert.equal(canReserveInteraction(null, "seat", "p2"), true);
+  assert.equal(canReserveInteraction(state, "seat", "p1"), true);
+  assert.equal(canReserveInteraction(state, "other", "p2"), false);
+  assert.equal(canReserveInteraction(advanceInteraction(state, "release"), "other", "p2"), true);
 });
