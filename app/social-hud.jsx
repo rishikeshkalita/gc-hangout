@@ -265,6 +265,8 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       localStreamRef.current = stream;
+      // iOS Safari may interrupt an already-playing media element while opening capture.
+      // Resume the exact shared track without changing shared play/pause state.
       resumeMusicAfterVoice();
       voiceEnabledRef.current = true;
       setVoiceOn(true);
