@@ -30,9 +30,9 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "dining-6", type: "SIT", seatStyle: "chair", label: "Sit", x: 12.2, z: 7.65, rot: Math.PI, targetX: 12.2, targetZ: 7.65, targetRot: Math.PI, triggerX: 12.2, triggerZ: 8.55, exitX: 12.2, exitZ: 9.0, radius: 1.45 },
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
-  { id: "food-table", type: "EAT", label: "Eat", x: 10.7, z: 4.55, rot: 0, targetX: 10.7, targetZ: 4.55, targetRot: 0, triggerX: 10.7, triggerZ: 4.55, exitX: 8.6, exitZ: 4.55, radius: 0.9 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.0 },
-  { id: "drink-table", type: "DRINK", label: "Drink", x: 13.75, z: 4.15, rot: -Math.PI / 2, targetX: 13.15, targetZ: 4.15, targetRot: -Math.PI / 2, triggerX: 13.75, triggerZ: 4.15, exitX: 12.8, exitZ: 3.8, radius: 1.0 },
+  { id: "bar-drink", type: "DRINK", label: "Drink", x: 7.2, z: 6.9, rot: Math.PI, targetX: 7.2, targetZ: 7.15, targetRot: Math.PI, triggerX: 7.2, triggerZ: 6.9, exitX: 6.0, exitZ: 6.9, radius: 1.15 },
+  { id: "bar-snack", type: "EAT", label: "Eat", requiresSitting: true, x: 7.2, z: 7.35, rot: Math.PI, targetX: 7.2, targetZ: 7.35, targetRot: Math.PI, triggerX: 7.2, triggerZ: 7.35, exitX: 6.0, exitZ: 7.35, radius: 1.15 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
@@ -59,7 +59,7 @@ const OBSTACLES = [
   { x: -9.8, z: -3.35, rx: 0.9, rz: 0.6 },
   { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
   { x: 10.7, z: 5.8, rx: 2.4, rz: 1.35 },
-  { x: 5.0, z: 7.7, rx: 1.0, rz: 1.0 },
+  { x: 7.2, z: 7.7, rx: 1.0, rz: 1.0 },
   { x: 8.7, z: -6.5, rx: 1.8, rz: 1.8 },
 ];
 
@@ -326,6 +326,9 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     }
 
     let nearby = findNearbyAnchors(current.x, current.z);
+    if (interaction?.anchor?.type !== "SIT") {
+      nearby = nearby.filter((item) => item.type !== "EAT");
+    }
     if (interaction?.anchor?.type === "SIT") {
       const seatedEat = INTERACTION_ANCHORS.find((item) => item.id === "dining-eat");
       if (seatedEat && Math.hypot(current.x - seatedEat.triggerX, current.z - seatedEat.triggerZ) < seatedEat.radius) {
@@ -363,7 +366,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
       const desired = cameraTarget.current.set(current.x + Math.sin(yaw.current) * 0.08, headY, current.z + Math.cos(yaw.current) * 0.08);
       cameraPosition.current.lerp(desired, 1 - Math.exp(-12 * safeDt));
       camera.position.copy(cameraPosition.current);
-      camera.lookAt(lookX, headY + Math.sin(pitch.current - 0.38) * 2.2, lookZ);
+      camera.lookAt(lookX, headY + Math.sin(pitch.current - 0.53) * 2.2 - 0.08, lookZ);
     } else {
       const targetY = (mobile ? 0.95 : 1.05) + Math.sin(pitch.current) * cameraDistance.current;
       const horizontal = Math.cos(pitch.current) * cameraDistance.current;
@@ -501,7 +504,7 @@ function DiningBar() {
     { x: 0.7, color: "#5a253c", scale: 0.88 },
   ];
   return (
-    <group position={[5.0, 0, 7.7]}>
+    <group position={[7.2, 0, 7.7]}>
       <RoundedBox args={[2.1, 1.35, 1.8]} position={[0, 0.68, 0]} radius={0.12} smoothness={4} castShadow><meshStandardMaterial color="#343941" roughness={0.78} /></RoundedBox>
       <RoundedBox args={[2.35, 0.12, 2.0]} position={[0, 1.38, 0]} radius={0.05} smoothness={3} castShadow><meshStandardMaterial color="#72513f" roughness={0.72} /></RoundedBox>
       {bottles.map((bottle) => (
