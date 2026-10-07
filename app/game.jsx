@@ -16,12 +16,12 @@ const AVATARS = [
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
 const INTERACTION_ANCHORS = Object.freeze([
-  { id: "sofa-a-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: -6.8, rot: 0, targetX: -11.4, targetZ: -6.8, targetRot: 0, triggerX: -11.4, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 1.45 },
-  { id: "sofa-a-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: -6.8, rot: 0, targetX: -9.8, targetZ: -6.8, targetRot: 0, triggerX: -9.8, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 1.45 },
-  { id: "sofa-a-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: -6.8, rot: 0, targetX: -8.2, targetZ: -6.8, targetRot: 0, triggerX: -8.2, triggerZ: -5.35, exitX: -7.0, exitZ: -5.35, radius: 1.45 },
-  { id: "sofa-b-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: -0.8, rot: Math.PI, targetX: -11.4, targetZ: -0.8, targetRot: Math.PI, triggerX: -11.4, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 1.45 },
-  { id: "sofa-b-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: -0.8, rot: Math.PI, targetX: -9.8, targetZ: -0.8, targetRot: Math.PI, triggerX: -9.8, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 1.45 },
-  { id: "sofa-b-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: -0.8, rot: Math.PI, targetX: -8.2, targetZ: -0.8, targetRot: Math.PI, triggerX: -8.2, triggerZ: -2.25, exitX: -7.0, exitZ: -2.25, radius: 1.45 },
+  { id: "sofa-a-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: -7.25, rot: 0, targetX: -11.4, targetZ: -7.25, targetRot: 0, triggerX: -11.4, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
+  { id: "sofa-a-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: -7.25, rot: 0, targetX: -9.8, targetZ: -7.25, targetRot: 0, triggerX: -9.8, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
+  { id: "sofa-a-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: -7.25, rot: 0, targetX: -8.2, targetZ: -7.25, targetRot: 0, triggerX: -8.2, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
+  { id: "sofa-b-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: 0.55, rot: Math.PI, targetX: -11.4, targetZ: 0.55, targetRot: Math.PI, triggerX: -11.4, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
+  { id: "sofa-b-2", type: "SIT", seatStyle: "sofa", label: "Sit", x: -9.8, z: 0.55, rot: Math.PI, targetX: -9.8, targetZ: 0.55, targetRot: Math.PI, triggerX: -9.8, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
+  { id: "sofa-b-3", type: "SIT", seatStyle: "sofa", label: "Sit", x: -8.2, z: 0.55, rot: Math.PI, targetX: -8.2, targetZ: 0.55, targetRot: Math.PI, triggerX: -8.2, triggerZ: -1.0, exitX: -6.0, exitZ: -1.0, radius: 1.55 },
   { id: "dining-1", type: "SIT", seatStyle: "chair", label: "Sit", x: 8.2, z: 3.95, rot: 0, targetX: 8.2, targetZ: 3.95, targetRot: 0, triggerX: 8.2, triggerZ: 3.05, exitX: 7.0, exitZ: 2.45, radius: 1.45 },
   { id: "dining-2", type: "SIT", seatStyle: "chair", label: "Sit", x: 9.7, z: 3.95, rot: 0, targetX: 9.7, targetZ: 3.95, targetRot: 0, triggerX: 9.7, triggerZ: 3.05, exitX: 9.7, exitZ: 2.45, radius: 1.45 },
   { id: "dining-3", type: "SIT", seatStyle: "chair", label: "Sit", x: 11.2, z: 3.95, rot: 0, targetX: 11.2, targetZ: 3.95, targetRot: 0, triggerX: 11.2, triggerZ: 3.05, exitX: 11.2, exitZ: 2.45, radius: 1.45 },
@@ -54,9 +54,9 @@ function findNearbyAnchors(x, z) {
 }
 
 const OBSTACLES = [
-  { x: -9.8, z: -6.8, rx: 2.8, rz: 0.7 },
-  { x: -9.8, z: -0.8, rx: 2.8, rz: 0.7 },
-  { x: -9.8, z: -3.8, rx: 1.1, rz: 0.7 },
+  { x: -9.8, z: -7.25, rx: 2.8, rz: 0.7 },
+  { x: -9.8, z: 0.55, rx: 2.8, rz: 0.7 },
+  { x: -9.8, z: -3.35, rx: 0.9, rz: 0.6 },
   { x: 0, z: -8.55, rx: 5.2, rz: 0.65 },
   { x: 9.7, z: 5.8, rx: 2.4, rz: 1.35 },
   { x: 13.25, z: 0.7, rx: 0.8, rz: 3.2 },
@@ -95,7 +95,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     if (!group.current) return;
     const t = clock.getElapsedTime();
     const stride = moving ? Math.sin(t * 11) * 0.48 : Math.sin(t * 2.2) * 0.025;
-    const seated = pose === "sit" || pose === "sit-sofa" || pose === "sit-chair";
+    const seated = pose === "sit" || pose === "sit-sofa" || pose === "sit-chair" || ((pose === "eat" || pose === "drink") && seatStyle);
     const sofaSeat = pose === "sit-sofa" || (seated && seatStyle === "sofa");
     const chairSeat = pose === "sit-chair" || (seated && seatStyle === "chair");
     const gesture = pose === "eat" || pose === "drink";
@@ -104,33 +104,33 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = "
     const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
     const propToMouth = gestureCycle > 0.58;
 
-    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.40 : chairSeat ? 0.22 : 0;
+    group.current.position.y = pose === "sleep" ? 1.0 : sofaSeat ? 0.18 : chairSeat ? 0.05 : 0;
     group.current.rotation.x = pose === "sleep" ? -Math.PI / 2 : 0;
     group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
 
     if (arms.current[0]) {
-      arms.current[0].rotation.x = seated ? (sofaSeat ? -0.30 : -0.38) : gesture ? -0.9 - Math.sin(t * 7) * 0.12 : moving ? stride : 0.02 * Math.sin(t * 2.2);
+      arms.current[0].rotation.x = seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = seated ? (sofaSeat ? -0.26 : -0.30) : drinking ? -1.05 : eating ? (propToMouth ? -1.22 : -0.72) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = gesture ? (drinking ? (propToMouth ? -1.22 : -0.88) : (propToMouth ? -1.20 : -0.70)) : seated ? (sofaSeat ? -0.22 : -0.28) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
       if (eating) arms.current[1].rotation.y = propToMouth ? -0.10 : 0.08;
       if (heldProp.current) {
         if (eating) {
-          heldProp.current.position.set(propToMouth ? 0.26 : 0.34, propToMouth ? 1.30 : 1.04, propToMouth ? 0.34 : 0.30);
+          heldProp.current.position.set(propToMouth ? 0.29 : 0.36, propToMouth ? 1.43 : 1.10, propToMouth ? 0.36 : 0.30);
         } else if (drinking) {
-          heldProp.current.position.set(propToMouth ? 0.27 : 0.36, propToMouth ? 1.31 : 1.05, propToMouth ? 0.34 : 0.28);
+          heldProp.current.position.set(propToMouth ? 0.30 : 0.37, propToMouth ? 1.44 : 1.10, propToMouth ? 0.36 : 0.28);
         }
       }
     }
     if (legs.current[0]) {
-      legs.current[0].rotation.x = seated ? -1.05 : moving ? -stride : 0;
+      legs.current[0].rotation.x = seated ? -1.18 : moving ? -stride : 0;
       legs.current[0].position.y = seated ? 0.46 : 0.45;
       legs.current[0].position.z = seated ? 0.08 : 0;
     }
     if (legs.current[1]) {
-      legs.current[1].rotation.x = seated ? -1.05 : moving ? stride : 0;
+      legs.current[1].rotation.x = seated ? -1.18 : moving ? stride : 0;
       legs.current[1].position.y = seated ? 0.46 : 0.45;
       legs.current[1].position.z = seated ? 0.08 : 0;
     }
@@ -263,7 +263,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const keyboardStrafe = Number(keys.current.has("d") || keys.current.has("arrowright")) - Number(keys.current.has("a") || keys.current.has("arrowleft"));
     const touch = joystickRef.current;
     const forward = touch.active ? touch.y : keyboardForward;
-    const strafe = touch.active ? touch.x : keyboardStrafe;
+    const strafe = touch.active ? -touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
     if (!interaction || interaction.phase === "release") {
@@ -342,7 +342,6 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
   return (
     <group ref={playerGroup}>
       <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} />
-      {interaction?.status === "active" && <Text position={[0, 2.45, 0]} fontSize={0.16} color="#d8ceff" anchorX="center">{interaction.anchor.label.toUpperCase()}</Text>}
     </group>
   );
 }
@@ -456,13 +455,13 @@ function GraffitiWall() {
 function Furniture() {
   return (
     <group>
-      <group position={[-9.8, 0, -6.8]}>
+      <group position={[-9.8, 0, -7.25]}>
         <Sofa />
       </group>
-      <group position={[-9.8, 0, -0.8]} rotation={[0, Math.PI, 0]}>
+      <group position={[-9.8, 0, 0.55]} rotation={[0, Math.PI, 0]}>
         <Sofa />
       </group>
-      <CoffeeTable position={[-9.8, 0, -3.8]} />
+      <CoffeeTable position={[-9.8, 0, -3.35]} />
       <group position={[0, 0, -9.15]}>
         <RoundedBox args={[9.0, 3.35, 0.38]} position={[0, 2.2, 0]} radius={0.18} smoothness={5} castShadow><meshStandardMaterial color="#10141c" roughness={0.32} metalness={0.15} /></RoundedBox>
         <mesh position={[0, 2.2, 0.22]}><planeGeometry args={[8.45, 2.72]} /><meshStandardMaterial color="#17182a" emissive="#433a78" emissiveIntensity={0.55} roughness={0.55} /></mesh>
@@ -540,7 +539,14 @@ function findSafeExit(anchor, fallback) {
     { x: preferred.x + 1.2, z: preferred.z },
     { x: preferred.x, z: preferred.z - 1.2 },
     { x: preferred.x, z: preferred.z + 1.2 },
-  ];
+    { x: preferred.x - 1.8, z: preferred.z },
+    { x: preferred.x + 1.8, z: preferred.z },
+    { x: preferred.x, z: preferred.z - 1.8 },
+    { x: preferred.x, z: preferred.z + 1.8 },
+  ].map((candidate) => ({
+    x: clamp(candidate.x, -WORLD.halfX + 0.6, WORLD.halfX - 0.6),
+    z: clamp(candidate.z, -WORLD.halfZ + 0.6, WORLD.halfZ - 0.6),
+  }));
   return candidates.find((candidate) => !blocked(candidate.x, candidate.z)) || fallback;
 }
 
@@ -566,7 +572,7 @@ export default function Game() {
     if (interaction && interaction.anchor.type !== "SIT") return;
     const seatedEat = Boolean(anchor.requiresSitting && interaction?.anchor?.type === "SIT");
     const nextAnchor = seatedEat
-      ? { ...anchor, targetX: player.x, targetZ: player.z, targetRot: player.rot, exitX: player.x, exitZ: player.z }
+      ? { ...anchor, seatStyle: interaction.anchor.seatStyle, targetX: player.x, targetZ: player.z, targetRot: player.rot, exitX: player.x, exitZ: player.z }
       : anchor;
     if (!interaction) restoreMotion.current = { x: player.x, z: player.z, rot: player.rot };
     setInteraction({ status: "reserved", phase: "reserve", anchor: nextAnchor, startedAt: Date.now() });
