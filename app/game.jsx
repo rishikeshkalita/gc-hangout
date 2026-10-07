@@ -815,7 +815,31 @@ function RemotePlayer({ state }) {
     group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, targetRot.current, alpha);
   });
   const avatar = AVATARS.find((item) => item.id === state.avatarId) || AVATARS[0];
-  return <group ref={group}><HumanAvatar avatar={avatar} name={state.name} moving={state.moving} local={false} pose="idle" /></group>;
+  const pose = state.interactionType === "SLEEP"
+    ? "sleep"
+    : state.interactionType === "SIT"
+      ? (state.seatStyle === "chair" ? "sit-chair" : state.seatStyle === "sofa" ? "sit-sofa" : "sit")
+      : state.interactionType === "EAT"
+        ? "eat"
+        : state.interactionType === "DRINK"
+          ? "drink"
+          : "idle";
+  return (
+    <group ref={group}>
+      <HumanAvatar
+        avatar={avatar}
+        name={state.name}
+        moving={state.moving}
+        local={false}
+        pose={pose}
+        seatStyle={state.seatStyle || null}
+        foodKind={state.foodKind || "pizza"}
+        drinkKind={state.drinkKind || "water"}
+        interactionPhase={state.interactionPhase || "sync"}
+        emote={state.emote || null}
+      />
+    </group>
+  );
 }
 
 function RemotePlayers({ players = [] }) {
