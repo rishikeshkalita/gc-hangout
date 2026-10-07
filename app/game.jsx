@@ -504,7 +504,7 @@ function GraffitiWall() {
 }
 
 function WallPhotoFrame() {
-  const photo = useTexture("/api/gc-photo");
+  const photo = useTexture("/gc-hangout-photo.svg");
   photo.colorSpace = THREE.SRGBColorSpace;
 
   return (
