@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, onPairAction, remotePlayers = [], initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -87,7 +87,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       seatStyle: payload.seatStyle ? String(payload.seatStyle) : null,
       foodKind: payload.foodKind ? String(payload.foodKind) : "pizza",
       drinkKind: payload.drinkKind ? String(payload.drinkKind) : "water",
-      emote: payload.emote ? String(payload.emote) : null,
+      emote: payload.emote ? String(payload.emote) : null,\n      pairAction: payload.pairAction && typeof payload.pairAction === "object" ? payload.pairAction : current.pairAction || null,
       x: Number(payload.x),
       z: Number(payload.z),
       rot: Number(payload.rot) || 0,
@@ -272,6 +272,29 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       };
       setChat((items) => [...items, entry].slice(-40));
       pushChatToast(entry);
+    });
+    channel.on("broadcast", { event: SOCIAL_EVENTS.PAIR_ACTION }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const action = ["fight", "hug", "kiss"].includes(payload?.action) ? payload.action : null;
+      const targetId = String(payload?.targetId || "");
+      const senderId = String(payload?.senderId || "");
+      if (!action || !targetId || !senderId) return;
+      const timestamp = Number(payload.timestamp) || Date.now();
+      if (targetId === clientIdRef.current) {
+        onPairAction?.({ action, partnerId: senderId, until: timestamp + 1800 });
+      }
+      const partner = remotePlayersRef.current.get(senderId);
+      if (partner) {
+        mergeRemotePlayer({ ...partner, senderId, pairAction: { action, partnerId: targetId, until: timestamp + 1800 } });
+      }
+      pushChatToast({
+        id: `pair-${senderId}-${timestamp}`,
+        name: String(payload.name || "Guest").slice(0, 18),
+        message: action === "hug" ? "🤗 hugged someone" : action === "kiss" ? "💋 shared a kiss" : "🥊 started a playful fight",
+        timestamp,
+        local: false,
+        activity: true,
+      });
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.EMOTE }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
@@ -887,6 +910,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     void send(SOCIAL_EVENTS.CHAT, { name: nameRef.current || "You", message, timestamp: entry.timestamp });
   }, [draft, pushChatToast, send]);
 
+  const triggerPairAction = useCallback((action) => {
+    const target = remotePlayers
+      .filter((item) => Math.hypot(Number(item.x) - Number(playerState?.x), Number(item.z) - Number(playerState?.z)) <= 2.8)
+      .sort((a, b) => Math.hypot(Number(a.x) - Number(playerState?.x), Number(a.z) - Number(playerState?.z)) - Math.hypot(Number(b.x) - Number(playerState?.x), Number(b.z) - Number(playerState?.z)))[0];
+    if (!target || !["fight", "hug", "kiss"].includes(action)) return;
+    const until = Date.now() + 1800;
+    onPairAction?.({ action, partnerId: target.id, until });
+    void send(SOCIAL_EVENTS.PAIR_ACTION, { action, targetId: target.id, name: nameRef.current || "Guest", timestamp: Date.now() });
+  }, [onPairAction, playerState?.x, playerState?.z, remotePlayers, send]);
+
   const triggerEmote = useCallback((emote) => {
     const normalized = normalizeEmote(emote);
     if (!normalized) return;
@@ -975,6 +1008,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           <div className="emote-grid">
             {EMOTES.map((emote) => <button key={emote} onClick={() => triggerEmote(emote)}>{emote === "wave" ? "👋 Wave" : emote === "clap" ? "👏 Clap" : "💃 Dance"}</button>)}
           </div>
+          {remotePlayers.some((item) => Math.hypot(Number(item.x) - Number(playerState?.x), Number(item.z) - Number(playerState?.z)) <= 2.8) && (
+            <div className="pair-actions">
+              <span>With nearby player</span>
+              <div className="emote-grid">
+                <button onClick={() => triggerPairAction("hug")}>🤗 Hug</button>
+                <button onClick={() => triggerPairAction("kiss")}>💋 Kiss</button>
+                <button onClick={() => triggerPairAction("fight")}>🥊 Play fight</button>
+              </div>
+            </div>
+          )}
           {emoteFlash && <div className="emote-flash">{emoteFlash === "wave" ? "👋" : emoteFlash === "clap" ? "👏" : "💃"}</div>}
           {remoteEmotes.length > 0 && <div className="remote-emotes">{remoteEmotes.map((item) => <span key={item.id}>{item.name}: {item.emote}</span>)}</div>}
         </section>
