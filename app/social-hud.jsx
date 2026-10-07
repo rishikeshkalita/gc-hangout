@@ -265,6 +265,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       localStreamRef.current = stream;
+      // iOS Safari may interrupt an already-playing media element while opening capture.
       resumeMusicAfterVoice();
       voiceEnabledRef.current = true;
       setVoiceOn(true);
@@ -275,6 +276,8 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
         const state = channel.presenceState();
         for (const peerId of Object.keys(state).filter((id) => id !== clientIdRef.current && clientIdRef.current < id)) await ensurePeer(peerId, true);
       }
+      window.setTimeout(resumeMusicAfterVoice, 80);
+      window.setTimeout(resumeMusicAfterVoice, 350);
     } catch (error) {
       setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
     }
