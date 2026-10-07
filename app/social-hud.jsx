@@ -83,6 +83,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       avatarId: String(payload.avatarId || "maya"),
       interactionType: String(payload.interactionType || ""),
       interactionPhase: String(payload.interactionPhase || "sync"),
+      seatStyle: payload.seatStyle ? String(payload.seatStyle) : null,
+      foodKind: payload.foodKind ? String(payload.foodKind) : "pizza",
+      drinkKind: payload.drinkKind ? String(payload.drinkKind) : "water",
       emote: payload.emote ? String(payload.emote) : null,
       x: Number(payload.x),
       z: Number(payload.z),
@@ -639,13 +642,30 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !musicState.track?.audio) return;
-    audio.src = musicState.track.audio;
-    audio.currentTime = Math.min(musicState.position || 0, Math.max(0, (musicState.track.duration || 1) - 0.2));
+    const sourceChanged = audio.src !== musicState.track.audio;
+    if (sourceChanged) {
+      audio.src = musicState.track.audio;
+      audio.load();
+    }
+    const applyPosition = () => {
+      const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : Number(musicState.track.duration) || 0;
+      const position = Math.max(0, Number(musicState.position) || 0);
+      try { audio.currentTime = duration ? Math.min(position, Math.max(0, duration - 0.2)) : position; } catch {}
+    };
+    if (audio.readyState >= 1) applyPosition();
+    else audio.addEventListener("loadedmetadata", applyPosition, { once: true });
     audio.volume = musicVolume;
     if (musicState.playing) {
-      if (sharedAudioUnlockedRef.current) void audio.play().catch(() => {});
-    } else audio.pause();
-  }, [musicState.track?.id, musicVolume]);
+      if (sharedAudioUnlockedRef.current) {
+        void audio.play().catch(() => {
+          // Safari may reject a remote autoplay attempt; the next user gesture retries it.
+        });
+      }
+    } else {
+      audio.pause();
+    }
+    return () => audio.removeEventListener("loadedmetadata", applyPosition);
+  }, [musicState.track?.id, musicState.track?.audio, musicState.playing, musicState.position, musicVolume]);
 
   useEffect(() => {
     const audio = audioRef.current;
