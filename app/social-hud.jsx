@@ -243,7 +243,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     }
 
     const channel = supabase.channel(`gc-hangout:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
+      config: { private: true, broadcast: { self: true, ack: true }, presence: { key: clientIdRef.current } },
     });
     const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
       config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
@@ -321,7 +321,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMusicState(next);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_REQUEST }, ({ payload }) => {
-      if (payload?.senderId === clientIdRef.current) return;
       if (musicStateRef.current.leaderId !== clientIdRef.current) return;
       const action = String(payload?.action || "");
       const requesterId = String(payload?.senderId || "");
