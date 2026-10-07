@@ -1,4 +1,4 @@
-import { GC_HANGOUT_PHOTO_DATA_URL } from "../../../../lib/gc-hangout-photo.mjs";
+import { GC_HANGOUT_PHOTO_DATA_URL } from "../../../lib/gc-hangout-photo.mjs";
 
 export const dynamic = "force-static";
 
