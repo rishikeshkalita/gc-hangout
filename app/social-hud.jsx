@@ -430,49 +430,49 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       });
     };
 
-    const readPresencePlayers = (state) => {
-      for (const [key, metas] of Object.entries(state || {})) {
-        if (key === clientIdRef.current) continue;
-        const meta = Array.isArray(metas) ? metas[0] : metas;
-        if (meta?.kind === "player") {
-          mergeRemotePlayer({ ...meta, senderId: key });
-        }
-        if (!musicStateRef.current.track && meta?.music) {
-          const next = normalizeMusicState(meta.music);
-          if (next?.track) {
-            if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
-            setMusicState(next);
-          }
+    const syncMusicPresence = (state) => {
+      const ids = new Set(Object.keys(state || {}));
+      ids.add(clientIdRef.current);
+      activePresenceIdsRef.current = ids;
+      const leaderId = [...ids].sort()[0] || clientIdRef.current;
+      const candidates = Object.entries(state || {})
+        .flatMap(([id, metas]) => (Array.isArray(metas) ? metas : [metas]).map((meta) => ({ id, music: normalizeMusicState(meta?.music) })))
+        .map((entry) => entry.music)
+        .filter(Boolean)
+        .sort((a, b) => b.revision - a.revision || b.updatedAt - a.updatedAt);
+      const candidate = candidates[0];
+      if (candidate && candidate.revision >= musicStateRef.current.revision) {
+        setMusicState({ ...candidate, leaderId });
+      } else if (leaderId === clientIdRef.current && musicStateRef.current.leaderId !== leaderId) {
+        const next = normalizeMusicState({ ...musicStateRef.current, leaderId, updatedAt: Date.now() });
+        if (next) {
+          setMusicState(next);
+          void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.MUSIC, payload: { ...next, senderId: clientIdRef.current } });
         }
       }
     };
 
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState();
-      for (const [key, metas] of Object.entries(state || {})) {
-        if (key === clientIdRef.current) continue;
-        const meta = Array.isArray(metas) ? metas[0] : metas;
-        if (!musicStateRef.current.track && meta?.music) {
-          const next = normalizeMusicState(meta.music);
-          if (next?.track) {
-            if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
-            setMusicState(next);
-          }
-        }
-      }
+      syncMusicPresence(state);
       if (!voiceEnabledRef.current) return;
       Object.keys(state)
         .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
         .forEach((id) => void ensurePeer(id, true));
     });
     channel.on("presence", { event: "join" }, ({ key }) => {
+      const state = channel.presenceState();
+      syncMusicPresence(state);
       if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
     });
     channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+      const state = channel.presenceState();
+      syncMusicPresence(state);
       closePeer(key);
       const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
       pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
+
     gameChannel.on("presence", { event: "sync" }, () => {
       const state = gameChannel.presenceState();
       readPresencePlayers(state);
@@ -515,13 +515,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (sessionStartedRef.current || !socialReadyRef.current || !gameReadyRef.current) return;
       sessionStartedRef.current = true;
       const state = playerStateRef.current;
-      const music = musicStateRef.current.track ? {
-        track: musicStateRef.current.track,
-        position: musicStateRef.current.position,
-        playing: musicStateRef.current.playing,
-        volume: musicStateRef.current.volume,
-        updatedAt: musicStateRef.current.updatedAt,
-      } : null;
+      const music = musicStateRef.current;
       await gameChannel.track({
         kind: "player",
         name: nameRef.current || "Guest",
