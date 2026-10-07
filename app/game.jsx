@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Billboard, Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
 import { INTERACTION_PHASE_MS, canReserveInteraction } from "../lib/game-state.mjs";
+import SocialHud from "./social-hud";
 
 const WORLD = { halfX: 15, halfZ: 10, playerRadius: 0.34 };
 const AVATARS = [
@@ -144,7 +145,7 @@ function tryMove(x, z, dx, dz) {
   return { x, z };
 }
 
-function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, foodKind = "pizza", drinkKind = "water", interactionPhase = "sync", pov = "tpp" }) {
+function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = null, foodKind = "pizza", drinkKind = "water", interactionPhase = "sync", pov = "tpp", emote = null }) {
   const group = useRef();
   const visual = useRef();
   const arms = useRef([]);
@@ -166,11 +167,14 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
     const drinking = pose === "drink";
     const gestureCycle = (Math.sin(t * 4.2) + 1) * 0.5;
     const propToMouth = gestureCycle > 0.58;
+    const emoteWave = emote === "wave";
+    const emoteClap = emote === "clap";
+    const emoteDance = emote === "dance";
     const propVisible = gesture && (interactionPhase === "animate" || interactionPhase === "sync");
 
     group.current.position.y = 0;
     group.current.rotation.x = 0;
-    group.current.rotation.z = moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
+    group.current.rotation.z = emoteDance ? Math.sin(t * 7) * 0.055 : moving && !seated ? Math.sin(t * 11) * 0.012 : 0;
     if (visual.current) {
       if (pose === "sleep") {
         visual.current.position.set(0, 1.02, 0.15);
@@ -188,11 +192,11 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
     }
 
     if (arms.current[0]) {
-      arms.current[0].rotation.x = seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
+      arms.current[0].rotation.x = emoteClap ? -0.72 + Math.sin(t * 10) * 0.18 : emoteDance ? -0.38 + Math.sin(t * 7) * 0.55 : seated && !gesture ? (sofaSeat ? -0.18 : -0.24) : gesture ? (eating ? -0.28 : -0.18) : moving ? stride : 0.02 * Math.sin(t * 2.2);
       arms.current[0].rotation.z = gesture ? -0.18 : 0;
     }
     if (arms.current[1]) {
-      arms.current[1].rotation.x = gesture ? (drinking ? (propToMouth ? -1.22 : -0.88) : (propToMouth ? -1.20 : -0.70)) : seated ? (sofaSeat ? -0.22 : -0.28) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
+      arms.current[1].rotation.x = emoteWave ? -1.15 + Math.sin(t * 9) * 0.38 : emoteClap ? -0.72 - Math.sin(t * 10) * 0.18 : emoteDance ? -0.38 - Math.sin(t * 7) * 0.55 : gesture ? (drinking ? (propToMouth ? -1.22 : -0.88) : (propToMouth ? -1.20 : -0.70)) : seated ? (sofaSeat ? -0.22 : -0.28) : moving ? -stride : -0.02 * Math.sin(t * 2.2);
       arms.current[1].rotation.z = gesture ? 0.18 : 0;
       if (eating) arms.current[1].rotation.y = propToMouth ? -0.10 : 0.08;
       if (heldProp.current) {
@@ -267,7 +271,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey, pov }) {
+function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, emote }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -460,7 +464,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
 
   return (
     <group ref={playerGroup}>
-      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} foodKind={interaction?.anchor?.foodKind} drinkKind={interaction?.anchor?.drinkKind} interactionPhase={interaction?.phase} pov={pov} />
+      <HumanAvatar avatar={state.avatar} name={state.name} moving={state.moving} local pose={pose} seatStyle={interaction?.anchor?.seatStyle} foodKind={interaction?.anchor?.foodKind} drinkKind={interaction?.anchor?.drinkKind} interactionPhase={interaction?.phase} pov={pov} emote={emote} />
     </group>
   );
 }
@@ -695,7 +699,7 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState }) {
+function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote }) {
   return (
     <>
       <ambientLight intensity={1.82} />
@@ -721,7 +725,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
       <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} />
+      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} />
     </>
   );
 }
@@ -760,6 +764,7 @@ export default function Game() {
   const [nearby, setNearby] = useState([]);
   const [interaction, setInteraction] = useState(null);
   const [tvState, setTvState] = useState({ track: null });
+  const [emote, setEmote] = useState(null);
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
@@ -829,10 +834,18 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
+      <SocialHud
+        name={name.trim().slice(0, 18) || "You"}
+        onMusicState={useCallback((state) => setTvState({ track: state.track ? { ...state.track, position: state.position } : null }), [])}
+        onEmote={useCallback((next) => {
+          setEmote(next);
+          window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
+        }, [])}
+      />
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
         <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
       )}
