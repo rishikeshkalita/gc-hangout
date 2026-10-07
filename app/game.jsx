@@ -375,7 +375,7 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
     const strafe = touch.active ? -touch.x : keyboardStrafe;
     const magnitude = Math.min(1, Math.hypot(strafe, forward));
 
-    if (!interaction || interaction.phase === "release") {
+    if (!interaction && !emote) {
       if (magnitude > 0.08) {
         const speed = keys.current.has("shift") ? 7.0 : mobile ? 6.2 : 5.0;
         const inputLength = Math.hypot(strafe, forward);
