@@ -873,6 +873,19 @@ Examples:
 - **Verification:** source change requires a fresh iPhone pass before Wave 2 can be marked verified.
 
 
+### Wave 2 iPhone evidence follow-up — 2026-10-07
+
+- **New iPhone screenshots reviewed:** universal interaction control, dining Eat, sofa Sit, chair Sit, and interaction exit states.
+- **Confirmed visual/UX issues:** seated sofa/chair posture still needs another device pass; Eat/Drink currently show a held prop but need a clearer bite/drink motion; the old bottom exit/context popup was still present and is now removed for the main interaction lifecycle.
+- **Universal control correction:** moved the persistent Sit/Sleep/Exit control to the lower-right safe-area region so the future top HUD remains available for chat and other social controls.
+- **Popup correction:** removed the old generic interaction/exit popup from the main lifecycle. Seated Eat remains a dedicated action because it is a secondary activity, not Sit/Sleep.
+- **Movement correction:** fixed the mobile joystick horizontal mapping so physical left maps left and physical right maps right; increased movement speed again for mobile/desktop.
+- **Animation correction:** seated offsets were refined separately for sofas/chairs; Eat/Drink now animate the held prop toward the mouth during the gesture cycle rather than leaving it static in the hand.
+- **Current implementation commits:** f94723c131b04df01f6e3347957b3001009da5dc, 2cf256d68eb8baa824befa2f997b83e0c29db4d6, 663e5d1f1ff58a8e7d926f8cd42e56ae96872b82.
+- **Deployment:** 0 new Vercel deployment attempts.
+- **Verification:** automated verification pending for this latest source; fresh iPhone verification required.
+- **Gate:** Wave 2 remains **NOT VERIFIED**. Do not start Wave 3 until joystick direction, universal Sit/Sleep/Exit, sofa/chair posture, dining Eat/Drink, all seat entry/exit paths, and Sleep are re-tested on device.
+
 ### Wave update format
 
 For every wave, record:
