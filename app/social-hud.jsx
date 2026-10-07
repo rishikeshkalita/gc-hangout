@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false, playerState = null, onRemotePlayers, initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -64,6 +64,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
   const remotePlayersRef = useRef(new Map());
+  const lastActivityInteractionRef = useRef("");
 
   const mergeRemotePlayer = useCallback((payload) => {
     if (!payload || payload.senderId === clientIdRef.current) return;
@@ -100,6 +101,44 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     if (!channel) return;
     await channel.send({ type: "broadcast", event, payload: { ...payload, senderId: clientIdRef.current } });
   }, []);
+
+
+  const pushActivity = useCallback((message, icon = "•") => {
+    const text = String(message || "").trim().slice(0, 140);
+    if (!text) return;
+    const entry = {
+      id: `activity-${clientIdRef.current}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: nameRef.current || "You",
+      message: `${icon} ${text}`,
+      timestamp: Date.now(),
+      local: true,
+      activity: true,
+    };
+    pushChatToast(entry);
+    void send(SOCIAL_EVENTS.ACTIVITY, { name: entry.name, message: text, icon, timestamp: entry.timestamp });
+  }, [pushChatToast, send]);
+
+  const interactionActivity = useMemo(() => {
+    if (!interaction?.anchor || interaction.status !== "active") return null;
+    const labels = {
+      SIT: ["is sitting down", "🪑"],
+      EAT: ["is eating", "🥪"],
+      DRINK: ["is having a drink", "🥤"],
+      WATCH_TV: ["is watching TV", "📺"],
+      MUSIC_SPEAKER: ["is using the speaker", "🔊"],
+      SLEEP: ["is resting", "💤"],
+      INTERACT: ["is interacting", "✨"],
+    };
+    return labels[interaction.anchor.type] || null;
+  }, [interaction]);
+
+  useEffect(() => {
+    if (!interactionActivity) return;
+    const key = interaction?.anchor?.id || interaction.anchor.type;
+    if (lastActivityInteractionRef.current === key) return;
+    lastActivityInteractionRef.current = key;
+    pushActivity(interactionActivity[0], interactionActivity[1]);
+  }, [interaction, interactionActivity, pushActivity]);
 
   const closePeer = useCallback((peerId) => {
     const pc = peersRef.current.get(peerId);
@@ -180,7 +219,20 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
       mergeRemotePlayer(payload);
     });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.CHAT }, ({ payload }) => {
+    channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const message = String(payload?.message || "").trim().slice(0, 140);
+      if (!message) return;
+      pushChatToast({
+        id: `activity-${payload.senderId || "remote"}-${payload.timestamp || Date.now()}`,
+        name: String(payload.name || "Guest").slice(0, 18),
+        message: `${String(payload.icon || "•")} ${message}`,
+        timestamp: Number(payload.timestamp) || Date.now(),
+        local: false,
+        activity: true,
+      });
+    });
+    channel.on("broadcast", { event: SOCIAL_EVENTS.CHAT }, ({ payload }) =>
       if (payload?.senderId === clientIdRef.current) return;
       const message = sanitizeChatMessage(payload?.message);
       if (!message) return;
@@ -199,6 +251,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       const emote = normalizeEmote(payload?.emote);
       if (!emote) return;
       setRemoteEmotes((items) => [...items, { id: `${Date.now()}-${Math.random()}`, name: payload.name || "Guest", emote }].slice(-5));
+      pushChatToast({ id: `emote-${payload.senderId || "remote"}-${payload.timestamp || Date.now()}`, name: String(payload.name || "Guest").slice(0, 18), message: `${emote === "dance" ? "💃" : emote === "clap" ? "👏" : "👋"} is doing ${emote}`, timestamp: Number(payload.timestamp) || Date.now(), local: false, activity: true });
       window.setTimeout(() => setRemoteEmotes((items) => items.slice(1)), 2600);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC }, ({ payload }) => {
@@ -206,6 +259,18 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       const next = normalizeMusicState(payload);
       if (next) {
         if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
+        const previous = musicStateRef.current;
+        if (next.track?.id !== previous.track?.id || next.playing !== previous.playing) {
+          const title = next.track?.title ? ` “${next.track.title}”` : "";
+          pushChatToast({
+            id: `music-${payload.senderId || "remote"}-${payload.updatedAt || Date.now()}`,
+            name: String(payload.senderName || payload.name || "Guest").slice(0, 18),
+            message: next.playing ? `🎵 started music${title}` : "⏸️ paused the music",
+            timestamp: Number(payload.updatedAt) || Date.now(),
+            local: false,
+            activity: true,
+          });
+        }
         setMusicState(next);
       }
     });
@@ -400,6 +465,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       setVoiceOn(false);
       setMuted(false);
       setVoiceStatus("Tap mic to join voice");
+      pushActivity("left voice", "🎙️");
       resumeMusicAfterVoice();
       return;
     }
@@ -409,6 +475,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       voiceEnabledRef.current = true;
       setVoiceOn(true);
       setVoiceStatus("Voice connected");
+      pushActivity("joined voice", "🎙️");
       const channel = channelRef.current;
       if (channel) {
         await channel.track({ name: nameRef.current, voice: true });
@@ -423,7 +490,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     } catch (error) {
       setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
     }
-  }, [captureMusicPlayback, ensurePeer, resumeMusicAfterVoice, voiceOn]);
+  }, [captureMusicPlayback, ensurePeer, pushActivity, resumeMusicAfterVoice, voiceOn]);
 
   const toggleMute = useCallback(() => {
     const next = !muted;
@@ -513,7 +580,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       void send(SOCIAL_EVENTS.MUSIC, next);
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [musicVolume, send]);
+  }, [musicVolume, pushActivity, send]);
 
   useEffect(() => {
     const channel = channelRef.current;
@@ -595,7 +662,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     const normalized = normalizeMusicState({ ...next, volume: next.volume ?? musicVolume, senderId: clientIdRef.current });
     if (!normalized) return;
     setMusicState(normalized);
-    void send(SOCIAL_EVENTS.MUSIC, normalized);
+    const title = normalized.track?.title ? ` “${normalized.track.title}”` : "";
+    pushActivity(normalized.playing ? `started music${title}` : "paused the music", normalized.playing ? "🎵" : "⏸️");
+    void send(SOCIAL_EVENTS.MUSIC, { ...normalized, senderName: nameRef.current || "You" });
   }, [musicVolume, send]);
 
   const selectTrack = useCallback((track) => {
@@ -604,7 +673,9 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
 
   const toggleMusic = useCallback(() => {
     if (musicState.track?.local) {
-      setMusicState((state) => ({ ...state, playing: !state.playing, position: audioRef.current?.currentTime || state.position, updatedAt: Date.now(), senderId: clientIdRef.current }));
+      const nextPlaying = !musicState.playing;
+      setMusicState((state) => ({ ...state, playing: nextPlaying, position: audioRef.current?.currentTime || state.position, updatedAt: Date.now(), senderId: clientIdRef.current }));
+      pushActivity(nextPlaying ? "started music" : "paused the music", nextPlaying ? "🎵" : "⏸️");
       return;
     }
     if (!musicState.track) {
@@ -612,7 +683,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
       return;
     }
     publishMusic({ ...musicStateRef.current, playing: !musicStateRef.current.playing, position: audioRef.current?.currentTime || musicStateRef.current.position, updatedAt: Date.now() });
-  }, [publishMusic, selectTrack, tracks]);
+  }, [musicState.playing, publishMusic, pushActivity, selectTrack, tracks]);
 
   const setMusicVolume = useCallback((value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
@@ -649,9 +720,10 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     if (!normalized) return;
     setEmoteFlash(normalized);
     onEmote?.(normalized);
+    pushActivity(`is doing ${normalized}`, normalized === "dance" ? "💃" : normalized === "clap" ? "👏" : "👋");
     void send(SOCIAL_EVENTS.EMOTE, { name: nameRef.current || "You", emote: normalized, timestamp: Date.now() });
     window.setTimeout(() => setEmoteFlash((current) => current === normalized ? null : current), 1800);
-  }, [onEmote, send]);
+  }, [onEmote, pushActivity, send]);
 
   const chatRows = useMemo(() => chat.slice(-12), [chat]);
 
@@ -659,7 +731,7 @@ export default function SocialHud({ name, onMusicState, onEmote, speakerActive =
     <>
       <audio ref={audioRef} preload="auto" />
       <div className="chat-toasts" aria-live="polite">
-        {chatToasts.map((item) => <div className="chat-toast" key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
+        {chatToasts.map((item) => <div className={`chat-toast ${item.activity ? "activity" : ""}`} key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
       </div>
       {speakerControlActive && (
         <label className="speaker-volume" aria-label={`Speaker volume ${Math.round(musicVolume * 100)} percent`}>
