@@ -614,6 +614,160 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
 
+  const ensureYouTubeApi = useCallback(() => {
+    if (typeof window === "undefined") return Promise.reject(new Error("Browser required"));
+    if (window.YT?.Player) return Promise.resolve(window.YT);
+    if (youtubeApiPromiseRef.current) return youtubeApiPromiseRef.current;
+    youtubeApiPromiseRef.current = new Promise((resolve, reject) => {
+      const previous = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        previous?.();
+        if (window.YT?.Player) resolve(window.YT);
+        else reject(new Error("YouTube IFrame API unavailable"));
+      };
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      script.async = true;
+      script.onerror = () => reject(new Error("Could not load YouTube IFrame API"));
+      document.head.appendChild(script);
+    });
+    return youtubeApiPromiseRef.current;
+  }, []);
+
+  const sendMusicRequest = useCallback(async (action, payload = {}) => {
+    const channel = channelRef.current;
+    if (!channel || !socialReadyRef.current) return false;
+    return channel.send({
+      type: "broadcast",
+      event: SOCIAL_EVENTS.MUSIC_REQUEST,
+      payload: { action, ...payload, senderId: clientIdRef.current },
+    });
+  }, []);
+
+  useEffect(() => {
+    const channel = channelRef.current;
+    if (!channel || !socialReadyRef.current) return;
+    const ids = new Set(Object.keys(channel.presenceState() || {}));
+    ids.add(clientIdRef.current);
+    activePresenceIdsRef.current = ids;
+    const leaderId = [...ids].sort()[0] || clientIdRef.current;
+    if (leaderId === clientIdRef.current && musicStateRef.current.leaderId !== leaderId) {
+      const next = normalizeMusicState({ ...musicStateRef.current, leaderId, updatedAt: Date.now() });
+      if (next) {
+        setMusicState(next);
+        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.MUSIC, payload: { ...next, senderId: clientIdRef.current } });
+      }
+    }
+  }, [musicState.revision, musicState.leaderId]);
+
+  useEffect(() => {
+    let disposed = false;
+    const track = musicState.current;
+    if (!track) {
+      youtubePlayerRef.current?.destroy?.();
+      youtubePlayerRef.current = null;
+      youtubeReadyRef.current = false;
+      youtubeLoadedVideoRef.current = "";
+      return undefined;
+    }
+    void ensureYouTubeApi().then((YT) => {
+      if (disposed || !youtubeContainerRef.current) return;
+      if (!youtubePlayerRef.current) {
+        youtubePlayerRef.current = new YT.Player(youtubeContainerRef.current, {
+          width: "100%",
+          height: "100%",
+          videoId: track.videoId,
+          playerVars: { playsinline: 1, controls: 1, rel: 0, enablejsapi: 1 },
+          events: {
+            onReady: (event) => {
+              youtubeReadyRef.current = true;
+              youtubeLoadedVideoRef.current = track.videoId;
+              event.target.setVolume(Math.round(musicVolume * 100));
+              const expected = currentMusicPosition(musicStateRef.current);
+              if (expected > 0.5) event.target.seekTo(expected, true);
+              if (musicStateRef.current.playing && sharedAudioUnlockedRef.current) event.target.playVideo();
+            },
+            onAutoplayBlocked: () => setMusicStatus("Tap the YouTube player or Play to enable room audio."),
+            onStateChange: (event) => {
+              const current = musicStateRef.current;
+              if (event.data === YT.PlayerState.ENDED) {
+                void sendMusicRequest("ended", { revision: current.revision });
+                return;
+              }
+              if (youtubeProgrammaticRef.current) return;
+              if (event.data === YT.PlayerState.PAUSED && current.playing) {
+                void sendMusicRequest("toggle");
+              } else if (event.data === YT.PlayerState.PLAYING && !current.playing) {
+                void sendMusicRequest("toggle");
+              }
+            },
+            onError: (event) => {
+              const code = Number(event.data);
+              if ([2, 5, 100, 101, 150, 153].includes(code)) {
+                setMusicStatus("That YouTube video cannot play in the shared player.");
+                void sendMusicRequest("ended", { revision: musicStateRef.current.revision });
+              }
+            },
+          },
+        });
+      } else if (youtubeLoadedVideoRef.current !== track.videoId) {
+        youtubeProgrammaticRef.current = true;
+        youtubeLoadedVideoRef.current = track.videoId;
+        youtubePlayerRef.current.loadVideoById({ videoId: track.videoId, startSeconds: currentMusicPosition(musicStateRef.current) });
+        window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 500);
+      }
+    }).catch(() => setMusicStatus("YouTube player could not load."));
+    return () => { disposed = true; };
+  }, [ensureYouTubeApi, musicState.current?.videoId, sendMusicRequest, musicVolume]);
+
+  useEffect(() => {
+    const player = youtubePlayerRef.current;
+    const state = musicStateRef.current;
+    if (!player || !youtubeReadyRef.current || !state.current) return;
+    youtubeProgrammaticRef.current = true;
+    player.setVolume(Math.round(musicVolume * 100));
+    const expected = currentMusicPosition(state);
+    const actual = Number(player.getCurrentTime?.() || 0);
+    if (Math.abs(expected - actual) > 1) player.seekTo(expected, true);
+    if (state.playing) {
+      if (sharedAudioUnlockedRef.current) player.playVideo();
+    } else {
+      player.pauseVideo();
+    }
+    window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 120);
+  }, [musicState.revision, musicState.playing, musicState.current?.videoId, musicVolume]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const player = youtubePlayerRef.current;
+      const state = musicStateRef.current;
+      if (!player || !youtubeReadyRef.current || !state.current || !state.playing) return;
+      const expected = currentMusicPosition(state);
+      const actual = Number(player.getCurrentTime?.() || 0);
+      if (Math.abs(expected - actual) > 1) {
+        youtubeProgrammaticRef.current = true;
+        player.seekTo(expected, true);
+        window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 120);
+      }
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const unlock = () => {
+      sharedAudioUnlockedRef.current = true;
+      if (youtubePlayerRef.current && musicStateRef.current.playing) youtubePlayerRef.current.playVideo?.();
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("touchstart", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
       voiceEnabledRef.current = false;
