@@ -35,6 +35,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [musicSearch, setMusicSearch] = useState("lounge");
   const [musicState, setMusicState] = useState({ track: null, position: 0, playing: false, volume: 0.8, updatedAt: Date.now(), senderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const speakerControlActive = Boolean(
     speakerActive &&
@@ -775,29 +776,53 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     return () => audio.removeEventListener("ended", ended);
   }, [send]);
 
-  const addLocalAudio = useCallback((file) => {
-    if (!file) return;
+  const addLocalAudio = useCallback(async (file) => {
+    if (!file || uploadBusy) return;
     const accepted = /^audio\/(mpeg|wav|x-wav|mp4|aac|ogg|webm)$/.test(file.type) || /\.(mp3|wav|m4a|aac|ogg|webm)$/i.test(file.name);
     if (!accepted) return;
-    if (localAudioUrlRef.current) URL.revokeObjectURL(localAudioUrlRef.current);
-    const url = URL.createObjectURL(file);
-    localAudioUrlRef.current = url;
-    setMusicState({
-      track: {
-        id: `local-${clientIdRef.current}-${Date.now()}`,
+    if (file.size > 25 * 1024 * 1024) {
+      pushChatToast({ id: `upload-size-${Date.now()}`, name: "Music", message: "File must be 25 MB or smaller.", timestamp: Date.now(), local: true, activity: true });
+      return;
+    }
+    const supabase = supabaseRef.current;
+    if (!supabase || !SUPABASE_URL || !SUPABASE_KEY) return;
+    setUploadBusy(true);
+    try {
+      const extension = (file.name.match(/\.([^.]+)$/)?.[1] || "mp3").toLowerCase().replace("jpeg", "jpg");
+      const safeBase = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "song";
+      const path = `${clientIdRef.current}/${Date.now()}-${safeBase}.${extension}`;
+      const response = await fetch(`${SUPABASE_URL}/storage/v1/object/gc-hangout-music/${encodeURIComponent(path).replace(/%2F/g, "/")}`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": file.type || "application/octet-stream",
+          "x-upsert": "false",
+        },
+        body: file,
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(detail || `Upload failed (${response.status})`);
+      }
+      const audio = `${SUPABASE_URL}/storage/v1/object/public/gc-hangout-music/${path.split("/").map(encodeURIComponent).join("/")}`;
+      const track = {
+        id: `shared-${clientIdRef.current}-${Date.now()}`,
         title: file.name.replace(/\.[^.]+$/, "").slice(0, 100),
-        artist: "Local file",
-        album: "This device",
-        audio: url,
+        artist: nameRef.current || "Guest",
+        album: "GC Hangout",
+        audio,
         duration: 0,
-        local: true,
-      },
-      position: 0,
-      playing: true,
-      updatedAt: Date.now(),
-      senderId: clientIdRef.current,
-    });
-  }, []);
+        shared: true,
+      };
+      publishMusic({ track, position: 0, playing: true, updatedAt: Date.now() });
+    } catch (error) {
+      console.error("GC Hangout music upload failed", error);
+      pushChatToast({ id: `upload-error-${Date.now()}`, name: "Music", message: "Could not share that song. Try again.", timestamp: Date.now(), local: true, activity: true });
+    } finally {
+      setUploadBusy(false);
+    }
+  }, [publishMusic, pushChatToast, uploadBusy]);
 
   const publishMusic = useCallback((next) => {
     sharedAudioUnlockedRef.current = true;
@@ -914,7 +939,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search music" inputMode="search" enterKeyHint="search" />
             <button type="submit" disabled={musicBusy}>{musicBusy ? "…" : "Search"}</button>
           </form>
-          <label className="add-song">＋ Add Song<input type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,.webm,audio/*" onChange={(event) => addLocalAudio(event.target.files?.[0])} /></label>
+          <label className="add-song">＋ {uploadBusy ? "Sharing…" : "Add Song"}<input type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,.webm,audio/*" onChange={(event) => { void addLocalAudio(event.target.files?.[0]); event.target.value = ""; }} /></label>
           <div className="track-list">
             {tracks.slice(0, 8).map((track) => (
               <button key={track.id} className={musicState.track?.id === track.id ? "track selected" : "track"} onClick={() => selectTrack(track)}>
@@ -923,7 +948,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             ))}
             {!tracks.length && <div className="social-empty">No playable tracks found.</div>}
           </div>
-          <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Add Song plays a local MP3/WAV/M4A/AAC/OGG/WebM file on this device.</small>
+          <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Custom songs upload to the shared room, so every player hears the same song.</small>
         </section>
       )}
 
