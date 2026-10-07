@@ -627,6 +627,30 @@ function DiningBar() {
   );
 }
 
+function TVScreen({ watching = false, track = null }) {
+  const title = track?.title || "NO TRACK PLAYING";
+  const artist = track?.artist || "GC HANGOUT TV";
+  const status = watching ? "WATCHING" : "TV READY";
+  const progress = track?.duration > 0 ? Math.min(1, Math.max(0, Number(track.position || 0) / Number(track.duration))) : 0;
+
+  return (
+    <group position={[0, 2.2, -8.92]}>
+      <mesh><planeGeometry args={[8.05, 2.34]} /><meshBasicMaterial color="#111827" /></mesh>
+      <Text position={[0, 0.48, 0.03]} fontSize={0.28} color="#e7e9ff" anchorX="center">{status}</Text>
+      <Text position={[0, 0.08, 0.03]} fontSize={0.36} color="#ffffff" anchorX="center" maxWidth={7.2}>{title}</Text>
+      <Text position={[0, -0.34, 0.03]} fontSize={0.19} color="#aeb6d5" anchorX="center" maxWidth={7}>{artist}</Text>
+      <mesh position={[0, -0.67, 0.03]}>
+        <planeGeometry args={[5.7, 0.055]} />
+        <meshBasicMaterial color="#4b5563" />
+      </mesh>
+      <mesh position={[-2.85 + 2.85 * progress, -0.67, 0.04]}>
+        <circleGeometry args={[0.075, 12]} />
+        <meshBasicMaterial color="#d8ceff" />
+      </mesh>
+    </group>
+  );
+}
+
 function Furniture() {
   return (
     <group>
@@ -671,7 +695,7 @@ function Furniture() {
   );
 }
 
-function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov }) {
+function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState }) {
   return (
     <>
       <ambientLight intensity={1.82} />
@@ -691,6 +715,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <mesh position={[0, 4.85, 0]}><boxGeometry args={[28.5, 0.12, 18.5]} /><meshStandardMaterial color="#1d222c" roughness={1} /></mesh>
 
       <Furniture />
+      <TVScreen watching={interaction?.anchor?.type === "WATCH_TV"} track={tvState?.track} />
       <WallPhotoFrame />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
@@ -734,6 +759,7 @@ export default function Game() {
   const [pov, setPov] = useState("tpp");
   const [nearby, setNearby] = useState([]);
   const [interaction, setInteraction] = useState(null);
+  const [tvState, setTvState] = useState({ track: null });
   const [joystick, setJoystick] = useState({ x: 0, y: 0, active: false });
   const joystickRef = useRef({ x: 0, y: 0, active: false });
   const restoreMotion = useRef({ x: 0, z: 1.5, rot: Math.PI });
@@ -741,7 +767,7 @@ export default function Game() {
 
   const avatar = useMemo(() => AVATARS.find((item) => item.id === avatarId) || AVATARS[0], [avatarId]);
 
-  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK");
+  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK" || anchor.type === "WATCH_TV");
   const universalActive = Boolean(interaction);
 
   const beginInteraction = (anchor) => {
@@ -793,10 +819,17 @@ export default function Game() {
     setPlayer((prev) => ({ ...prev, name: name.trim().slice(0, 18) || "You", avatar }));
   }, [name, avatar]);
 
+  useEffect(() => {
+    setTvState((current) => ({
+      ...current,
+      watching: interaction?.anchor?.type === "WATCH_TV",
+    }));
+  }, [interaction?.anchor?.type]);
+
   return (
     <main className="game-shell">
       <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 55 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} />
+        <Room player={player} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
@@ -865,10 +898,10 @@ export default function Game() {
           }
           if (universalInteraction) beginInteraction(universalInteraction);
         }}
-        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : "Sit"}
-        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : "Sit"}
+        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
+        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
       >
-        {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : "♙"}
+        {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : "♙"}
       </button>
 
       <button className="pov-toggle" onPointerDown={(event) => event.stopPropagation()} onClick={() => setPov((value) => value === "tpp" ? "fpp" : "tpp")} aria-label={pov === "tpp" ? "Switch to first person view" : "Switch to third person view"}>{pov === "tpp" ? "FPP" : "TPP"}</button>
