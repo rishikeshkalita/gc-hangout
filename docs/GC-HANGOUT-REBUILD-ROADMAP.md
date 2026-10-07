@@ -946,3 +946,9 @@ For every wave, record:
 - Latest fix commit: `025841b3549c9518a58f0f5631f11946110d68e0`.
 - Vercel preview deployments are intentionally disabled for development. Do not create preview deployments during implementation. Remote deployment is reserved for an explicit real-device verification need.
 - Required next acceptance: verify joystick left/right, sofa/chair seated posture, seated eating animation, universal Sit/Sleep control, safe exit from every interaction, and bed sleep/exit on a fresh build. No Wave 3 work until these pass.
+
+
+### 2026-10-07 — seating coordinate-system correction
+- Screenshots confirmed the sofa and dining chairs were physically floating because their primitive bases were authored above floor level. Previous avatar offsets were compensating for that error and therefore could not produce stable seating.
+- Structural fix: furniture is now grounded at floor level; seated avatar roots are derived from the corrected seat heights; seated legs and shoes use an explicit forward foot position.
+- Wave 2 remains **NOT VERIFIED** until fresh iPhone acceptance confirms grounded furniture, natural sitting, seated eating, horizontal joystick direction, and safe interaction exits.
