@@ -26,7 +26,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote }) {
+export default function SocialHud({ name, onMusicState, onEmote, speakerActive = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -54,10 +54,22 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
   const remoteStreamsRef = useRef(new Map());
   const localAudioUrlRef = useRef(null);
   const voiceEnabledRef = useRef(false);
+  const keepMusicAliveRef = useRef(false);
   const nameRef = useRef(name);
 
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => { musicStateRef.current = musicState; onMusicState?.(musicState); }, [musicState, onMusicState]);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+    audio.setAttribute("playsinline", "");
+    const recover = () => {
+      if (!keepMusicAliveRef.current || !musicStateRef.current.playing) return;
+      window.setTimeout(() => { void audio.play().catch(() => {}); }, 40);
+    };
+    audio.addEventListener("pause", recover);
+    return () => audio.removeEventListener("pause", recover);
+  }, []);
 
   const pushChatToast = useCallback((entry) => {
     const toast = { ...entry, toastId: `${entry.id}-toast` };
@@ -249,6 +261,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
 
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
+      keepMusicAliveRef.current = false;
       voiceEnabledRef.current = false;
       const channel = channelRef.current;
       if (channel) void channel.track({ name: nameRef.current, voice: false });
@@ -263,6 +276,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       return;
     }
     try {
+      keepMusicAliveRef.current = Boolean(musicStateRef.current.track && musicStateRef.current.playing);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       localStreamRef.current = stream;
       // iOS Safari may interrupt an already-playing media element while opening capture.
@@ -502,6 +516,13 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
             {!tracks.length && <div className="social-empty">No playable tracks found.</div>}
           </div>
           <small className="social-note">Catalog: Jamendo. Shared provider tracks sync through the room. Add Song plays a local MP3/WAV/M4A/AAC/OGG/WebM file on this device.</small>
+        </section>
+      )}
+
+      {speakerActive && (
+        <section className="speaker-volume" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="speaker-volume-head"><span>🔊 Speaker</span><strong>{Math.round(musicVolume * 100)}%</strong></div>
+          <input aria-label={`Speaker volume ${Math.round(musicVolume * 100)} percent`} type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(event.target.value)} />
         </section>
       )}
 
