@@ -374,72 +374,152 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 ---
 
-## WAVE 4 — MUSIC + CHAT + VOICE + EMOTES
+## WAVE 4 — SHARED MUSIC + CHAT + VOICE + EMOTES
 
-**Goal:** build the complete local social feature set before multiplayer synchronization.
+**Goal:** replace the unreliable device-local music architecture with a genuinely shared, live-synchronized room music system, while keeping voice chat completely independent from music.
 
-### Implementation completed
+### Final music architecture — YouTube shared jukebox
 
-- [x] Supabase Realtime room channel for ephemeral social events.
-- [x] Shared provider music state with play/pause/position synchronization.
-- [x] Music volume is controlled through the in-world floor speaker; the volume UI appears only while interacting with that speaker.
-- [x] Jamendo search through the existing legitimate provider route.
-- [x] Provider fallback and playable-track validation.
-- [x] Next-track control.
-- [x] Local Add Song picker for MP3/WAV/M4A/AAC/OGG/WebM with MIME/extension validation.
-- [x] Local selected-audio playback without pretending a device blob URL is remotely shareable.
-- [x] Compact chat composer with 16px mobile-safe input.
-- [x] Temporary non-blocking chat notifications positioned at the top safe area, with automatic fade/removal.
-- [x] WebRTC voice transport with Supabase Realtime signaling.
-- [x] Music resume retries when microphone capture interrupts iOS Safari playback.
-- [x] Microphone permission handling and mute/unmute.
-- [x] Voice teardown/presence cleanup.
-- [x] Wave / clap / dance emotes.
-- [x] Emote movement lock and return to normal movement.
-- [x] TV follows the current shared music metadata/position.
+**Decision:** manual/local audio upload is removed completely from the product plan. GC Hangout uses YouTube as the primary and only music source for this wave.
 
-### Add Song
+- [ ] Remove the old local MP3/WAV/M4A/AAC/OGG/WebM picker and device-local Blob/object-URL playback path.
+- [ ] Remove the old local/shared-audio upload UI and storage-backed music upload path.
+- [ ] Add YouTube search using the official YouTube Data API.
+- [ ] Add an official YouTube embedded player for room playback.
+- [ ] Store only portable YouTube metadata in shared room state: videoId, title, artist/channel, requester, playback state, room clock, and revision.
+- [ ] Every connected client loads the same YouTube video.
+- [ ] Synchronize playback from an authoritative room clock rather than trusting any individual device.
+- [ ] Periodically correct playback drift; avoid continuous seek loops.
+- [ ] Keep a monotonic/revisioned room state so stale client events cannot overwrite newer music state.
+- [ ] A song ending on multiple clients must advance the queue only once for that room revision.
+- [ ] If YouTube rejects a video as unavailable/not embeddable, reject it from the queue and let the requester choose another.
+- [ ] Handle browser autoplay restrictions honestly with an explicit “Tap to enable room audio” / resume action when required.
+- [ ] Keep YouTube player presentation compliant with YouTube embedded-player requirements; do not extract or hide YouTube audio as a separate backend stream.
 
-- [x] Real audio file picker.
-- [x] MP3.
-- [x] WAV.
-- [x] M4A.
-- [x] AAC.
-- [x] OGG.
-- [x] WebM where supported.
-- [x] Correct audio MIME/extension handling.
-- [x] Selected local audio plays on the current device.
-- [ ] Uploaded/shared audio asset pipeline — deferred until a storage-backed shared asset path is required.
+### Shared queue — no controller/DJ
+
+There is **no permanent controller**. Every player participates in the room jukebox.
+
+- [ ] Any player can search YouTube.
+- [ ] Any player can add a song to the shared queue.
+- [ ] Queue shows requester and song metadata.
+- [ ] Queue has a bounded maximum length.
+- [ ] Each player has a small pending-song limit to prevent spam.
+- [ ] Duplicate videos are rejected while already current/queued.
+- [ ] Current song automatically advances to the next queue item when playback ends.
+- [ ] No client independently decides the next song.
+- [ ] Queue advancement is authoritative and idempotent.
+
+### Skip voting
+
+- [ ] Any player can vote to skip the current song.
+- [ ] One vote per player per current-song revision.
+- [ ] Skip when **3 unique players vote**, or when **more than 50% of active players** vote.
+- [ ] Duplicate votes are ignored.
+- [ ] Skip votes reset automatically when the current-song revision changes.
+- [ ] A successful skip advances the queue exactly once.
+- [ ] The skip decision is authoritative in shared room state.
+
+### Music + voice coexistence
+
+Voice chat is a completely separate subsystem.
+
+- [ ] YouTube music lifecycle never tears down microphone tracks or WebRTC peers.
+- [ ] Microphone permission/start/stop never destroys or replaces the music player.
+- [ ] Voice mute/unmute never changes shared music state.
+- [ ] Multiple players can speak while the shared song continues playing.
+- [ ] Browser audio recovery must not accidentally publish a shared pause.
+- [ ] Local browser autoplay/audio restrictions remain local to that device; they must not pause the room for everyone.
+
+### Physical music speaker
+
+- [ ] Keep the physical 3D music speaker on the floor, away from the TV.
+- [ ] Speaker is the room's music interaction station, not a controller.
+- [ ] Nearby interaction opens the music/queue/volume controls.
+- [ ] Volume UI is not permanently visible.
+- [ ] Shared room volume changes apply to all clients' YouTube players.
+- [ ] Hardware/system/browser volume remains local and cannot be remotely controlled.
+- [ ] Speaker lighting/glow/pulse reacts to music playback.
+
+### TV + music display
+
+- [ ] TV displays current shared YouTube song metadata.
+- [ ] GC HANGOUT branding remains readable.
+- [ ] TV READY / WATCHING status has its own visual region.
+- [ ] Long titles truncate/wrap safely.
+- [ ] Artist remains readable.
+- [ ] Progress display does not overlap metadata.
+- [ ] Mobile layout has no text collisions.
+
+### Chat
+
+- [ ] Compact temporary chat notifications near the top safe area.
+- [ ] Sender + message are visible.
+- [ ] Toasts fade and remove automatically.
+- [ ] Compact control opens full chat/history.
+- [ ] No permanent bottom chat panel.
+- [ ] Chat does not interfere with joystick/camera gestures.
+- [ ] iPhone Safari input remains mobile-safe.
+
+### Voice
+
+- [ ] WebRTC voice transport with Supabase Realtime signaling.
+- [ ] Microphone permission handling.
+- [ ] Mute/unmute.
+- [ ] Voice presence/teardown cleanup.
+- [ ] Voice failure remains non-blocking to the room.
+- [ ] Music and voice are tested simultaneously on two devices.
+
+### Emotes / social feedback
+
+- [ ] Wave.
+- [ ] Clap.
+- [ ] Dance.
+- [ ] Emote movement lock and return to normal movement.
+- [ ] Remote emotes are visible to other players.
+- [ ] Pair actions such as hug/kiss/fight are shared events with visible animation on both participants.
 
 ### Gate
 
-- [x] Music provider integration is implemented.
-- [x] Search works in source/runtime path.
-- [x] Play/pause/next/current-position controls are implemented.
-- [x] Add Song local picker/playback is implemented.
-- [x] Chat composer and temporary notifications are implemented.
-- [x] Voice transport, permission, mute/unmute, and teardown are implemented.
-- [x] Emotes animate and temporarily lock movement.
-- [ ] Automated tests/build execution independently observed for this wave.
-- [ ] Fresh iPhone/browser acceptance of chat/music/voice/emotes.
-- [ ] Two-client voice/music/chat acceptance.
-- [ ] **Status: NOT VERIFIED**
+- [ ] YouTube search works.
+- [ ] A can add a YouTube song and B sees the same shared queue/current song.
+- [ ] A and B play the same video from the same room clock.
+- [ ] Playback drift is corrected without seek/playback jitter.
+- [ ] Song end advances exactly once.
+- [ ] Skip voting works with 3 unique votes and majority fallback.
+- [ ] Any player can queue songs; no controller is required.
+- [ ] Shared volume changes affect all clients while local hardware volume remains local.
+- [ ] Voice remains active while music is playing.
+- [ ] Voice join/leave/mute does not stop or reset shared music.
+- [ ] Chat delivery/toasts work on two clients.
+- [ ] Emotes and pair actions are visible remotely.
+- [ ] TV metadata remains readable on mobile.
+- [ ] Fresh two-device real-device acceptance passes.
+- [ ] **Status: NOT VERIFIED** until the above behavior is observed live.
 
-### 2026-10-07 — Wave 4 polish pass — 2026-10-07
+### Architecture invariants
 
-- TV track metadata is constrained to stable single-line regions to prevent title/artist flooding.
-- Chat toasts are centered at the top safe area instead of competing with the joystick/social toolbar.
-- Microphone startup retries active music playback after iOS Safari capture interruption without changing shared play/pause state.
-- Added a regression test for shared music volume clamping.
+These are hard rules for the implementation:
 
-### 2026-10-07 — Wave 4 implementation record
+1. **Room state is authoritative; no individual client owns the queue.**
+2. **Music state is revisioned; stale events cannot roll the room backward.**
+3. **Queue advancement is idempotent; multiple ENDED reports cannot skip multiple songs.**
+4. **Synchronization uses a room clock plus bounded drift correction, not constant seeking.**
+5. **Voice and music have independent lifecycles and resources.**
+6. **A local browser autoplay failure never becomes a shared room pause.**
+7. **Only portable YouTube identifiers/metadata are shared; device-local file URLs are never shared.**
 
-- **Wave 4 implementation is in source.** Supabase Realtime social transport, shared Jamendo music, local Add Song playback, chat/toasts, WebRTC voice, mute/unmute, and wave/clap/dance emotes are implemented.
-- **Polish pass:** TV track text was tightened to prevent long song titles/artists from flooding the screen; chat toasts are positioned at the top and auto-expire; music resume is retried after microphone activation for iOS Safari; a persistent room-volume slider is available outside the music panel; the animated 3D music speaker remains beside the TV rather than in front of the screen.
-- **Volume correctness:** shared volume normalization now preserves 0% volume instead of falling back to 80%.
-- **Deployment:** a fresh production deployment was attempted for commit `02489e267b4a3c39c10597bb0a1af24a8c95a029`, but Vercel rejected the deployment because the Hobby account hit its daily deployment limit (>100/day). No workaround or billing setting was changed.
-- **Verification:** Wave 4 remains **NOT VERIFIED** until fresh two-client/device acceptance is completed. Automated test execution is also not independently observed through the available GitHub connector.
-- **Acceptance target:** verify chat delivery/toasts, shared music play/pause/position/volume, voice join/mute without stopping music, emotes, TV formatting, and the mobile volume control on two clients/devices.
+### Product decision record — 2026-10-08
+
+The previous Jamendo/local-upload approach is superseded because it did not reliably satisfy the core product requirement: when one player selects music, every player must hear the same song in the same shared room.
+
+The replacement is:
+
+**YouTube search → shared queue → authoritative room clock → individual YouTube embedded players → drift correction → automatic next song → skip voting.**
+
+Manual local music upload is removed from the roadmap rather than retained as a fallback.
+
+Wave 4 remains **NOT VERIFIED** until fresh two-device real-device testing proves live synchronization, queue advancement, skip voting, shared volume, and simultaneous voice + music.
 
 ---
 
@@ -491,7 +571,7 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 - Player transforms continue through Broadcast at 10Hz; Presence join/sync forces fresh transform handshakes so a newly joined device does not depend on a missed first packet.
 - Shared provider music state is included in Presence for late joiners and continues through Broadcast for play/pause/position updates.
 - Browser audio unlock is now remembered after the first user gesture on each device, allowing a remote shared track to start once the browser has granted audible playback permission.
-- Local Add Song files remain device-local because Blob/object URLs are not portable between devices.
+- Manual/local Add Song uploads are removed from the product architecture; Wave 4 now uses YouTube shared queue playback only.
 - **Verification: NOT VERIFIED.** The implementation is committed, but the current Vercel account is over its daily deployment limit and the new commit cannot be deployed for two-device acceptance yet.
 
 ### Gate
