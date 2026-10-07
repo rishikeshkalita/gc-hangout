@@ -1073,3 +1073,16 @@ For every wave, record:
 - Bar DRINK and bar snack actions remain standing interactions; they do not transition the avatar into a seated pose.
 - Commit: `92258e411925cc042001f450072e82193019955b`.
 - Fresh iPhone acceptance remains required for all six chair positions and bar interactions.
+
+
+### 2026-10-07 — multiplayer reliability hardening
+
+- **Commits:** `0f8eca6447e27c80b5dcb850e46f41dd51c75332`, `61f5d86695c5f249d946d6389be769b63a2bc07c`, `a09af232eb57f8bcfe0c2c2d0d87817af26c8128`, `743ad773051df6730304e60b7d61ee7eba7b4376`, `cb25a7663708f40255c474f14df3c4935c802e3c`, `bf13c7a8190b48a16f57a14bc7397d4a375bb9ec`.
+- **Transport:** player transforms use a dedicated private Realtime game channel; Presence handles discovery/late join and Broadcast carries high-frequency transforms.
+- **State sync:** remote players now receive movement, facing, interaction type/phase, seat style, food/drink prop state, and emote state. Remote avatars render those states with interpolation.
+- **Lifecycle:** subscription readiness is explicit; sends are rejected until subscribed; channel error/timeout/close paths schedule reconnect; session state is re-published after reconnect; voice peer cleanup follows social Presence rather than game Presence.
+- **Late join:** social Presence restores shared music state; game Presence restores current player state and forces fresh transform publication.
+- **Server authorization:** production Supabase private-channel RLS policies were applied to `realtime.messages` for the two room topics and Broadcast/Presence.
+- **Verification:** clean Vercel sandbox: `npm install`, `npm test` PASS, `npm run build` PASS. Two-client production Supabase WebSocket test PASS for private Presence + Broadcast.
+- **Deployment:** latest production rollout is blocked by Vercel Hobby `api-deployments-free-per-day` (100/day; retry reported as 24 hours). Existing READY deployment is older than the latest multiplayer commit.
+- **Browser result:** fresh real-device multiplayer acceptance is **NOT VERIFIED** because the latest commit could not be deployed. Do not mark the multiplayer gate VERIFIED until two real devices load the latest deployment and confirm join/leave, movement, interactions, emotes, chat, music, and voice.
