@@ -260,6 +260,7 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       setVoiceOn(false);
       setMuted(false);
       setVoiceStatus("Tap mic to join voice");
+      resumeMusicAfterVoice();
       return;
     }
     try {
@@ -275,6 +276,11 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
         const state = channel.presenceState();
         for (const peerId of Object.keys(state).filter((id) => id !== clientIdRef.current && clientIdRef.current < id)) await ensurePeer(peerId, true);
       }
+      // iOS Safari can pause the HTMLAudioElement while the microphone permission/session is activated.
+      // Resume after the voice session is established, not before it.
+      resumeMusicAfterVoice();
+      window.setTimeout(resumeMusicAfterVoice, 250);
+      window.setTimeout(resumeMusicAfterVoice, 900);
     } catch (error) {
       setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
     }
@@ -454,6 +460,11 @@ export default function SocialHud({ name, onMusicState, onEmote }) {
       <div className="chat-toasts" aria-live="polite">
         {chatToasts.map((item) => <div className="chat-toast" key={item.toastId}><b>{item.name}</b><span>{item.message}</span></div>)}
       </div>
+      <label className="global-volume" aria-label={`Room volume ${Math.round(musicVolume * 100)} percent`}>
+        <span>🔊</span>
+        <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(event.target.value)} />
+        <b>{Math.round(musicVolume * 100)}%</b>
+      </label>
       <div className="social-toolbar" aria-label="Social controls">
         <PanelButton active={panel === "chat"} onClick={() => setPanel(panel === "chat" ? null : "chat")} label="Open chat">💬</PanelButton>
         <PanelButton active={panel === "music"} onClick={() => setPanel(panel === "music" ? null : "music")} label="Open music">🎵</PanelButton>
