@@ -235,7 +235,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: false, ack: false }, presence: { key: clientIdRef.current } },
+      config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     channelRef.current = channel;
 
