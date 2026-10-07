@@ -31,8 +31,15 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "bed", type: "SLEEP", label: "Sleep", x: 8.7, z: -4.25, rot: 0, targetX: 8.7, targetZ: -6.0, targetRot: 0, triggerX: 8.7, triggerZ: -4.25, exitX: 5.8, exitZ: -4.15, radius: 1.5 },
   { id: "tv", type: "WATCH_TV", label: "Watch TV", x: 0, z: -6.9, rot: Math.PI, targetX: 0, targetZ: -6.9, targetRot: Math.PI, triggerX: 0, triggerZ: -6.9, exitX: 0, exitZ: -5.55, radius: 2.0 },
   { id: "dining-eat", type: "EAT", label: "Eat", requiresSitting: true, x: 10.7, z: 5.8, rot: 0, targetX: 10.7, targetZ: 5.8, targetRot: 0, triggerX: 10.7, triggerZ: 5.8, exitX: 9.7, exitZ: 5.8, radius: 3.4 },
-  { id: "bar-drink", type: "DRINK", label: "Drink", x: 4.0, z: 1.0, rot: Math.PI, targetX: 4.0, targetZ: 1.25, targetRot: Math.PI, triggerX: 4.0, triggerZ: 1.0, exitX: 2.5, exitZ: 1.0, radius: 1.15 },
-  { id: "bar-snack", type: "EAT", label: "Eat", x: 4.0, z: 1.45, rot: Math.PI, targetX: 4.0, targetZ: 1.45, targetRot: Math.PI, triggerX: 4.0, triggerZ: 1.45, exitX: 2.5, exitZ: 1.45, radius: 1.15 },
+  // Stocked bar: standing interactions are available from all four sides.
+  { id: "bar-drink-south", type: "DRINK", label: "Drink", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
+  { id: "bar-drink-north", type: "DRINK", label: "Drink", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
+  { id: "bar-drink-west", type: "DRINK", label: "Drink", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-drink-east", type: "DRINK", label: "Drink", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-snack-south", type: "EAT", label: "Eat", x: 4.0, z: -0.45, rot: 0, targetX: 4.0, targetZ: -0.45, targetRot: 0, triggerX: 4.0, triggerZ: -0.45, exitX: 4.0, exitZ: -1.35, radius: 1.2 },
+  { id: "bar-snack-north", type: "EAT", label: "Eat", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
+  { id: "bar-snack-west", type: "EAT", label: "Eat", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
+  { id: "bar-snack-east", type: "EAT", label: "Eat", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
   { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
 ]);
 
