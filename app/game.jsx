@@ -885,6 +885,7 @@ export default function Game() {
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [joined, setJoined] = useState(false);
   const [pov, setPov] = useState("tpp");
   const [nearby, setNearby] = useState([]);
   const [interaction, setInteraction] = useState(null);
@@ -969,6 +970,62 @@ export default function Game() {
       watching: interaction?.anchor?.type === "WATCH_TV",
     }));
   }, [interaction?.anchor?.type]);
+
+  const joinName = name.trim().slice(0, 18);
+
+  if (!joined) {
+    return (
+      <main className="join-lobby">
+        <section className="lobby-card" aria-label="Enter GC Hangout">
+          <div className="lobby-kicker">GC HANGOUT · SHARED HOME</div>
+          <h1>Enter the room</h1>
+          <p className="lobby-copy">Choose how you appear before you join. Your name and avatar are shared with everyone in the room.</p>
+
+          <label className="lobby-field">
+            <span>Your name</span>
+            <input
+              autoFocus
+              value={name === "You" ? "" : name}
+              onChange={(event) => setName(event.target.value.replace(/[\\n\\r]/g, "").slice(0, 18))}
+              maxLength={18}
+              placeholder="Enter your name"
+              autoComplete="nickname"
+              enterKeyHint="go"
+            />
+          </label>
+
+          <div className="lobby-section-title">Choose your avatar</div>
+          <div className="lobby-avatar-grid">
+            {AVATARS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={item.id === avatarId ? "lobby-avatar selected" : "lobby-avatar"}
+                onClick={() => setAvatarId(item.id)}
+              >
+                <span className="lobby-avatar-head" style={{ background: item.skin }} />
+                <span><b>{item.label}</b><small>{item.id === avatarId ? "Selected" : "Human avatar"}</small></span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="lobby-enter"
+            type="button"
+            disabled={!joinName}
+            onClick={() => {
+              if (!joinName) return;
+              setPlayer((state) => ({ ...state, name: joinName, avatar }));
+              setJoined(true);
+            }}
+          >
+            Enter GC Hangout
+          </button>
+          <small className="lobby-note">One shared room · real-time players · shared music</small>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="game-shell">
