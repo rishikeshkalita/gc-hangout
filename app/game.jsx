@@ -96,7 +96,7 @@ const INTERACTION_ANCHORS = Object.freeze([
   { id: "bar-snack-north", type: "EAT", label: "Eat", foodKind: "burger", x: 4.0, z: 3.15, rot: Math.PI, targetX: 4.0, targetZ: 3.15, targetRot: Math.PI, triggerX: 4.0, triggerZ: 3.15, exitX: 4.0, exitZ: 4.05, radius: 1.2 },
   { id: "bar-snack-west", type: "EAT", label: "Eat", foodKind: "fruit", x: 2.25, z: 1.35, rot: Math.PI / 2, targetX: 2.25, targetZ: 1.35, targetRot: Math.PI / 2, triggerX: 2.25, triggerZ: 1.35, exitX: 1.35, exitZ: 1.35, radius: 1.2 },
   { id: "bar-snack-east", type: "EAT", label: "Eat", foodKind: "sandwich", x: 5.75, z: 1.35, rot: -Math.PI / 2, targetX: 5.75, targetZ: 1.35, targetRot: -Math.PI / 2, triggerX: 5.75, triggerZ: 1.35, exitX: 6.65, exitZ: 1.35, radius: 1.2 },
-  { id: "room-interact", type: "INTERACT", label: "Interact", x: 0, z: 0, rot: 0, targetX: 0, targetZ: 0, exitX: 0, exitZ: 1.5, radius: 1.35 },
+  { id: "music-speaker", type: "INTERACT", label: "Speaker", x: 6.9, z: -7.55, rot: Math.PI, targetX: 6.9, targetZ: -7.55, targetRot: Math.PI, triggerX: 5.25, triggerZ: -7.55, exitX: 5.25, exitZ: -6.8, radius: 1.75 },
 ]);
 
 function findNearbyAnchors(x, z) {
@@ -632,59 +632,113 @@ function DiningBar() {
 }
 
 function TVScreen({ watching = false, track = null }) {
-  const clampText = (value, length) => {
+  const clean = (value, length) => {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     return text.length > length ? `${text.slice(0, length - 1)}…` : text;
   };
-  const title = clampText(track?.title || "NO TRACK PLAYING", 30);
-  const artist = clampText(track?.artist || "GC HANGOUT TV", 24);
+  const title = clean(track?.title || "NO TRACK PLAYING", 22);
+  const artist = clean(track?.artist || "GC HANGOUT TV", 18);
   const status = watching ? "WATCHING" : "TV READY";
   const progress = track?.duration > 0 ? Math.min(1, Math.max(0, Number(track.position || 0) / Number(track.duration))) : 0;
-
   return (
     <group position={[0, 2.2, -8.92]}>
       <mesh><planeGeometry args={[8.05, 2.34]} /><meshBasicMaterial color="#111827" /></mesh>
-      <Text position={[0, 0.72, 0.03]} fontSize={0.17} color="#aeb6d5" anchorX="center" overflowWrap="nowrap">{status}</Text>
-      <Text position={[0, 0.27, 0.03]} fontSize={0.26} color="#ffffff" anchorX="center" overflowWrap="nowrap" maxWidth={6.8}>{title}</Text>
-      <Text position={[0, -0.18, 0.03]} fontSize={0.16} color="#aeb6d5" anchorX="center" overflowWrap="nowrap" maxWidth={6.8}>{artist}</Text>
-      <mesh position={[0, -0.67, 0.03]}>
-        <planeGeometry args={[5.7, 0.055]} />
-        <meshBasicMaterial color="#4b5563" />
-      </mesh>
-      <mesh position={[-2.85 + 2.85 * progress, -0.67, 0.04]}>
-        <circleGeometry args={[0.075, 12]} />
-        <meshBasicMaterial color="#d8ceff" />
-      </mesh>
+      <Text position={[0, 0.74, 0.03]} fontSize={0.16} color="#aeb6d5" anchorX="center">{status}</Text>
+      <Text position={[0, 0.28, 0.03]} fontSize={0.20} color="#ffffff" anchorX="center" maxWidth={5.8} textAlign="center" overflowWrap="nowrap">{title}</Text>
+      <Text position={[0, -0.10, 0.03]} fontSize={0.13} color="#aeb6d5" anchorX="center" maxWidth={5.6} textAlign="center" overflowWrap="nowrap">{artist}</Text>
+      <mesh position={[0, -0.66, 0.03]}><planeGeometry args={[5.7, 0.055]} /><meshBasicMaterial color="#4b5563" /></mesh>
+      <mesh position={[-2.85 + 2.85 * progress, -0.66, 0.04]}><circleGeometry args={[0.075, 12]} /><meshBasicMaterial color="#d8ceff" /></mesh>
     </group>
   );
 }
 
 function MusicSpeaker({ playing = false, volume = 0.8 }) {
-  const ring = useRef();
+  const groupRef = useRef(null);
+  const glowRef = useRef(null);
+  const ringRef = useRef(null);
   useFrame(({ clock }) => {
-    if (!ring.current) return;
-    const pulse = playing ? 1 + Math.sin(clock.getElapsedTime() * 7) * 0.035 * Math.max(0.2, volume) : 1;
-    ring.current.scale.setScalar(pulse);
-    ring.current.material.opacity = 0.18 + volume * 0.42;
+    const t = clock.getElapsedTime();
+    const pulse = playing ? 1 + Math.sin(t * 7.5) * 0.025 * Math.max(0.2, volume) : 1;
+    if (groupRef.current) groupRef.current.scale.set(pulse, pulse, pulse);
+    if (glowRef.current) glowRef.current.material.emissiveIntensity = playing ? 0.5 + volume * 1.1 + (Math.sin(t * 8) + 1) * 0.22 : 0.08;
+    if (ringRef.current) {
+      const ringPulse = playing ? 1 + Math.sin(t * 8) * 0.08 * Math.max(0.25, volume) : 1;
+      ringRef.current.scale.setScalar(ringPulse);
+      ringRef.current.material.opacity = playing ? 0.28 + volume * 0.48 : 0.12;
+    }
   });
   return (
-    <group position={[0, 1.15, -7.95]}>
-      <RoundedBox args={[1.2, 1.8, 0.65]} position={[0, 0.9, 0]} radius={0.12} smoothness={5} castShadow>
-        <meshStandardMaterial color="#151923" roughness={0.48} metalness={0.18} />
+    <group ref={groupRef} position={[6.9, 1.15, -7.55]}>
+      <RoundedBox args={[1.7, 2.3, 0.9]} radius={0.14} smoothness={4} castShadow>
+        <meshStandardMaterial color="#20242d" roughness={0.62} metalness={0.18} />
       </RoundedBox>
-      <mesh position={[0, 1.28, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.28, 0.28, 0.08, 32]} />
-        <meshStandardMaterial color="#2e3442" />
+      <mesh position={[0, 0.42, -0.47]} rotation={[Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.47, 32]} />
+        <meshStandardMaterial ref={glowRef} color="#161a23" emissive="#7b6df0" emissiveIntensity={0.1} roughness={0.5} />
       </mesh>
-      <mesh position={[0, 0.58, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.18, 0.18, 0.08, 32]} />
-        <meshStandardMaterial color="#596173" />
+      <mesh ref={ringRef} position={[0, 0.42, -0.53]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.49, 0.57, 32]} />
+        <meshBasicMaterial color="#a48cff" transparent opacity={0.18} />
       </mesh>
-      <mesh ref={ring} position={[0, 1.28, 0.39]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.31, 0.36, 32]} />
-        <meshBasicMaterial color="#b8aaff" transparent opacity={0.35} />
+      <mesh position={[0, -0.52, -0.47]} rotation={[Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.28, 32]} />
+        <meshStandardMaterial color="#11141b" roughness={0.58} />
       </mesh>
-      <Text position={[0, 0.05, 0.38]} fontSize={0.12} color="#b8aaff" anchorX="center">MUSIC</Text>
+      <mesh position={[0, 1.03, -0.48]}>
+        <boxGeometry args={[0.72, 0.08, 0.05]} />
+        <meshStandardMaterial color={playing ? "#8f84ff" : "#4b5362"} emissive={playing ? "#5146bd" : "#000000"} emissiveIntensity={playing ? 0.7 * volume : 0} />
+      </mesh>
+      <Text position={[0, -1.05, -0.48]} fontSize={0.12} color="#b8aaff" anchorX="center">MUSIC</Text>
+    </group>
+  );
+}
+
+function ClubLighting({ active = false }) {
+  const lights = useRef([]);
+  const bars = useRef([]);
+  const beams = useRef([]);
+  const beamColors = ["#8b7cff", "#5ee7ff", "#ff4fb8"];
+  const colors = ["#8b7cff", "#5ee7ff", "#ff4fb8", "#ffd166"];
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    lights.current.forEach((light, index) => {
+      if (!light) return;
+      const phase = t * (0.75 + index * 0.08) + index * 1.6;
+      light.position.x = Math.sin(phase) * (5.5 + index * 0.45);
+      light.position.z = Math.cos(phase * 0.83) * (3.8 + index * 0.35);
+      light.intensity = active ? 1.5 + (Math.sin(t * 7 + index) + 1) * 0.9 : 0.45;
+      light.color.set(colors[index % colors.length]);
+    });
+    bars.current.forEach((bar, index) => {
+      if (!bar) return;
+      bar.rotation.y = t * 1.2 + index * 0.9;
+      bar.material.emissiveIntensity = active ? 1.15 + (Math.sin(t * 8 + index) + 1) * 0.7 : 0.28;
+    });
+    beams.current.forEach((beam, index) => {
+      if (!beam) return;
+      const phase = t * (0.65 + index * 0.12) + index * 2.1;
+      beam.rotation.x = Math.sin(phase) * 0.62;
+      beam.rotation.z = Math.cos(phase * 0.9) * 0.48;
+      beam.material.opacity = active ? 0.055 + (Math.sin(t * 5 + index) + 1) * 0.018 : 0.012;
+    });
+  });
+  return (
+    <group>
+      {[-10, -5, 0, 5, 10].map((x, index) => (
+        <group key={x} position={[x, 4.68, -0.4]}>
+          <mesh ref={(node) => { bars.current[index] = node; }}>
+            <boxGeometry args={[1.55, 0.08, 0.34]} />
+            <meshStandardMaterial color="#282d38" emissive={colors[index % colors.length]} emissiveIntensity={0.35} />
+          </mesh>
+          <pointLight ref={(node) => { lights.current[index] = node; }} position={[0, -0.2, 0]} intensity={0.45} distance={9} decay={2} color="#8b7cff" />
+        </group>
+      ))}
+      {[-7, 0, 7].map((x, index) => (
+        <mesh key={x} ref={(node) => { beams.current[index] = node; }} position={[x, 4.58, 0]}>
+          <coneGeometry args={[1.35, 5.8, 20, 1, true]} />
+          <meshBasicMaterial color={beamColors[index]} transparent opacity={0.012} depthWrite={false} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -755,6 +809,7 @@ function Room({ player, onMove, onNearby, interaction, joystickRef, motionResetK
       <Furniture />
       <TVScreen watching={interaction?.anchor?.type === "WATCH_TV"} track={tvState?.track} />
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} />
+      <ClubLighting active={Boolean(tvState?.playing)} />
       <WallPhotoFrame />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
@@ -820,7 +875,7 @@ export default function Game() {
     window.setTimeout(() => setEmote((current) => current === next ? null : current), 1800);
   }, []);
 
-  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK" || anchor.type === "WATCH_TV");
+  const universalInteraction = nearby.find((anchor) => anchor.type === "SIT" || anchor.type === "SLEEP" || anchor.type === "EAT" || anchor.type === "DRINK" || anchor.type === "WATCH_TV" || anchor.id === "music-speaker");
   const universalActive = Boolean(interaction);
 
   const beginInteraction = (anchor) => {
@@ -890,6 +945,7 @@ export default function Game() {
         name={name.trim().slice(0, 18) || "You"}
         onMusicState={handleMusicState}
         onEmote={handleEmote}
+        speakerActive={interaction?.anchor?.id === "music-speaker"}
       />
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
         <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
@@ -956,10 +1012,10 @@ export default function Game() {
           }
           if (universalInteraction) beginInteraction(universalInteraction);
         }}
-        aria-label={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
-        title={universalActive ? "Exit interaction" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
+        aria-label={universalActive ? "Exit interaction" : universalInteraction?.id === "music-speaker" ? "Music speaker" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
+        title={universalActive ? "Exit interaction" : universalInteraction?.id === "music-speaker" ? "Music speaker" : universalInteraction?.type === "SLEEP" ? "Sleep" : universalInteraction?.type === "EAT" ? "Eat" : universalInteraction?.type === "DRINK" ? "Drink" : universalInteraction?.type === "WATCH_TV" ? "Watch TV" : "Sit"}
       >
-        {universalActive ? "↗" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : "♙"}
+        {universalActive ? "↗" : universalInteraction?.id === "music-speaker" ? "🔊" : universalInteraction?.type === "EAT" ? "🍴" : universalInteraction?.type === "DRINK" ? "🥤" : universalInteraction?.type === "WATCH_TV" ? "📺" : "♙"}
       </button>
 
       <button className="pov-toggle" onPointerDown={(event) => event.stopPropagation()} onClick={() => setPov((value) => value === "tpp" ? "fpp" : "tpp")} aria-label={pov === "tpp" ? "Switch to first person view" : "Switch to third person view"}>{pov === "tpp" ? "FPP" : "TPP"}</button>
