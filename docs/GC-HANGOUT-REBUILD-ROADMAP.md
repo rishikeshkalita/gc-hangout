@@ -1169,6 +1169,16 @@ For every wave, record:
 - **Browser result:** fresh real-device multiplayer acceptance is **NOT VERIFIED** because the latest commit could not be deployed. Do not mark the multiplayer gate VERIFIED until two real devices load the latest deployment and confirm join/leave, movement, interactions, emotes, chat, music, and voice.
 
 
+### 2026-10-08 — Shared pause/resume voting
+
+- **Behavior:** pause and resume are now room decisions, not single-player commands.
+- **Rule:** more than half of active room members must uniquely vote for the requested pause/resume state before the room changes state.
+- **One vote per player:** duplicate requests from the same client do not increase the count; changing intent before a majority starts a fresh vote for the new target state.
+- **YouTube isolation:** native YouTube PAUSED/PLAYING events no longer become room-wide commands. If a local player is manually paused/played against the authoritative room state, the app restores the room state instead of broadcasting an accidental pause/resume.
+- **Autoplay:** browser autoplay blocking remains local and does not count as a pause vote.
+- **Automated coverage:** shared pause vote normalization added to social-state tests.
+- **Browser/device result:** **NOT VERIFIED**. Fresh two-device acceptance is still required.
+
 ### 2026-10-08 — Wave 4 YouTube jukebox implementation
 
 - **Implementation:** replaced the Jamendo catalog and local/manual upload path with YouTube Data API search plus the official YouTube IFrame Player API.
