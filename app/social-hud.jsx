@@ -995,20 +995,26 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState();
       syncMusicPresence(state);
+      readPresencePlayers(state);
       if (!voiceEnabledRef.current) return;
       Object.keys(state)
         .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
         .forEach((id) => void ensurePeer(id, true));
     });
-    channel.on("presence", { event: "join" }, ({ key }) => {
+    channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
       const state = channel.presenceState();
       syncMusicPresence(state);
+      if (key !== clientIdRef.current) {
+        const meta = Array.isArray(newPresences) ? newPresences[0] : null;
+        if (meta?.kind === "player") mergeRemotePlayer({ ...meta, senderId: key });
+      }
       if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
     });
     channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
       const state = channel.presenceState();
       syncMusicPresence(state);
       closePeer(key);
+      if (remotePlayersRef.current.delete(key)) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
       const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
       pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
@@ -1102,11 +1108,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (sessionStartedRef.current || !socialReadyRef.current) return;
       sessionStartedRef.current = true;
       const state = playerStateRef.current;
-      const music = musicStateRef.current;
       await channel.track({
         kind: "player",
         name: nameRef.current || "Guest",
+        avatarId: state?.avatar?.id || "maya",
+        x: Number(state?.x) || 0,
+        z: Number(state?.z) || 0,
+        rot: Number(state?.rot) || 0,
+        moving: Boolean(state?.moving),
+        speed: Number(state?.speed) || 0,
         voice: voiceEnabledRef.current,
+        footballScores: footballScoresRef.current,
       });
       publishPlayer();
       void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
@@ -1129,10 +1141,18 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const handleSocialStatus = (status) => {
       socialReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
+        const state = playerStateRef.current;
         void channel.track({
           kind: "player",
           name: nameRef.current || "Guest",
+          avatarId: state?.avatar?.id || "maya",
+          x: Number(state?.x) || 0,
+          z: Number(state?.z) || 0,
+          rot: Number(state?.rot) || 0,
+          moving: Boolean(state?.moving),
+          speed: Number(state?.speed) || 0,
           voice: voiceEnabledRef.current,
+          footballScores: footballScoresRef.current,
         });
         if (voiceEnabledRef.current) {
           const state = channel.presenceState();
@@ -1692,7 +1712,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             </div>
           )}
           {audioBlocked && <button className="music-player-launch" onClick={() => void unlockAudio()}><span>🔊</span><span><strong>Enable Room Audio</strong><small>Browser permission is required on this device.</small></span><b>▶</b></button>}
-          <button type="button" className="music-player-launch" onClick={() => musicFileInputRef.current?.click()} disabled={musicBusy || queuePendingRef.current.has(track.id)}>
+          <button type="button" className="music-player-launch" onClick={() => musicFileInputRef.current?.click()} disabled={musicBusy}>
             <span>⬆️</span><span><strong>{musicBusy ? "Uploading…" : "Upload music"}</strong><small>25 MB maximum · deleted after 72 hours</small></span><b>＋</b>
           </button>
           <input
