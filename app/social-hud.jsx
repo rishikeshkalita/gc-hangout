@@ -1224,7 +1224,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
-  }, [applyFootballScores, applyNetworkBallKick, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
+  }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
 
   const refreshMusicSnapshot = useCallback(async () => {
     const client = supabaseRef.current;
