@@ -1020,8 +1020,8 @@ function RemotePlayers({ players = [] }) {
 }
 
 const FOOTBALL_COURT = Object.freeze({
-  centerX: -3.2,
-  halfWidth: 3.15,
+  centerX: -5.8,
+  halfWidth: 3.0,
   halfLength: 7.5,
   goalWidth: 3,
   goalHeight: 2,
@@ -1077,11 +1077,11 @@ function FootballCourt() {
 
 function Football({ state }) {
   const group = useRef();
-  const target = useRef(new THREE.Vector3(0, 0.28, 1.5));
+  const target = useRef(new THREE.Vector3(-5.8, 0.28, 0));
   const targetRotation = useRef(new THREE.Vector2(0, 0));
 
   useEffect(() => {
-    target.current.set(Number(state?.x) || 0, Math.max(0.28, Number(state?.y) || 0.28), Number(state?.z) || 1.5);
+    target.current.set(Number(state?.x) || 0, Math.max(0.28, Number(state?.y) || 0.28), Number(state?.z) || 0);
     targetRotation.current.set(Number(state?.rotationX) || 0, Number(state?.rotationZ) || 0);
   }, [state]);
 
@@ -1104,7 +1104,7 @@ function Football({ state }) {
   ];
 
   return (
-    <group ref={group} position={[0, 0.28, 1.5]} castShadow receiveShadow>
+    <group ref={group} position={[-5.8, 0.28, 0]} castShadow receiveShadow>
       <mesh>
         <sphereGeometry args={[0.28, 24, 16]} />
         <meshStandardMaterial color="#f5f5f2" roughness={0.72} />
@@ -1194,7 +1194,7 @@ function findSafeExit(anchor, fallback) {
 
 export default function Game() {
   const [player, setPlayer] = useState(() => ({ id: "local", name: "You", avatar: AVATARS[0], x: 0, z: 1.5, rot: Math.PI, moving: false, speed: 0 }));
-  const [ballState, setBallState] = useState(() => ({ x: -3.2, y: 0.28, z: 0, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now(), lastTouchId: null, lastTouchName: null }));
+  const [ballState, setBallState] = useState(() => ({ x: -5.8, y: 0.28, z: 0, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now(), lastTouchId: null, lastTouchName: null }));
   const [footballScores, setFootballScores] = useState([]);
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
