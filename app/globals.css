@@ -796,14 +796,14 @@ button { border: 0; cursor: pointer; }
 
 .youtube-mini-player {
   position: fixed;
-  right: max(10px, env(safe-area-inset-right));
-  bottom: calc(62px + env(safe-area-inset-bottom));
+  top: calc(132px + env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
   z-index: 34;
   width: 200px;
   height: 200px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.14);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #000;
   box-shadow: 0 8px 28px rgba(0,0,0,.35);
 }
