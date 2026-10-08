@@ -35,7 +35,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [musicSearch, setMusicSearch] = useState("lounge");
   const [musicState, setMusicState] = useState({ current: null, track: null, queue: [], skipVotes: [], revision: 0, position: 0, startedAt: 0, playing: false, volume: 0.8, updatedAt: Date.now(), leaderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
-  const [musicStatus, setMusicStatus] = useState("Shared YouTube room");
+  const [musicStatus, setMusicStatus] = useState("Shared room audio");
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const speakerControlActive = Boolean(
     speakerActive &&
@@ -51,12 +51,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const supabaseRef = useRef(null);
   const channelRef = useRef(null);
   const clientIdRef = useRef(createClientId());
-  const youtubePlayerRef = useRef(null);
-  const youtubeContainerRef = useRef(null);
-  const youtubeReadyRef = useRef(false);
-  const youtubeApiPromiseRef = useRef(null);
-  const youtubeLoadedVideoRef = useRef("");
-  const youtubeProgrammaticRef = useRef(false);
+  const roomAudioRef = useRef(null);
+  const roomAudioTrackRef = useRef("");
   const musicStateRef = useRef(musicState);
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
@@ -640,26 +636,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
 
-  const ensureYouTubeApi = useCallback(() => {
-    if (typeof window === "undefined") return Promise.reject(new Error("Browser required"));
-    if (window.YT?.Player) return Promise.resolve(window.YT);
-    if (youtubeApiPromiseRef.current) return youtubeApiPromiseRef.current;
-    youtubeApiPromiseRef.current = new Promise((resolve, reject) => {
-      const previous = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        previous?.();
-        if (window.YT?.Player) resolve(window.YT);
-        else reject(new Error("YouTube IFrame API unavailable"));
-      };
-      const script = document.createElement("script");
-      script.src = "https://www.youtube.com/iframe_api";
-      script.async = true;
-      script.onerror = () => reject(new Error("Could not load YouTube IFrame API"));
-      document.head.appendChild(script);
-    });
-    return youtubeApiPromiseRef.current;
-  }, []);
-
   const sendMusicRequest = useCallback(async (action, payload = {}) => {
     const channel = channelRef.current;
     if (!channel || !socialReadyRef.current) return false;
@@ -687,108 +663,72 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [musicState.revision, musicState.leaderId]);
 
   useEffect(() => {
-    let disposed = false;
-    const track = musicState.current;
-    if (!track) {
-      youtubePlayerRef.current?.destroy?.();
-      youtubePlayerRef.current = null;
-      youtubeReadyRef.current = false;
-      youtubeLoadedVideoRef.current = "";
-      return undefined;
-    }
-    void ensureYouTubeApi().then((YT) => {
-      if (disposed || !youtubeContainerRef.current) return;
-      if (!youtubePlayerRef.current) {
-        youtubePlayerRef.current = new YT.Player(youtubeContainerRef.current, {
-          width: "100%",
-          height: "100%",
-          videoId: track.videoId,
-          playerVars: { playsinline: 1, controls: 1, rel: 0, enablejsapi: 1 },
-          events: {
-            onReady: (event) => {
-              youtubeReadyRef.current = true;
-              youtubeLoadedVideoRef.current = track.videoId;
-              event.target.setVolume(Math.round(musicVolume * 100));
-              const expected = currentMusicPosition(musicStateRef.current);
-              if (expected > 0.5) event.target.seekTo(expected, true);
-              if (musicStateRef.current.playing && sharedAudioUnlockedRef.current) event.target.playVideo();
-            },
-            onAutoplayBlocked: () => setMusicStatus("Tap the YouTube player or Play to enable room audio."),
-            onStateChange: (event) => {
-              const current = musicStateRef.current;
-              if (event.data === YT.PlayerState.ENDED) {
-                void sendMusicRequest("ended", { revision: current.revision });
-                return;
-              }
-              if (youtubeProgrammaticRef.current) return;
-              if (event.data === YT.PlayerState.PAUSED && current.playing) {
-                setMusicStatus("Room pause requires a majority vote.");
-                youtubeProgrammaticRef.current = true;
-                event.target.playVideo();
-                window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 250);
-              } else if (event.data === YT.PlayerState.PLAYING && !current.playing) {
-                setMusicStatus("Room resume requires a majority vote.");
-                youtubeProgrammaticRef.current = true;
-                event.target.pauseVideo();
-                window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 250);
-              }
-            },
-            onError: (event) => {
-              const code = Number(event.data);
-              if ([2, 5, 100, 101, 150, 153].includes(code)) {
-                setMusicStatus("That YouTube video cannot play in the shared player.");
-                void sendMusicRequest("ended", { revision: musicStateRef.current.revision });
-              }
-            },
-          },
-        });
-      } else if (youtubeLoadedVideoRef.current !== track.videoId) {
-        youtubeProgrammaticRef.current = true;
-        youtubeLoadedVideoRef.current = track.videoId;
-        youtubePlayerRef.current.loadVideoById({ videoId: track.videoId, startSeconds: currentMusicPosition(musicStateRef.current) });
-        window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 500);
-      }
-    }).catch(() => setMusicStatus("YouTube player could not load."));
-    return () => { disposed = true; };
-  }, [ensureYouTubeApi, musicState.current?.videoId, sendMusicRequest, musicVolume]);
+    if (typeof window === "undefined") return undefined;
+    const audio = roomAudioRef.current || document.createElement("audio");
+    audio.preload = "auto";
+    audio.playsInline = true;
+    audio.setAttribute("aria-hidden", "true");
+    audio.style.display = "none";
+    roomAudioRef.current = audio;
 
-  useEffect(() => {
-    const player = youtubePlayerRef.current;
-    const state = musicStateRef.current;
-    if (!player || !youtubeReadyRef.current || !state.current) return;
-    youtubeProgrammaticRef.current = true;
-    player.setVolume(Math.round(musicVolume * 100));
-    const expected = currentMusicPosition(state);
-    const actual = Number(player.getCurrentTime?.() || 0);
-    if (Math.abs(expected - actual) > 1) player.seekTo(expected, true);
-    if (state.playing) {
-      if (sharedAudioUnlockedRef.current) player.playVideo();
-    } else {
-      player.pauseVideo();
-    }
-    window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 120);
-  }, [musicState.revision, musicState.playing, musicState.current?.videoId, musicVolume]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const player = youtubePlayerRef.current;
+    const handleEnded = () => {
       const state = musicStateRef.current;
-      if (!player || !youtubeReadyRef.current || !state.current || !state.playing) return;
-      const expected = currentMusicPosition(state);
-      const actual = Number(player.getCurrentTime?.() || 0);
-      if (Math.abs(expected - actual) > 1) {
-        youtubeProgrammaticRef.current = true;
-        player.seekTo(expected, true);
-        window.setTimeout(() => { youtubeProgrammaticRef.current = false; }, 120);
-      }
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, []);
+      if (state.current) void sendMusicRequest("ended", { revision: state.revision });
+    };
+    const handleError = () => {
+      setMusicStatus("This track has no playable direct audio source.");
+    };
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      roomAudioRef.current = null;
+    };
+  }, [sendMusicRequest]);
+
+  useEffect(() => {
+    const audio = roomAudioRef.current;
+    const track = musicState.current;
+    if (!audio) return;
+
+    if (!track?.audioUrl) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      roomAudioTrackRef.current = "";
+      if (track) setMusicStatus("YouTube search is metadata-only. Add a direct/licensed audio source to play it.");
+      return;
+    }
+
+    if (roomAudioTrackRef.current !== track.id || audio.src !== track.audioUrl) {
+      roomAudioTrackRef.current = track.id;
+      audio.src = track.audioUrl;
+      audio.load();
+    }
+
+    audio.volume = musicVolume;
+    const expected = currentMusicPosition(musicStateRef.current);
+    const actual = Number(audio.currentTime || 0);
+    if (Math.abs(expected - actual) > 1) audio.currentTime = expected;
+
+    if (musicState.playing) {
+      void audio.play().catch(() => setMusicStatus("Tap Play or the music control to enable room audio."));
+    } else {
+      audio.pause();
+    }
+  }, [musicState.revision, musicState.playing, musicState.current?.id, musicState.current?.audioUrl, musicVolume]);
 
   useEffect(() => {
     const unlock = () => {
       sharedAudioUnlockedRef.current = true;
-      if (youtubePlayerRef.current && musicStateRef.current.playing) youtubePlayerRef.current.playVideo?.();
+      const audio = roomAudioRef.current;
+      const state = musicStateRef.current;
+      if (audio && state.playing && state.current?.audioUrl) void audio.play().catch(() => {});
     };
     window.addEventListener("pointerdown", unlock, { passive: true });
     window.addEventListener("touchstart", unlock, { passive: true });
@@ -798,6 +738,18 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       window.removeEventListener("touchstart", unlock);
       window.removeEventListener("keydown", unlock);
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const audio = roomAudioRef.current;
+      const state = musicStateRef.current;
+      if (!audio || !state.current?.audioUrl || !state.playing) return;
+      const expected = currentMusicPosition(state);
+      const actual = Number(audio.currentTime || 0);
+      if (Math.abs(expected - actual) > 1) audio.currentTime = expected;
+    }, 5000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const enableVoice = useCallback(async () => {
@@ -852,11 +804,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const response = await fetch(`/api/music?search=${encodeURIComponent(cleanQuery)}`);
       const data = await response.json();
       setTracks(Array.isArray(data.tracks) ? data.tracks : []);
-      setMusicStatus(data.error || (data.tracks?.length ? "YouTube results ready." : "No embeddable videos found."));
+      setMusicStatus(data.error || (data.tracks?.length ? "YouTube catalog ready. Playback requires a direct/licensed audio source." : "No playable catalog results found."));
     } catch (error) {
       console.error("YouTube catalog load failed", error);
       setTracks([]);
-      setMusicStatus("YouTube search is temporarily unavailable.");
+      setMusicStatus("Music catalog search is temporarily unavailable.");
     } finally {
       setMusicBusy(false);
     }
@@ -954,19 +906,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         </section>
       )}
 
-      {musicState.current && (
-        <section className="youtube-room-player" aria-label="Shared YouTube player">
-          <div className="youtube-player-frame"><div ref={youtubeContainerRef} /></div>
-          <div className="youtube-player-meta">
-            <strong>{musicState.current.title}</strong>
-            <span>{musicState.current.artist} · {musicState.playing ? "Watching together" : "Paused"}</span>
-          </div>
-        </section>
-      )}
-
       {panel === "music" && (
         <section className="social-panel music-panel" onPointerDown={(event) => event.stopPropagation()}>
-          <div className="social-panel-head"><strong>Shared YouTube</strong><span>{musicState.current ? `${musicState.current.title} · ${musicState.current.artist}` : "Nothing playing"}</span></div>
+          <div className="social-panel-head"><strong>Shared music</strong><span>{musicState.current ? `${musicState.current.title} · ${musicState.current.artist}` : "Nothing playing"}</span></div>
           <div className="music-now">
             <div className="music-main-row">
               <button className="music-main" onClick={votePauseResume}>{musicState.playing ? "Vote to pause" : "Vote to resume"}{musicState.current ? ` · ${musicState.current.title}` : ""}</button>
@@ -986,14 +928,14 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
                 <span><b>{track.title}</b><small>{track.artist}</small></span><em>＋ Queue</em>
               </button>
             ))}
-            {!tracks.length && <div className="social-empty">Search YouTube to add a video to the shared queue.</div>}
+            {!tracks.length && <div className="social-empty">Search the catalog to add a track to the shared queue.</div>}
           </div>
           <div className="music-queue">
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
             {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to pause/resume or advance the room. No local uploads. YouTube content remains in the official player.</small>
-          <small className="youtube-attribution">YouTube source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
+          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to pause/resume or advance the room. No local uploads. YouTube is used only for catalog metadata; playback requires a direct/licensed audio URL.</small>
+          <small className="youtube-attribution">Catalog source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
         </section>
       )}
 
