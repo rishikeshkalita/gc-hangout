@@ -584,11 +584,11 @@ function GraffitiWall() {
 }
 
 
-function WallPhotoFrame() {
+function WallPhotoFrame({ position, rotation = [0, 0, 0], scale = 1 }) {
   const photo = useEmbeddedPhotoTexture(GC_HANGOUT_PHOTO_DATA_URL);
 
   return (
-    <group position={[14.72, 3.0, 2.0]} rotation={[0, -Math.PI / 2, 0]}>
+    <group position={position} rotation={rotation} scale={scale}>
       <RoundedBox args={[3.45, 2.65, 0.14]} radius={0.07} smoothness={4} castShadow>
         <meshStandardMaterial color="#5b3c2b" roughness={0.58} />
       </RoundedBox>
@@ -1028,7 +1028,11 @@ function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joyst
         startedAt={Number(tvState?.startedAt || 0)}
       />
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC_SPEAKER"} />
-      <WallPhotoFrame />
+      <WallPhotoFrame position={[14.72, 3.0, 2.0]} rotation={[0, -Math.PI / 2, 0]} />
+      {/* Additional frames stay on the side/front walls; the graffiti + TV wall remains untouched. */}
+      <WallPhotoFrame position={[-14.72, 3.0, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} />
+      <WallPhotoFrame position={[-14.72, 3.0, 4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} />
+      <WallPhotoFrame position={[0, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
