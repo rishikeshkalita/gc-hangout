@@ -241,6 +241,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [addRemoteStream, closePeer, sendSignal]);
 
   useEffect(() => {
+    if (!authUserId) return undefined;
     const supabase = getSupabase();
     supabaseRef.current = supabase;
     if (!supabase) {
@@ -418,13 +419,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const syncMusicPresence = (state) => {
       const ids = new Set(Object.keys(state || {}));
       ids.add(clientIdRef.current);
-      activePresenceIdsRef.current = ids; else if (leaderId === clientIdRef.current && musicStateRef.current.leaderId !== leaderId) {
-        const next = normalizeMusicState({ ...musicStateRef.current, leaderId, updatedAt: Date.now() });
-        if (next) {
-          setMusicState(next);
-          void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.MUSIC, payload: { ...next, senderId: clientIdRef.current } });
-        }
-      }
+      activePresenceIdsRef.current = ids;
     };
 
     channel.on("presence", { event: "sync" }, () => {
@@ -530,7 +525,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           kind: "player",
           name: nameRef.current || "Guest",
           voice: voiceEnabledRef.current,
-          music: musicStateRef.current,
         });
         if (voiceEnabledRef.current) {
           const state = channel.presenceState();
@@ -581,7 +575,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
-  }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
+  }, [authUserId, closePeer, ensurePeer, pushChatToast, sendSignal]);
 
   const refreshMusicSnapshot = useCallback(async () => {
     const client = supabaseRef.current;
