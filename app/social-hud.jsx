@@ -144,6 +144,27 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.vz *= BALL_FRICTION;
     }
 
+    // Detect a goal before the ball reaches the back wall. The two goals
+    // face inward, so the ball crosses +/- goal-line Z while inside the posts.
+    const crossedPositiveGoal = previousZ < FOOTBALL_GOAL_LINE_Z && ball.z >= FOOTBALL_GOAL_LINE_Z;
+    const crossedNegativeGoal = previousZ > -FOOTBALL_GOAL_LINE_Z && ball.z <= -FOOTBALL_GOAL_LINE_Z;
+    const inGoalMouth = Math.abs(ball.x - FOOTBALL_COURT_CENTER_X) <= FOOTBALL_GOAL_HALF_WIDTH && ball.y <= FOOTBALL_GOAL_HEIGHT;
+    if (inGoalMouth && (crossedPositiveGoal || crossedNegativeGoal)) {
+      footballGoalRef.current = {
+        scorerId: ball.lastTouchId || null,
+        scorerName: ball.lastTouchName || "Guest",
+        direction: crossedPositiveGoal ? "north" : "south",
+        timestamp: Date.now(),
+      };
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.vz = 0;
+      ball.x = FOOTBALL_COURT_CENTER_X;
+      ball.y = BALL_FLOOR_Y;
+      ball.z = 0;
+      return 0;
+    }
+
     const wallX = 15 - BALL_RADIUS;
     const wallZ = 10 - BALL_RADIUS;
     if (ball.x < -wallX) { ball.x = -wallX; ball.vx = Math.abs(ball.vx) * BALL_WALL_BOUNCE; }
@@ -197,7 +218,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     ball.rotationZ -= ball.vx * dt / BALL_RADIUS;
     ball.timestamp = Date.now();
 
-    return Math.abs(ball.x - previousX) + Math.abs(ball.z - previousZ) + horizontalSpeed;
+    return Math.hypot(ball.vx, ball.vz);
   }, []);
 
   const mergeRemotePlayer = useCallback((payload) => {
