@@ -819,17 +819,37 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         <div
           className="youtube-mini-player"
           aria-label="YouTube playback"
-          style={{ width: 200, height: 112 }}
           onPointerDown={(event) => event.stopPropagation()}
         >
           <iframe
             title="YouTube music"
             width="200"
             height="112"
-            src={`https://www.youtube.com/embed/${musicState.current.videoId}?autoplay=${musicState.playing ? 1 : 0}&playsinline=1&controls=1&rel=0`}
-            allow="autoplay; encrypted-media"
+            src={`https://www.youtube.com/embed/${musicState.current.videoId}?autoplay=0&playsinline=1&controls=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+            allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen={false}
+            onLoad={(event) => {
+              event.currentTarget.contentWindow?.postMessage(JSON.stringify({
+                event: "command",
+                func: musicState.playing ? "playVideo" : "pauseVideo",
+                args: [],
+              }), "https://www.youtube.com");
+            }}
           />
+          <button
+            className="youtube-mini-play"
+            type="button"
+            aria-label={musicState.playing ? "Start YouTube playback" : "Resume YouTube playback"}
+            onClick={(event) => {
+              event.stopPropagation();
+              const iframe = event.currentTarget.previousElementSibling;
+              iframe?.contentWindow?.postMessage(JSON.stringify({
+                event: "command",
+                func: "playVideo",
+                args: [],
+              }), "https://www.youtube.com");
+            }}
+          >▶</button>
         </div>
       )}
 
