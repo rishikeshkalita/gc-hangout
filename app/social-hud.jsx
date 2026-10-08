@@ -64,7 +64,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, onFootballScores, remotePlayers = [], initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, ballState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, onFootballScores, remotePlayers = [], initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -114,6 +114,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const ballPredictionUntilRef = useRef(0);
   const footballScoresRef = useRef([]);
   const footballGoalRef = useRef(null);
+  const lastKickAtRef = useRef(0);
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
   const gameReadyRef = useRef(false);
@@ -650,6 +651,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ballRef.current = incoming;
       onBallState?.(incoming);
     });
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_KICK }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const state = gameChannel.presenceState?.() || {};
+      if (getBallAuthorityId(state) !== clientIdRef.current) return;
+      applyNetworkBallKick(payload);
+    });
     gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const state = gameChannel.presenceState?.() || {};
@@ -815,6 +822,45 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         console.error("Voice signaling failed", error);
       }
     });
+
+    const applyNetworkBallKick = (payload) => {
+      const ball = ballRef.current;
+      const playerX = Number(payload?.x);
+      const playerZ = Number(payload?.z);
+      if (!Number.isFinite(playerX) || !Number.isFinite(playerZ)) return false;
+
+      const dx = ball.x - playerX;
+      const dz = ball.z - playerZ;
+      const horizontal = Math.hypot(dx, dz);
+      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || Math.abs(ball.y - 0.92) > 0.82) return false;
+
+      const id = String(payload?.senderId || "");
+      const now = Date.now();
+      if (!id || now - lastKickAtRef.current < 180) return false;
+      lastKickAtRef.current = now;
+
+      const rot = Number(payload?.rot) || 0;
+      const facingX = Math.sin(rot);
+      const facingZ = Math.cos(rot);
+      const awayX = horizontal > 0.001 ? dx / horizontal : facingX;
+      const awayZ = horizontal > 0.001 ? dz / horizontal : facingZ;
+      const facingDot = awayX * facingX + awayZ * facingZ;
+      const kickX = facingDot >= -0.35 ? facingX : awayX;
+      const kickZ = facingDot >= -0.35 ? facingZ : awayZ;
+
+      const separation = BALL_PLAYER_TOUCH_RADIUS + 0.12;
+      ball.x = playerX + awayX * separation;
+      ball.z = playerZ + awayZ * separation;
+      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.48, ball.y));
+      ball.vx = kickX * 9.5 + awayX * 0.8;
+      ball.vz = kickZ * 9.5 + awayZ * 0.8;
+      ball.vy = 1.15;
+      ball.lastTouchId = id;
+      ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
+      ball.timestamp = now;
+      onBallState?.(ball);
+      return true;
+    };
 
     const applyNetworkBallTouch = (payload) => {
       const ball = ballRef.current;
@@ -1178,7 +1224,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
-  }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
+  }, [applyFootballScores, applyNetworkBallKick, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
 
   const refreshMusicSnapshot = useCallback(async () => {
     const client = supabaseRef.current;
@@ -1527,6 +1573,59 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     window.setTimeout(() => setEmoteFlash((current) => current === normalized ? null : current), 1800);
   }, [onEmote, pushActivity, send]);
 
+  const kickAvailable = useMemo(() => {
+    const px = Number(playerState?.x);
+    const pz = Number(playerState?.z);
+    const bx = Number(ballState?.x);
+    const by = Number(ballState?.y);
+    const bz = Number(ballState?.z);
+    if (![px, pz, bx, by, bz].every(Number.isFinite)) return false;
+    return Math.hypot(bx - px, bz - pz) <= 0.9 && Math.abs(by - 0.92) <= 0.82;
+  }, [ballState?.x, ballState?.y, ballState?.z, playerState?.x, playerState?.z]);
+
+  const kickBall = useCallback(() => {
+    if (!kickAvailable) return;
+    const now = Date.now();
+    if (now - lastKickAtRef.current < 180) return;
+    const state = playerStateRef.current;
+    const ball = ballRef.current;
+    const playerX = Number(state?.x);
+    const playerZ = Number(state?.z);
+    if (![playerX, playerZ, ball.x, ball.y, ball.z].every(Number.isFinite)) return;
+    const horizontal = Math.hypot(ball.x - playerX, ball.z - playerZ);
+    if (horizontal > BALL_PLAYER_TOUCH_RADIUS || Math.abs(ball.y - 0.92) > 0.82) return;
+
+    const rot = Number(state?.rot) || 0;
+    const facingX = Math.sin(rot);
+    const facingZ = Math.cos(rot);
+    const awayX = horizontal > 0.001 ? (ball.x - playerX) / horizontal : facingX;
+    const awayZ = horizontal > 0.001 ? (ball.z - playerZ) / horizontal : facingZ;
+    const facingDot = awayX * facingX + awayZ * facingZ;
+    const kickX = facingDot >= -0.35 ? facingX : awayX;
+    const kickZ = facingDot >= -0.35 ? facingZ : awayZ;
+
+    lastKickAtRef.current = now;
+    const separation = BALL_PLAYER_TOUCH_RADIUS + 0.12;
+    ball.x = playerX + awayX * separation;
+    ball.z = playerZ + awayZ * separation;
+    ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.48, ball.y));
+    ball.vx = kickX * 9.5 + awayX * 0.8;
+    ball.vz = kickZ * 9.5 + awayZ * 0.8;
+    ball.vy = 1.15;
+    ball.lastTouchId = clientIdRef.current;
+    ball.lastTouchName = String(nameRef.current || "Player").slice(0, 18);
+    ball.timestamp = now;
+    ballPredictionUntilRef.current = now + 520;
+    onBallState?.(ball);
+    void send(SOCIAL_EVENTS.BALL_KICK, {
+      x: playerX,
+      z: playerZ,
+      rot,
+      name: nameRef.current || "Player",
+      timestamp: now,
+    });
+  }, [kickAvailable, onBallState, send]);
+
   const chatRows = useMemo(() => chat.slice(-12), [chat]);
 
   return (
@@ -1541,6 +1640,19 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           <b>{Math.round(musicVolume * 100)}%</b>
         </label>
       )}
+      {kickAvailable && (
+        <button
+          type="button"
+          className="football-kick-button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={kickBall}
+          aria-label="Kick football"
+        >
+          <span>⚽</span>
+          <b>KICK</b>
+        </button>
+      )}
+
       <div className="social-toolbar" aria-label="Social controls">
         <PanelButton active={panel === "chat"} onClick={() => setPanel(panel === "chat" ? null : "chat")} label="Open chat">💬</PanelButton>
         <PanelButton active={panel === "music"} onClick={() => setPanel(panel === "music" ? null : "music")} label="Open music">🎵</PanelButton>
