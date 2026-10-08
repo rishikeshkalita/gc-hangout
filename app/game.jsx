@@ -677,7 +677,7 @@ function useTVThumbnailTexture(url) {
   return texture;
 }
 
-function TVScreen({ watching = false, track = null, playing = false, startedAt = 0 }) {
+function TVScreen({ watching = false, track = null, playing = false, startedAt = 0, footballScores = [] }) {
   const thumbnail = useTVThumbnailTexture(track?.thumbnail);
   const progressRef = useRef();
   const progressGlowRef = useRef();
@@ -750,7 +750,7 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
       </mesh>
 
       <Text position={[-3.45, 0.92, 0.07]} fontSize={0.13} color="#a99cff" anchorX="left" maxWidth={6.7} whiteSpace="nowrap">
-        {watching ? (playing ? "GC HANGOUT • NOW PLAYING" : "GC HANGOUT • PAUSED") : "GC HANGOUT • SHARED MUSIC"}
+        {footballScores.length ? "GC HANGOUT • FOOTBALL LEADERBOARD" : (watching ? (playing ? "GC HANGOUT • NOW PLAYING" : "GC HANGOUT • PAUSED") : "GC HANGOUT • SHARED MUSIC")}
       </Text>
 
       {!hasTrack ? (
@@ -786,18 +786,32 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
         </>
       )}
 
-      <group position={[3.02, -0.36, 0.08]}>
-        {Array.from({ length: 8 }, (_, index) => (
-          <mesh
-            key={index}
-            ref={(node) => { equalizerRefs.current[index] = node; }}
-            position={[(index - 3.5) * 0.13, -0.12, 0]}
-          >
-            <planeGeometry args={[0.07, 0.34]} />
-            <meshBasicMaterial color={index % 2 ? "#8e83ff" : "#c5bfff"} transparent opacity={hasTrack ? 0.8 : 0.35} />
-          </mesh>
-        ))}
-      </group>
+      {footballScores.length ? (
+        <group position={[0.85, 0.46, 0.08]}>
+          {footballScores.slice(0, 5).map((entry, index) => (
+            <group key={entry.id || entry.name || index} position={[0, -index * 0.29, 0]}>
+              <Text position={[-0.55, 0, 0]} fontSize={0.145} color={index === 0 ? "#ffffff" : "#c5cbe0"} anchorX="left" maxWidth={2.9} whiteSpace="nowrap">
+                {(index + 1) + ". " + String(entry.name || "Player").slice(0, 15)}
+              </Text>
+              <Text position={[2.05, 0, 0]} fontSize={0.16} color="#ffffff" anchorX="right">{String(Math.max(0, Number(entry.goals) || 0))}</Text>
+            </group>
+          ))}
+          <Text position={[-0.55, -1.42, 0]} fontSize={0.09} color="#6f7788" anchorX="left">LIVE ROOM SCORE</Text>
+        </group>
+      ) : (
+        <group position={[3.02, -0.36, 0.08]}>
+          {Array.from({ length: 8 }, (_, index) => (
+            <mesh
+              key={index}
+              ref={(node) => { equalizerRefs.current[index] = node; }}
+              position={[(index - 3.5) * 0.13, -0.12, 0]}
+            >
+              <planeGeometry args={[0.07, 0.34]} />
+              <meshBasicMaterial color={index % 2 ? "#8e83ff" : "#c5bfff"} transparent opacity={hasTrack ? 0.8 : 0.35} />
+            </mesh>
+          ))}
+        </group>
+      )}
 
       <mesh position={[0, -0.79, 0.07]}>
         <planeGeometry args={[6.2, 0.045]} />
@@ -812,9 +826,9 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
         <meshBasicMaterial color="#d8ceff" />
       </mesh>
 
-      <Text position={[-3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="left">shared room music</Text>
+      <Text position={[-3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="left">{footballScores.length ? "football mode" : "shared room music"}</Text>
       <Text position={[3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="right">
-        {hasTrack ? (playing ? "PLAYING TO ROOM" : "PAUSED") : "READY"}
+        {footballScores.length ? "GOALS SYNCED LIVE" : (hasTrack ? (playing ? "PLAYING TO ROOM" : "PAUSED") : "READY")}
       </Text>
     </group>
   );
@@ -900,7 +914,7 @@ function Furniture() {
       <DiningBar />
       <Plant position={[-13.1, 0, 7.5]} />
       <Plant position={[13.0, 0, -7.7]} scale={1.15} />
-      <Lamp position={[-5.7, 0, 6.8]} />
+      <Lamp position={[-12.0, 0, 5.8]} />
       <Lamp position={[5.8, 0, 6.8]} />
     </group>
   );
@@ -1005,6 +1019,62 @@ function RemotePlayers({ players = [] }) {
   return <group>{players.map((state) => <RemotePlayer key={state.id} state={state} />)}</group>;
 }
 
+const FOOTBALL_COURT = Object.freeze({
+  centerX: -3.2,
+  halfWidth: 3.15,
+  halfLength: 7.5,
+  goalWidth: 3,
+  goalHeight: 2,
+  goalLineZ: 7.95,
+});
+
+function FootballGoal({ z }) {
+  const direction = z < 0 ? 1 : -1;
+  const frameMaterial = { color: "#f4f5f1", roughness: 0.42, metalness: 0.18 };
+  const netMaterial = { color: "#d7dce7", transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide };
+  return (
+    <group position={[FOOTBALL_COURT.centerX, 0, z]}>
+      <mesh position={[-1.5, 1, 0]} castShadow><boxGeometry args={[0.08, 2, 0.08]} /><meshStandardMaterial {...frameMaterial} /></mesh>
+      <mesh position={[1.5, 1, 0]} castShadow><boxGeometry args={[0.08, 2, 0.08]} /><meshStandardMaterial {...frameMaterial} /></mesh>
+      <mesh position={[0, 2, 0]} castShadow><boxGeometry args={[3.08, 0.08, 0.08]} /><meshStandardMaterial {...frameMaterial} /></mesh>
+      <mesh position={[0, 1, direction * 0.82]}><planeGeometry args={[3, 2]} /><meshStandardMaterial {...netMaterial} /></mesh>
+      {[-1, 0, 1].map((x) => <mesh key={x} position={[x * 0.75, 1, direction * 0.84]}><boxGeometry args={[0.025, 2, 0.025]} /><meshBasicMaterial color="#cfd5df" transparent opacity={0.28} /></mesh>)}
+      {[0.5, 1, 1.5].map((y) => <mesh key={y} position={[0, y, direction * 0.84]}><boxGeometry args={[3, 0.025, 0.025]} /><meshBasicMaterial color="#cfd5df" transparent opacity={0.28} /></mesh>)}
+      <mesh position={[0, 0.04, direction * 0.46]} receiveShadow><boxGeometry args={[3.15, 0.06, 0.9]} /><meshStandardMaterial color="#1c222b" roughness={0.9} /></mesh>
+    </group>
+  );
+}
+
+function FootballCourt() {
+  const { centerX, halfWidth, halfLength, goalWidth } = FOOTBALL_COURT;
+  const width = halfWidth * 2;
+  const length = halfLength * 2;
+  const line = 0.055;
+  const lineMaterial = () => <meshBasicMaterial color="#e8edf3" transparent opacity={0.78} />;
+  return (
+    <group>
+      <mesh position={[centerX, 0.018, 0]} receiveShadow><boxGeometry args={[width, 0.035, length]} /><meshStandardMaterial color="#254b3a" roughness={0.94} /></mesh>
+      <mesh position={[centerX, 0.048, -halfLength]}>{lineMaterial()}<boxGeometry args={[width, line, line]} /></mesh>
+      <mesh position={[centerX, 0.048, halfLength]}>{lineMaterial()}<boxGeometry args={[width, line, line]} /></mesh>
+      <mesh position={[centerX - halfWidth, 0.048, 0]}>{lineMaterial()}<boxGeometry args={[line, line, length]} /></mesh>
+      <mesh position={[centerX + halfWidth, 0.048, 0]}>{lineMaterial()}<boxGeometry args={[line, line, length]} /></mesh>
+      <mesh position={[centerX, 0.05, 0]}>{lineMaterial()}<boxGeometry args={[width, line, line]} /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0.055, 0]}><ringGeometry args={[1.35, 1.405, 48]} />{lineMaterial()}</mesh>
+      <mesh position={[centerX, 0.055, 0]}><cylinderGeometry args={[0.055, 0.055, 0.025, 16]} />{lineMaterial()}</mesh>
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <mesh position={[centerX, 0.055, side * (halfLength - 1.65)]}>{lineMaterial()}<boxGeometry args={[goalWidth, line, line]} /></mesh>
+          <mesh position={[centerX - goalWidth / 2, 0.055, side * (halfLength - 0.825)]}>{lineMaterial()}<boxGeometry args={[line, line, 1.65]} /></mesh>
+          <mesh position={[centerX + goalWidth / 2, 0.055, side * (halfLength - 0.825)]}>{lineMaterial()}<boxGeometry args={[line, line, 1.65]} /></mesh>
+        </group>
+      ))}
+      <FootballGoal z={-8.75} />
+      <FootballGoal z={8.75} />
+      <Text position={[centerX, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.16} color="#aab9b2">GC FOOTBALL</Text>
+    </group>
+  );
+}
+
 function Football({ state }) {
   const group = useRef();
   const target = useRef(new THREE.Vector3(0, 0.28, 1.5));
@@ -1055,7 +1125,7 @@ function Football({ state }) {
   );
 }
 
-function Room({ player, remotePlayers = [], ballState = null, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote, pairAction }) {
+function Room({ player, remotePlayers = [], ballState = null, footballScores = [], onMove, onNearby, interaction, joystickRef, motionResetKey, pov, tvState, emote, pairAction }) {
   return (
     <>
       <ambientLight intensity={1.72} />
@@ -1080,6 +1150,7 @@ function Room({ player, remotePlayers = [], ballState = null, onMove, onNearby, 
         track={tvState?.track}
         playing={Boolean(tvState?.playing)}
         startedAt={Number(tvState?.startedAt || 0)}
+        footballScores={footballScores}
       />
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC_SPEAKER"} />
       <WallPhotoFrame position={[14.72, 3.0, 2.0]} rotation={[0, -Math.PI / 2, 0]} />
@@ -1088,9 +1159,7 @@ function Room({ player, remotePlayers = [], ballState = null, onMove, onNearby, 
       <WallPhotoFrame position={[-14.72, 3.0, 4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_B_DATA_URL} />
       <WallPhotoFrame position={[0, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_C_DATA_URL} />
       <GraffitiWall />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
-      <Text position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.28} color="#676d7b">OPEN SOCIAL FLOOR</Text>
+      <FootballCourt />
       <Football state={ballState} />
       <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} pairAction={pairAction} />
       <RemotePlayers players={remotePlayers} />
@@ -1125,7 +1194,8 @@ function findSafeExit(anchor, fallback) {
 
 export default function Game() {
   const [player, setPlayer] = useState(() => ({ id: "local", name: "You", avatar: AVATARS[0], x: 0, z: 1.5, rot: Math.PI, moving: false, speed: 0 }));
-  const [ballState, setBallState] = useState(() => ({ x: 2.2, y: 0.28, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() }));
+  const [ballState, setBallState] = useState(() => ({ x: -3.2, y: 0.28, z: 0, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now(), lastTouchId: null, lastTouchName: null }));
+  const [footballScores, setFootballScores] = useState([]);
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1281,7 +1351,7 @@ export default function Game() {
   return (
     <main className="game-shell">
       <Canvas dpr={1} camera={{ position: [0, 3.6, 7.8], fov: 60, near: 0.2, far: 60 }} gl={{ antialias: false, powerPreference: "low-power", preserveDrawingBuffer: false }}>
-        <Room player={player} remotePlayers={remotePlayers} ballState={ballState} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} pairAction={pairAction} />
+        <Room player={player} remotePlayers={remotePlayers} ballState={ballState} footballScores={footballScores} onMove={setPlayer} onNearby={setNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey.current} pov={pov} tvState={tvState} emote={emote} pairAction={pairAction} />
       </Canvas>
 
       <div className="hud"><div className="hud-title">GC HANGOUT</div><div className="hud-subtitle">Shared home</div><div className="hud-controls"><span>WASD / arrows</span><span>Drag / touch to look</span><span>Shift: run</span></div></div>
@@ -1292,6 +1362,7 @@ export default function Game() {
         onPairAction={handlePairAction}
         onRemotePlayers={setRemotePlayers}
         onBallState={setBallState}
+        onFootballScores={setFootballScores}
         playerState={player}
         interaction={interaction}
         emote={emote}
