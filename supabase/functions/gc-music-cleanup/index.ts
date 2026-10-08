@@ -8,7 +8,7 @@ Deno.serve(async () => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const now = new Date().toISOString();
   const { data: stateBefore } = await admin.from("gc_music_state").select("*").eq("room_id", "main").maybeSingle();
-  const { data: expired, error } = await admin.from("gc_music_tracks").select("id,storage_path").lte("expires_at", now).in("status", ["uploading", "ready"]);
+  const { data: expired, error } = await admin.from("gc_music_tracks").select("id,storage_path").or(`expires_at.lte.${now},status.eq.deleted`).in("status", ["uploading", "ready", "deleted"]);
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   const rows = expired || [];
   const expiredIds = rows.map((row) => row.id);
