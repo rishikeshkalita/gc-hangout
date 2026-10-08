@@ -725,28 +725,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const normalized = normalizeMusicTrack({ ...track, requesterId: clientIdRef.current, requesterName: nameRef.current || "Guest", requestedAt: Date.now() });
     if (!normalized) return;
     sharedAudioUnlockedRef.current = true;
-    const now = Date.now();
-    const localState = musicStateRef.current;
-    if (!localState.current) {
-      const optimistic = normalizeMusicState({
-        ...localState,
-        revision: localState.revision + 1,
-        current: normalized,
-        track: normalized,
-        queue: [],
-        position: 0,
-        startedAt: now,
-        playing: true,
-        skipVotes: [],
-        pauseVotes: [],
-        pauseTargetPlaying: false,
-        updatedAt: now,
-      });
-      if (optimistic) {
-        musicStateRef.current = optimistic;
-        setMusicState(optimistic);
-      }
-    }
     void sendMusicRequest("add", { track: normalized, requesterName: nameRef.current || "Guest" }).then((sent) => {
       if (!sent) setMusicStatus("Music connection is not ready. Try Queue again.");
     });
