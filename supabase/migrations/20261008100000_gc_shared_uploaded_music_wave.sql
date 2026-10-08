@@ -189,6 +189,7 @@ begin
   insert into public.gc_music_votes(room_id,track_id,action,user_id) values('main',v_old,p_action,auth.uid()) on conflict do nothing;
   delete from public.gc_room_sessions where room_id='main' and last_seen<v_now-interval '20 seconds';
   insert into public.gc_room_sessions(room_id,user_id,last_seen) values('main',auth.uid(),v_now) on conflict(room_id,user_id) do update set last_seen=excluded.last_seen;
+  delete from public.gc_music_votes where room_id='main' and track_id=v_old and user_id not in (select user_id from public.gc_room_sessions where room_id='main' and last_seen>=v_now-interval '20 seconds');
   select count(*)::integer into v_active from public.gc_room_sessions where room_id='main' and last_seen>=v_now-interval '20 seconds';
   v_active:=greatest(v_active,1); v_required:=ceil(v_active/2.0);
   select count(*)::integer into v_votes from public.gc_music_votes where room_id='main' and track_id=v_old and action=p_action;
