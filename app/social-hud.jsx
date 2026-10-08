@@ -13,7 +13,7 @@ const BALL_WALL_BOUNCE = 0.72;
 const BALL_FRICTION = 0.986;
 const BALL_PLAYER_TOUCH_RADIUS = 0.74;
 const BALL_PLAYER_RELEASE_RADIUS = 0.96;
-const FOOTBALL_COURT_CENTER_X = -3.2;
+const FOOTBALL_COURT_CENTER_X = -5.8;
 const FOOTBALL_GOAL_HALF_WIDTH = 1.5;
 const FOOTBALL_GOAL_HEIGHT = 2;
 const FOOTBALL_GOAL_LINE_Z = 7.95;
@@ -108,7 +108,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const interactionRef = useRef(interaction);
   const emoteRef = useRef(emote);
   const remotePlayersRef = useRef(new Map());
-  const ballRef = useRef({ x: 2.2, y: BALL_FLOOR_Y, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() });
+  const ballRef = useRef({ x: -5.8, y: BALL_FLOOR_Y, z: 0, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() });
   const ballTouchRef = useRef(new Map());
   const ballPlayerMotionRef = useRef(new Map());
   const ballPredictionUntilRef = useRef(0);
@@ -341,7 +341,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (id === clientIdRef.current) continue;
       const meta = Array.isArray(presences) ? presences[0] : null;
       if (!meta || meta.kind !== "player") continue;
-      if (Array.isArray(meta.footballScores) && meta.footballScores.length) applyFootballScores(meta.footballScores);
+      const nextScores = footballScoresRef.current.slice();
+      const existingScore = nextScores.find((entry) => entry.id === id);
+      if (!existingScore) nextScores.push({ id, name: String(meta.name || "Player").slice(0, 18), goals: 0 });
+      if (Array.isArray(meta.footballScores) && meta.footballScores.length) {
+        nextScores.splice(0, nextScores.length, ...meta.footballScores);
+      }
+      applyFootballScores(nextScores);
       seen.add(id);
       mergeRemotePlayer({ ...meta, senderId: id });
     }
@@ -897,6 +903,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         activity: true,
       });
     };
+
+    applyFootballScores([
+      ...footballScoresRef.current,
+      { id: clientIdRef.current, name: String(nameRef.current || "Guest").slice(0, 18), goals: 0 },
+    ]);
 
     const publishFootballScoresPresence = async () => {
       const scores = footballScoresRef.current;
