@@ -721,15 +721,27 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     }
   }, [musicSearch]);
 
+  const openRoomMusic = useCallback(() => {
+    const url = "/music?room=" + encodeURIComponent(ROOM_NAME);
+    const opened = window.open(url, "gc-hangout-room-music");
+    if (!opened) {
+      setMusicStatus("Allow pop-ups to open the Room Music player.");
+      return false;
+    }
+    setMusicStatus("Room player opened. It runs independently from this panel.");
+    return true;
+  }, []);
+
   const queueTrack = useCallback((track) => {
     const normalized = normalizeMusicTrack({ ...track, requesterId: clientIdRef.current, requesterName: nameRef.current || "Guest", requestedAt: Date.now() });
     if (!normalized) return;
     sharedAudioUnlockedRef.current = true;
+    openRoomMusic();
     void sendMusicRequest("add", { track: normalized, requesterName: nameRef.current || "Guest" }).then((sent) => {
       if (!sent) setMusicStatus("Music connection is not ready. Try Queue again.");
     });
     setPanel("music");
-  }, [sendMusicRequest]);
+  }, [openRoomMusic, sendMusicRequest]);
 
   const votePauseResume = useCallback(() => {
     sharedAudioUnlockedRef.current = true;
@@ -818,16 +830,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       {panel === "music" && (
         <section className="social-panel music-panel" onPointerDown={(event) => event.stopPropagation()}>
           <div className="social-panel-head"><strong>Shared music</strong><span>{musicState.current ? `${musicState.current.title} · ${musicState.current.artist}` : "Nothing playing"}</span></div>
-          <button
-            className="music-player-launch"
-            onClick={() => {
-              const url = `/music?room=${encodeURIComponent(ROOM_NAME)}`;
-              const opened = window.open(url, "gc-hangout-room-music");
-              if (!opened) window.location.href = url;
-            }}
-          >
+          <button className="music-player-launch" onClick={openRoomMusic}>
             <span>🎧</span>
-            <span><strong>Open Room Music</strong><small>Dedicated YouTube player · stays independent from this panel</small></span>
+            <span><strong>Open Room Music</strong><small>Separate YouTube player · closing this panel will not stop it</small></span>
             <b>↗</b>
           </button>
           <div className="music-now">
@@ -855,7 +860,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
             {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to pause/resume or advance the room. No local uploads. YouTube is used only for catalog metadata; playback requires a direct/licensed audio URL.</small>
+          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to pause/resume or advance the room. The YouTube player is separate from this panel; closing the panel does not stop room music.</small>
           <small className="youtube-attribution">Catalog source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
         </section>
       )}
