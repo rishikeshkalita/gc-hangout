@@ -637,34 +637,184 @@ function DiningBar() {
   );
 }
 
-function TVScreen({ watching = false, track = null }) {
-  const clampText = (value, length) => {
-    const text = String(value || "").replace(/\s+/g, " ").trim();
-    return text.length > length ? `${text.slice(0, length - 1)}…` : text;
-  };
-  const title = clampText(track?.title || "NO TRACK PLAYING", 34);
-  const artist = clampText(track?.artist || "GC HANGOUT TV", 28);
-  const status = watching ? "TV • WATCHING" : "GC HANGOUT • TV READY";
-  const progress = track?.duration > 0 ? Math.min(1, Math.max(0, Number(track.position || 0) / Number(track.duration))) : 0;
+function useTVThumbnailTexture(url) {
+  const [texture, setTexture] = useState(null);
+
+  useEffect(() => {
+    if (!url) {
+      setTexture(null);
+      return undefined;
+    }
+
+    let disposed = false;
+    let nextTexture = null;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    image.onload = () => {
+      if (disposed) return;
+      nextTexture = new THREE.Texture(image);
+      nextTexture.colorSpace = THREE.SRGBColorSpace;
+      nextTexture.needsUpdate = true;
+      setTexture(nextTexture);
+    };
+    image.onerror = () => {
+      if (!disposed) setTexture(null);
+    };
+    image.src = url;
+
+    return () => {
+      disposed = true;
+      image.src = "";
+      if (nextTexture) nextTexture.dispose();
+    };
+  }, [url]);
+
+  return texture;
+}
+
+function TVScreen({ watching = false, track = null, playing = false, startedAt = 0 }) {
+  const thumbnail = useTVThumbnailTexture(track?.thumbnail);
+  const progressRef = useRef();
+  const progressGlowRef = useRef();
+  const equalizerRefs = useRef([]);
+  const screenGlowRef = useRef();
+  const title = String(track?.title || "NO TRACK PLAYING").replace(/\s+/g, " ").trim();
+  const artist = String(track?.artist || "GC HANGOUT TV").replace(/\s+/g, " ").trim();
+  const hasTrack = Boolean(track);
+  const duration = Math.max(0, Number(track?.duration) || 0);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    const basePosition = Math.max(0, Number(track?.position) || 0);
+    const livePosition = playing && startedAt > 0
+      ? basePosition + Math.max(0, Date.now() - startedAt) / 1000
+      : basePosition;
+    const progress = duration > 0 ? Math.min(1, Math.max(0, livePosition / duration)) : 0;
+
+    if (progressRef.current) {
+      progressRef.current.scale.x = Math.max(0.001, progress);
+      progressRef.current.position.x = -3.1 + (3.1 * progress);
+    }
+    if (progressGlowRef.current) {
+      progressGlowRef.current.scale.x = Math.max(0.001, progress);
+      progressGlowRef.current.position.x = -3.1 + (3.1 * progress);
+      progressGlowRef.current.material.opacity = playing ? 0.24 + Math.sin(t * 5) * 0.06 : 0.12;
+    }
+    if (screenGlowRef.current) {
+      screenGlowRef.current.material.opacity = hasTrack ? (playing ? 0.11 + Math.sin(t * 3.5) * 0.025 : 0.07) : 0.045;
+    }
+
+    equalizerRefs.current.forEach((bar, index) => {
+      if (!bar) return;
+      const phase = t * (playing ? 5.2 + (index % 3) * 0.7 : 1.4) + index * 0.75;
+      const level = playing
+        ? 0.2 + (0.5 + 0.5 * Math.sin(phase)) * (0.55 + 0.25 * Math.sin(t * 1.7 + index))
+        : 0.18 + (index % 2) * 0.04;
+      bar.scale.y = level;
+      bar.position.y = -0.12 + (0.18 * level);
+    });
+  });
 
   return (
     <group position={[0, 2.2, -8.92]}>
-      <mesh><planeGeometry args={[8.05, 2.34]} /><meshBasicMaterial color="#111827" /></mesh>
-      <Text position={[0, 0.76, 0.03]} fontSize={0.14} color="#8f99b8" anchorX="center" maxWidth={6.9} overflowWrap="nowrap">{status}</Text>
-      <Text position={[0, 0.30, 0.03]} fontSize={0.22} color="#ffffff" anchorX="center" maxWidth={6.6} overflowWrap="nowrap">{title}</Text>
-      <Text position={[0, -0.13, 0.03]} fontSize={0.15} color="#aeb6d5" anchorX="center" maxWidth={6.6} overflowWrap="nowrap">{artist}</Text>
-      <mesh position={[0, -0.66, 0.03]}>
-        <planeGeometry args={[5.7, 0.055]} />
-        <meshBasicMaterial color="#4b5563" />
+      <mesh position={[0, 0, 0]}>
+        <planeGeometry args={[8.05, 2.72]} />
+        <meshBasicMaterial color="#0a0d16" />
       </mesh>
-      <mesh position={[-2.85 + 2.85 * progress, -0.66, 0.04]}>
-        <circleGeometry args={[0.07, 12]} />
+
+      <mesh position={[0, 0.02, 0.015]}>
+        <planeGeometry args={[7.72, 2.39]} />
+        <meshBasicMaterial color="#11172a" />
+      </mesh>
+
+      {thumbnail && (
+        <mesh position={[-2.38, 0.05, 0.035]}>
+          <planeGeometry args={[2.35, 1.32]} />
+          <meshBasicMaterial map={thumbnail} toneMapped={false} />
+        </mesh>
+      )}
+
+      <mesh position={[-2.38, 0.05, 0.045]}>
+        <planeGeometry args={[2.43, 1.40]} />
+        <meshBasicMaterial color="#0a0d16" transparent opacity={thumbnail ? 0.08 : 0.72} />
+      </mesh>
+
+      <mesh ref={screenGlowRef} position={[0, 0.05, 0.025]}>
+        <planeGeometry args={[7.5, 2.2]} />
+        <meshBasicMaterial color="#7567ee" transparent opacity={0.08} />
+      </mesh>
+
+      <Text position={[-3.45, 0.92, 0.07]} fontSize={0.13} color="#a99cff" anchorX="left" maxWidth={6.7} whiteSpace="nowrap">
+        {watching ? (playing ? "GC HANGOUT • NOW PLAYING" : "GC HANGOUT • PAUSED") : "GC HANGOUT • SHARED MUSIC"}
+      </Text>
+
+      {!hasTrack ? (
+        <>
+          <Text position={[0, 0.34, 0.08]} fontSize={0.31} color="#ffffff" anchorX="center" maxWidth={6.6} whiteSpace="nowrap">TV READY</Text>
+          <Text position={[0, -0.08, 0.08]} fontSize={0.16} color="#8f99b8" anchorX="center" maxWidth={6.3} whiteSpace="nowrap">Search YouTube music to light up the room</Text>
+        </>
+      ) : (
+        <>
+          <Text
+            position={[-0.72, 0.38, 0.08]}
+            fontSize={0.25}
+            color="#ffffff"
+            anchorX="left"
+            maxWidth={4.45}
+            whiteSpace="normal"
+            overflowWrap="break-word"
+            lineHeight={1.12}
+          >
+            {title}
+          </Text>
+          <Text
+            position={[-0.72, -0.24, 0.08]}
+            fontSize={0.15}
+            color="#aeb6d5"
+            anchorX="left"
+            maxWidth={4.45}
+            whiteSpace="nowrap"
+            overflowWrap="normal"
+          >
+            {artist}
+          </Text>
+        </>
+      )}
+
+      <group position={[3.02, -0.36, 0.08]}>
+        {Array.from({ length: 8 }, (_, index) => (
+          <mesh
+            key={index}
+            ref={(node) => { equalizerRefs.current[index] = node; }}
+            position={[(index - 3.5) * 0.13, -0.12, 0]}
+          >
+            <planeGeometry args={[0.07, 0.34]} />
+            <meshBasicMaterial color={index % 2 ? "#8e83ff" : "#c5bfff"} transparent opacity={hasTrack ? 0.8 : 0.35} />
+          </mesh>
+        ))}
+      </group>
+
+      <mesh position={[0, -0.79, 0.07]}>
+        <planeGeometry args={[6.2, 0.045]} />
+        <meshBasicMaterial color="#353b4a" />
+      </mesh>
+      <mesh ref={progressGlowRef} position={[-3.1, -0.79, 0.075]}>
+        <planeGeometry args={[6.2, 0.09]} />
+        <meshBasicMaterial color="#8e83ff" transparent opacity={0.18} />
+      </mesh>
+      <mesh ref={progressRef} position={[-3.1, -0.79, 0.08]} scale={[0.001, 1, 1]}>
+        <planeGeometry args={[6.2, 0.045]} />
         <meshBasicMaterial color="#d8ceff" />
       </mesh>
+
+      <Text position={[-3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="left">YOUTUBE</Text>
+      <Text position={[3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="right">
+        {hasTrack ? (playing ? "PLAYING TO ROOM" : "PAUSED") : "READY"}
+      </Text>
     </group>
   );
 }
-
 function MusicSpeaker({ playing = false, volume = 0.8, active = false }) {
   const ring = useRef();
   const glow = useRef();
@@ -871,7 +1021,12 @@ function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joyst
       <mesh position={[0, 4.85, 0]}><boxGeometry args={[28.5, 0.12, 18.5]} /><meshStandardMaterial color="#1d222c" roughness={1} /></mesh>
 
       <Furniture />
-      <TVScreen watching={interaction?.anchor?.type === "WATCH_TV"} track={tvState?.track} />
+      <TVScreen
+        watching={interaction?.anchor?.type === "WATCH_TV"}
+        track={tvState?.track}
+        playing={Boolean(tvState?.playing)}
+        startedAt={Number(tvState?.startedAt || 0)}
+      />
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC_SPEAKER"} />
       <WallPhotoFrame />
       <GraffitiWall />
@@ -934,6 +1089,7 @@ export default function Game() {
       track: state.track ? { ...state.track, position: state.position } : null,
       playing: Boolean(state.playing),
       volume: Number(state.volume ?? 0.8),
+      startedAt: Number(state.startedAt || 0),
     });
   }, []);
 
