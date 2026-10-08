@@ -242,6 +242,86 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     return pc;
   }, [addRemoteStream, closePeer, sendSignal]);
 
+  const enableVoice = useCallback(async () => {
+    if (voiceEnabledRef.current) {
+      voiceEnabledRef.current = false;
+      setVoiceOn(false);
+      setVoiceStatus("Leaving voice…");
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+      for (const peerId of Array.from(peersRef.current.keys())) closePeer(peerId);
+      if (socialReadyRef.current) {
+        await channelRef.current?.track({
+          kind: "player",
+          name: nameRef.current || "Guest",
+          voice: false,
+        });
+      }
+      setVoiceStatus("Tap mic to join voice");
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceStatus("Microphone is unavailable in this browser.");
+      return;
+    }
+
+    try {
+      setVoiceStatus("Requesting microphone permission…");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+      localStreamRef.current = stream;
+      voiceEnabledRef.current = true;
+      setVoiceOn(true);
+      setMuted(false);
+      stream.getAudioTracks().forEach((track) => { track.enabled = true; });
+      setVoiceStatus("Voice connected");
+
+      if (socialReadyRef.current) {
+        await channelRef.current?.track({
+          kind: "player",
+          name: nameRef.current || "Guest",
+          voice: true,
+        });
+        const state = channelRef.current?.presenceState?.() || {};
+        Object.keys(state)
+          .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
+          .forEach((id) => void ensurePeer(id, true));
+      }
+    } catch (error) {
+      voiceEnabledRef.current = false;
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+      setVoiceOn(false);
+      const errorName = error?.name || "UnknownError";
+      if (errorName === "NotAllowedError") {
+        setVoiceStatus("Microphone permission was denied. Allow mic access for this site and try again.");
+      } else if (errorName === "NotFoundError") {
+        setVoiceStatus("No microphone was found.");
+      } else if (errorName === "NotReadableError") {
+        setVoiceStatus("The microphone is busy or unavailable.");
+      } else {
+        setVoiceStatus(error?.message || "Could not start voice.");
+      }
+      console.error("Voice microphone start failed", error);
+    }
+  }, [closePeer, ensurePeer]);
+
+  const toggleMute = useCallback(() => {
+    const nextMuted = !muted;
+    localStreamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !nextMuted;
+    });
+    setMuted(nextMuted);
+    setVoiceStatus(nextMuted ? "Muted" : "Voice connected");
+  }, [muted]);
+
   useEffect(() => {
     if (!authUserId) return undefined;
     const supabase = getSupabase();
@@ -711,11 +791,23 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     event.target.value = "";
     if (!file) return;
     const allowed = new Set(["audio/mpeg","audio/mp4","audio/x-m4a","audio/aac","audio/ogg","audio/webm","audio/wav","audio/x-wav","audio/flac","audio/x-flac"]);
+    const extension = String(file.name || "").split(".").pop()?.toLowerCase() || "";
+    const extensionMime = {
+      mp3: "audio/mpeg",
+      m4a: "audio/mp4",
+      aac: "audio/aac",
+      ogg: "audio/ogg",
+      oga: "audio/ogg",
+      webm: "audio/webm",
+      wav: "audio/wav",
+      flac: "audio/flac",
+    }[extension] || "";
+    const mimeType = file.type || extensionMime;
     if (file.size > 26214400) {
       setMusicStatus("That file is larger than the 25 MB limit.");
       return;
     }
-    if (file.type && !allowed.has(file.type)) {
+    if (!mimeType || !allowed.has(mimeType)) {
       setMusicStatus("Unsupported audio type. Use MP3, WAV, M4A/AAC, OGG, FLAC, or WebM.");
       return;
     }
@@ -727,18 +819,31 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (!client) throw new Error("Room backend is not ready.");
       const baseName = file.name.replace(/\.[^.]+$/, "").slice(0, 100) || "Untitled track";
       objectUrl = URL.createObjectURL(file);
-      const duration = await new Promise((resolve, reject) => {
-        const audio = new Audio();
-        audio.preload = "metadata";
-        audio.onloadedmetadata = () => resolve(Number.isFinite(audio.duration) ? audio.duration : 0);
-        audio.onerror = () => reject(new Error("The selected file could not be decoded by this browser."));
-        audio.src = objectUrl;
-      });
+      let duration = 0;
+      try {
+        duration = await new Promise((resolve) => {
+          const audio = new Audio();
+          audio.preload = "metadata";
+          const finish = (value) => resolve(Number.isFinite(value) && value > 0 ? value : 0);
+          const timeout = window.setTimeout(() => finish(0), 5000);
+          audio.onloadedmetadata = () => {
+            window.clearTimeout(timeout);
+            finish(audio.duration);
+          };
+          audio.onerror = () => {
+            window.clearTimeout(timeout);
+            finish(0);
+          };
+          audio.src = objectUrl;
+        });
+      } catch {
+        duration = 0;
+      }
       const { data: uploadInfo, error: beginError } = await client.rpc("gc_music_begin_upload", {
         p_title: baseName,
         p_artist: "Unknown artist",
         p_filename: file.name,
-        p_mime_type: file.type,
+        p_mime_type: mimeType,
         p_file_size: file.size
       });
       if (beginError) throw beginError;
@@ -746,11 +851,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       trackId = info?.track_id;
       const storagePath = info?.storage_path;
       if (!trackId || !storagePath) throw new Error("Upload reservation failed.");
-      const { error: uploadError } = await client.storage.from("gc-music").upload(storagePath, file, { contentType: file.type, upsert: false });
+      setMusicStatus("Uploading to the shared room…");
+      const { error: uploadError } = await client.storage.from("gc-music").upload(storagePath, file, { contentType: mimeType, upsert: false });
       if (uploadError) throw uploadError;
       const { error: finalizeError } = await client.rpc("gc_music_finalize_upload", { p_track_id: trackId, p_duration: duration });
       if (finalizeError) throw finalizeError;
-      setMusicStatus("Uploaded. Available to the room for 72 hours.");
+      setMusicStatus("Uploaded to the shared room library.");
       pushActivity(`uploaded “${baseName}” to the shared music library`, "🎵");
       await loadMusic("");
     } catch (error) {
