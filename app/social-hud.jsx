@@ -344,8 +344,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const nextScores = footballScoresRef.current.slice();
       const existingScore = nextScores.find((entry) => entry.id === id);
       if (!existingScore) nextScores.push({ id, name: String(meta.name || "Player").slice(0, 18), goals: 0 });
-      if (Array.isArray(meta.footballScores) && meta.footballScores.length) {
-        nextScores.splice(0, nextScores.length, ...meta.footballScores);
+      for (const incoming of Array.isArray(meta.footballScores) ? meta.footballScores : []) {
+        const scoreId = String(incoming?.id || "");
+        if (!scoreId) continue;
+        const localScore = nextScores.find((entry) => entry.id === scoreId);
+        const incomingGoals = Math.max(0, Math.floor(Number(incoming?.goals) || 0));
+        if (!localScore) nextScores.push({ id: scoreId, name: String(incoming?.name || "Player").slice(0, 18), goals: incomingGoals });
+        else if (incomingGoals > localScore.goals) Object.assign(localScore, { goals: incomingGoals, name: String(incoming?.name || localScore.name).slice(0, 18) });
       }
       applyFootballScores(nextScores);
       seen.add(id);
@@ -1173,7 +1178,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
-  }, [authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
+  }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
 
   const refreshMusicSnapshot = useCallback(async () => {
     const client = supabaseRef.current;
