@@ -115,6 +115,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const footballScoresRef = useRef([]);
   const footballGoalRef = useRef(null);
   const lastKickAtRef = useRef(0);
+  const ballTouchCooldownRef = useRef(new Map());
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
   const gameReadyRef = useRef(false);
@@ -817,8 +818,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
 
       const id = String(payload?.senderId || "");
-      if (ballTouchRef.current.has(id)) return false;
-      ballTouchRef.current.set(id, true);
+      if (!id) return false;
+      const now = Date.now();
+      const lastTouch = Number(ballTouchCooldownRef.current.get(id) || 0);
+      if (now - lastTouch < 180) return false;
+      ballTouchCooldownRef.current.set(id, now);
 
       const rot = Number(payload?.rot) || 0;
       const facingX = Math.sin(rot);
@@ -840,7 +844,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.vy = moving ? 0.28 : 0.12;
       ball.lastTouchId = id;
       ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
-      ball.timestamp = Date.now();
+      ball.timestamp = now;
       publishBallState();
       return true;
     };
@@ -998,12 +1002,33 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const now = Date.now();
       const local = playerStateRef.current;
       if (local && Number.isFinite(Number(local.x)) && Number.isFinite(Number(local.z))) {
-        const dx = ballRef.current.x - Number(local.x);
-        const dz = ballRef.current.z - Number(local.z);
+        const playerX = Number(local.x);
+        const playerZ = Number(local.z);
+        const dx = ballRef.current.x - playerX;
+        const dz = ballRef.current.z - playerZ;
         const horizontal = Math.hypot(dx, dz);
         const vertical = Math.abs(ballRef.current.y - 0.92);
-        if (horizontal > BALL_PLAYER_RELEASE_RADIUS || vertical > 0.95) {
-          ballTouchRef.current.delete(clientIdRef.current);
+        const touching = horizontal <= BALL_PLAYER_TOUCH_RADIUS && vertical <= 0.82;
+        const moving = Boolean(local.moving) || Number(local.speed) > 0.25;
+        if (touching && moving) {
+          const touchPayload = {
+            senderId: clientIdRef.current,
+            x: playerX,
+            z: playerZ,
+            rot: Number(local.rot) || 0,
+            speed: Number(local.speed) || 0,
+            moving: true,
+            name: nameRef.current || "Player",
+          };
+          if (authorityId === clientIdRef.current) {
+            applyNetworkBallTouch(touchPayload);
+          } else {
+            const lastTouch = Number(ballTouchCooldownRef.current.get(clientIdRef.current) || 0);
+            if (now - lastTouch >= 180) {
+              ballTouchCooldownRef.current.set(clientIdRef.current, now);
+              void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload: touchPayload });
+            }
+          }
         }
       }
 
@@ -1134,6 +1159,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ballPredictionUntilRef.current = 0;
       footballScoresRef.current = [];
       footballGoalRef.current = null;
+      ballTouchCooldownRef.current.clear();
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
@@ -1498,7 +1524,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const by = Number(ballState?.y);
     const bz = Number(ballState?.z);
     if (![px, pz, bx, by, bz].every(Number.isFinite)) return false;
-    return Math.hypot(bx - px, bz - pz) <= BALL_PLAYER_TOUCH_RADIUS && Math.abs(by - 0.92) <= 0.82;
+    return Math.hypot(bx - px, bz - pz) <= 1.1 && Math.abs(by - 0.92) <= 1.05;
   }, [ballState?.x, ballState?.y, ballState?.z, playerState?.x, playerState?.z]);
 
   const kickBall = useCallback(() => {
@@ -1511,7 +1537,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const playerZ = Number(state?.z);
     if (![playerX, playerZ, ball.x, ball.y, ball.z].every(Number.isFinite)) return;
     const horizontal = Math.hypot(ball.x - playerX, ball.z - playerZ);
-    if (horizontal > BALL_PLAYER_TOUCH_RADIUS || Math.abs(ball.y - 0.92) > 0.82) return;
+    if (horizontal > 1.1 || Math.abs(ball.y - 0.92) > 1.05) return;
 
     const rot = Number(state?.rot) || 0;
     const facingX = Math.sin(rot);
