@@ -568,31 +568,28 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const channel = supabase.channel(`gc-hangout:${ROOM_NAME}`, {
       config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
-    const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: false, ack: true } },
-    });
     channelRef.current = channel;
 
-    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL }, ({ payload }) => {
+    channel.on("broadcast", { event: SOCIAL_EVENTS.BALL }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const incoming = ballStateSnapshot(payload);
       if (incoming.timestamp < Number(ballRef.current.timestamp || 0)) return;
       ballRef.current = incoming;
       onBallState?.(incoming);
     });
-    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_KICK }, ({ payload }) => {
+    channel.on("broadcast", { event: SOCIAL_EVENTS.BALL_KICK }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const state = channel.presenceState?.() || {};
       if (getBallAuthorityId(state) !== clientIdRef.current) return;
       applyNetworkBallKick(payload);
     });
-    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
+    channel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const state = channel.presenceState?.() || {};
       if (getBallAuthorityId(state) !== clientIdRef.current) return;
       applyNetworkBallTouch(payload);
     });
-    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.FOOTBALL_SCORE }, ({ payload }) => {
+    channel.on("broadcast", { event: SOCIAL_EVENTS.FOOTBALL_SCORE }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       applyFootballScores(payload?.scores || []);
       if (payload?.ball) {
@@ -901,7 +898,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       resetBall.timestamp = Date.now();
       ballRef.current = resetBall;
       onBallState?.(resetBall);
-      void gameChannel.send({
+      void channel.send({
         type: "broadcast",
         event: SOCIAL_EVENTS.FOOTBALL_SCORE,
         payload: {
@@ -1020,7 +1017,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             const lastTouch = Number(ballTouchCooldownRef.current.get(clientIdRef.current) || 0);
             if (now - lastTouch >= 180) {
               ballTouchCooldownRef.current.set(clientIdRef.current, now);
-              void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload: touchPayload });
+              void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload: touchPayload });
             }
           }
         }
@@ -1036,7 +1033,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         }
         const payload = { ...ballRef.current, senderId: clientIdRef.current };
         const snapshot = publishBallState();
-        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
+        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
       } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
         // authoritative snapshot arrives.
@@ -1070,8 +1067,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           socialReadyRef.current = false;
           void targetChannel.subscribe(handleSocialStatus);
         } else {
-          gameReadyRef.current = false;
-          void targetChannel.subscribe(handleGameStatus);
+              void targetChannel.subscribe(handleGameStatus);
         }
       }, 900);
     };
@@ -1106,19 +1102,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     };
 
-    const handleGameStatus = async (status) => {
-      gameReadyRef.current = status === "SUBSCRIBED";
-      if (status === "SUBSCRIBED") {
-        publishPlayer();
-      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
-        console.warn("GC Hangout game realtime status:", status);
-        sessionStartedRef.current = false;
-        scheduleReconnect(gameChannel, "game");
-      }
-    };
-
     void channel.subscribe(handleSocialStatus);
-    void gameChannel.subscribe(handleGameStatus);
 
     return () => {
       peersRef.current.forEach((pc) => pc.close());
@@ -1142,9 +1126,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
-      void gameChannel.unsubscribe();
       supabase.removeChannel(channel);
-      supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
   }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, publishBallState, pushChatToast, sendSignal, simulateBallStep]);
