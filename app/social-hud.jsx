@@ -923,12 +923,36 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     roomAudioRef.current = audio;
     audio.preload = "auto";
     audio.playsInline = true;
-    audio.volume = musicVolume;
+    audio.crossOrigin = "anonymous";
+    audio.volume = 1;
+
+    try {
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextCtor && !roomAudioContextRef.current) {
+        const context = new AudioContextCtor();
+        const source = context.createMediaElementSource(audio);
+        const gain = context.createGain();
+        gain.gain.value = musicVolume;
+        source.connect(gain);
+        gain.connect(context.destination);
+        roomAudioContextRef.current = context;
+        roomAudioSourceRef.current = source;
+        roomAudioGainRef.current = gain;
+      }
+    } catch (error) {
+      console.warn("GC Hangout Web Audio volume control unavailable", error);
+    }
+
     return () => {
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
       roomAudioRef.current = null;
+      roomAudioSourceRef.current = null;
+      roomAudioGainRef.current = null;
+      const context = roomAudioContextRef.current;
+      roomAudioContextRef.current = null;
+      if (context) void context.close().catch(() => {});
     };
   }, [setAudioSessionType]);
 
@@ -936,7 +960,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const audio = roomAudioRef.current;
     const current = musicState.current;
     if (!audio) return;
-    audio.volume = musicVolume;
+    if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = musicVolume;
+    audio.volume = 1;
+    if (roomAudioContextRef.current?.state === "suspended") void roomAudioContextRef.current.resume().catch(() => {});
     if (!current) {
       audio.pause();
       roomAudioTrackRef.current = "";
