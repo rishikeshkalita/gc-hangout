@@ -191,11 +191,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const horizontal = Math.hypot(dx, dz);
       const playerY = 0.92;
       const vertical = Math.abs(ball.y - playerY);
-      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || vertical > 0.82) continue;
-
       const id = String(player.id || clientIdRef.current);
       const playerX = Number(player.x);
       const playerZ = Number(player.z);
+
+      // Release the contact latch before the touch-radius early exit. The old
+      // ordering made the latch permanent after the first touch.
+      if (horizontal > BALL_PLAYER_RELEASE_RADIUS || vertical > 0.95) {
+        ballTouchRef.current.delete(id);
+      }
+      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || vertical > 0.82) continue;
+
       const previousMotion = ballPlayerMotionRef.current.get(id);
       const motionNow = Date.now();
       let moveX = 0;
@@ -207,9 +213,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
       ballPlayerMotionRef.current.set(id, { x: playerX, z: playerZ, time: motionNow });
 
-      if (horizontal > BALL_PLAYER_RELEASE_RADIUS) {
-        ballTouchRef.current.delete(id);
-      }
       if (ballTouchRef.current.has(id)) continue;
       ballTouchRef.current.set(id, true);
 
@@ -218,34 +221,35 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const movementSpeed = Math.hypot(moveX, moveZ);
       const declaredSpeed = Math.max(0, Number(player.speed) || 0);
       const moving = Boolean(player.moving) || movementSpeed > 0.25;
-      let nx = horizontal > 0.001 ? dx / horizontal : facingX;
-      let nz = horizontal > 0.001 ? dz / horizontal : facingZ;
 
-      // Prefer the actual player movement direction. This makes contact a dribble/kick
-      // rather than repeatedly launching the ball in the avatar's facing direction.
-      if (movementSpeed > 0.35) {
-        nx = moveX / movementSpeed;
-        nz = moveZ / movementSpeed;
-      } else if (moving) {
-        nx = facingX;
-        nz = facingZ;
+      // Movement direction controls the kick. If the player is stationary,
+      // use facing direction so the ball still responds to a touch.
+      let kickX = movementSpeed > 0.35 ? moveX / movementSpeed : facingX;
+      let kickZ = movementSpeed > 0.35 ? moveZ / movementSpeed : facingZ;
+      if (!Number.isFinite(kickX) || !Number.isFinite(kickZ)) {
+        kickX = horizontal > 0.001 ? dx / horizontal : 0;
+        kickZ = horizontal > 0.001 ? dz / horizontal : 1;
       }
 
-      // A moving player should only kick strongly when moving toward the ball.
-      const towardBall = moveX * (dx / Math.max(horizontal, 0.001))
-        + moveZ * (dz / Math.max(horizontal, 0.001));
-      const kickSpeed = moving
-        ? (towardBall > 0.05 ? 4.8 + Math.min(Math.max(declaredSpeed, movementSpeed), 8) * 0.38 : 1.8)
-        : 1.25;
-      const upward = moving && towardBall > 0.05 ? 0.42 : 0.16;
+      const awayX = horizontal > 0.001 ? dx / horizontal : kickX;
+      const awayZ = horizontal > 0.001 ? dz / horizontal : kickZ;
+      const towardBall = moveX * awayX + moveZ * awayZ;
+      const controlSpeed = Math.min(Math.max(declaredSpeed, movementSpeed), 8);
 
-      // Resolve penetration without teleporting the ball to the player's center.
-      const separation = BALL_PLAYER_TOUCH_RADIUS + 0.025;
-      ball.x = playerX + nx * separation;
-      ball.z = playerZ + nz * separation;
-      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.52, ball.y));
-      ball.vx = nx * kickSpeed;
-      ball.vz = nz * kickSpeed;
+      // Never require a precise approach vector. Any real contact produces
+      // a visible kick, while walking contact produces the strongest kick.
+      const kickSpeed = moving
+        ? (towardBall > -0.2 ? 5.4 + controlSpeed * 0.32 : 3.0)
+        : 2.2;
+      const upward = moving && towardBall > -0.2 ? 0.28 : 0.12;
+
+      // Push the ball outside the avatar, then give it real velocity.
+      const separation = BALL_PLAYER_TOUCH_RADIUS + 0.06;
+      ball.x = playerX + awayX * separation;
+      ball.z = playerZ + awayZ * separation;
+      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.55, ball.y));
+      ball.vx = kickX * kickSpeed + awayX * 0.45;
+      ball.vz = kickZ * kickSpeed + awayZ * 0.45;
       ball.vy = upward;
     }
 
