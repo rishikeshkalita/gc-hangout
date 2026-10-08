@@ -1066,8 +1066,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         if (kind === "social") {
           socialReadyRef.current = false;
           void targetChannel.subscribe(handleSocialStatus);
-        } else {
-              void targetChannel.subscribe(handleGameStatus);
         }
       }, 900);
     };
@@ -1116,7 +1114,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
       socialReadyRef.current = false;
-      gameReadyRef.current = false;
       sessionStartedRef.current = false;
       ballPredictionUntilRef.current = 0;
       footballScoresRef.current = [];
