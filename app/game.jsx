@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
 import { GC_HANGOUT_FRAME_PHOTO_A_DATA_URL, GC_HANGOUT_FRAME_PHOTO_B_DATA_URL } from "../lib/gc-hangout-frame-photos.mjs";
 import { GC_HANGOUT_FRAME_PHOTO_C_DATA_URL } from "../lib/gc-hangout-frame-photo-c.mjs";
+import { GC_HANGOUT_FRAME_PHOTO_D_DATA_URL } from "../lib/gc-hangout-frame-photo-d.mjs";
 import { INTERACTION_PHASE_MS, canReserveInteraction } from "../lib/game-state.mjs";
 import SocialHud from "./social-hud";
 
@@ -1178,6 +1179,7 @@ function Room({ player, remotePlayers = [], ballState = null, footballScores = [
       <WallPhotoFrame position={[-14.72, 3.0, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_A_DATA_URL} />
       <WallPhotoFrame position={[-14.72, 3.0, 4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_B_DATA_URL} />
       <WallPhotoFrame position={[0, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_C_DATA_URL} />
+      <WallPhotoFrame position={[3.15, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_D_DATA_URL} />
       <GraffitiWall />
       <FootballCourt />
       <Football state={ballState} />
