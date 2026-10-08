@@ -35,7 +35,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [musicSearch, setMusicSearch] = useState("lounge");
   const [musicState, setMusicState] = useState({ current: null, track: null, queue: [], skipVotes: [], revision: 0, position: 0, startedAt: 0, playing: false, volume: 0.8, updatedAt: Date.now(), leaderId: "" });
   const [musicBusy, setMusicBusy] = useState(false);
-  const [musicStatus, setMusicStatus] = useState("Shared room audio");
+  const [musicStatus, setMusicStatus] = useState("Shared YouTube playback");
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const speakerControlActive = Boolean(
     speakerActive &&
@@ -656,96 +656,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
   }, [musicState]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const audio = roomAudioRef.current || document.createElement("audio");
-    audio.preload = "auto";
-    audio.playsInline = true;
-    audio.setAttribute("aria-hidden", "true");
-    audio.style.display = "none";
-    roomAudioRef.current = audio;
-
-    const handleEnded = () => {
-      const state = musicStateRef.current;
-      if (state.current) void sendMusicRequest("ended", { revision: state.revision });
-    };
-    const handleError = () => {
-      setMusicStatus("This track has no playable direct audio source.");
-    };
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("error", handleError);
-
-    return () => {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("error", handleError);
-      roomAudioRef.current = null;
-    };
-  }, [sendMusicRequest]);
-
-  useEffect(() => {
-    const audio = roomAudioRef.current;
-    const track = musicState.current;
-    if (!audio) return;
-
-    if (!track?.audioUrl) {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      roomAudioTrackRef.current = "";
-      if (track) setMusicStatus("YouTube search is metadata-only. Add a direct/licensed audio source to play it.");
-      return;
-    }
-
-    if (roomAudioTrackRef.current !== track.id || audio.src !== track.audioUrl) {
-      roomAudioTrackRef.current = track.id;
-      audio.src = track.audioUrl;
-      audio.load();
-    }
-
-    audio.volume = musicVolume;
-    const expected = currentMusicPosition(musicStateRef.current);
-    const actual = Number(audio.currentTime || 0);
-    if (Math.abs(expected - actual) > 1) audio.currentTime = expected;
-
-    if (musicState.playing) {
-      void audio.play().catch(() => setMusicStatus("Tap Play or the music control to enable room audio."));
-    } else {
-      audio.pause();
-    }
-  }, [musicState.revision, musicState.playing, musicState.current?.id, musicState.current?.audioUrl, musicVolume]);
-
-  useEffect(() => {
-    const unlock = () => {
-      sharedAudioUnlockedRef.current = true;
-      const audio = roomAudioRef.current;
-      const state = musicStateRef.current;
-      if (audio && state.playing && state.current?.audioUrl) void audio.play().catch(() => {});
-    };
-    window.addEventListener("pointerdown", unlock, { passive: true });
-    window.addEventListener("touchstart", unlock, { passive: true });
-    window.addEventListener("keydown", unlock);
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("touchstart", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const audio = roomAudioRef.current;
-      const state = musicStateRef.current;
-      if (!audio || !state.current?.audioUrl || !state.playing) return;
-      const expected = currentMusicPosition(state);
-      const actual = Number(audio.currentTime || 0);
-      if (Math.abs(expected - actual) > 1) audio.currentTime = expected;
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   const enableVoice = useCallback(async () => {
     if (voiceOn) {
       voiceEnabledRef.current = false;
@@ -898,6 +808,24 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <button type="submit">Send</button>
           </form>
         </section>
+      )}
+
+      {musicState.current?.videoId && (
+        <div
+          className="youtube-mini-player"
+          aria-label="YouTube playback"
+          style={{ width: 200, height: 112 }}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <iframe
+            title="YouTube music"
+            width="200"
+            height="112"
+            src={`https://www.youtube.com/embed/${musicState.current.videoId}?autoplay=${musicState.playing ? 1 : 0}&playsinline=1&controls=1&rel=0`}
+            allow="autoplay; encrypted-media"
+            allowFullScreen={false}
+          />
+        </div>
       )}
 
       {panel === "music" && (
