@@ -754,10 +754,17 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
       </Text>
 
       {!hasTrack ? (
-        <>
-          <Text position={[0, 0.34, 0.08]} fontSize={0.31} color="#ffffff" anchorX="center" maxWidth={6.6} whiteSpace="nowrap">TV READY</Text>
-          <Text position={[0, -0.08, 0.08]} fontSize={0.16} color="#8f99b8" anchorX="center" maxWidth={6.3} whiteSpace="nowrap">Search shared room music music to light up the room</Text>
-        </>
+        footballScores.length ? (
+          <>
+            <Text position={[-2.72, 0.34, 0.08]} fontSize={0.29} color="#ffffff" anchorX="left" maxWidth={2.8} whiteSpace="nowrap">FOOTBALL MODE</Text>
+            <Text position={[-2.72, -0.08, 0.08]} fontSize={0.14} color="#8f99b8" anchorX="left" maxWidth={2.8} whiteSpace="normal">Live room goals</Text>
+          </>
+        ) : (
+          <>
+            <Text position={[0, 0.34, 0.08]} fontSize={0.31} color="#ffffff" anchorX="center" maxWidth={6.6} whiteSpace="nowrap">TV READY</Text>
+            <Text position={[0, -0.08, 0.08]} fontSize={0.16} color="#8f99b8" anchorX="center" maxWidth={6.3} whiteSpace="nowrap">Search shared room music to light up the room</Text>
+          </>
+        )
       ) : (
         <>
           <Text
@@ -788,7 +795,7 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
 
       {footballScores.length ? (
         <group position={[0.85, 0.46, 0.08]}>
-          {footballScores.slice(0, 5).map((entry, index) => (
+          {footballScores.slice(0, 7).map((entry, index) => (
             <group key={entry.id || entry.name || index} position={[0, -index * 0.29, 0]}>
               <Text position={[-0.55, 0, 0]} fontSize={0.145} color={index === 0 ? "#ffffff" : "#c5cbe0"} anchorX="left" maxWidth={2.9} whiteSpace="nowrap">
                 {(index + 1) + ". " + String(entry.name || "Player").slice(0, 15)}
