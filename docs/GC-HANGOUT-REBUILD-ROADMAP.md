@@ -456,19 +456,19 @@ These are hard rules for the implementation:
 4. **Synchronization uses a room clock plus bounded drift correction, not constant seeking.**
 5. **Voice and music have independent lifecycles and resources.**
 6. **A local browser autoplay failure never becomes a shared room pause.**
-7. **Only portable YouTube identifiers/metadata are shared; device-local file URLs are never shared.**
+7. **Only authoritative uploaded-track metadata/state is shared; device-local file URLs are never shared.**
 
 ### Product decision record — 2026-10-08
 
-The previous Jamendo/local-upload approach is superseded because it did not reliably satisfy the core product requirement: when one player selects music, every player must hear the same song in the same shared room.
+The earlier Jamendo/YouTube planning was superseded by the implemented shared uploaded-audio architecture.
 
-The replacement is:
+The current product model is:
 
-**YouTube search → shared queue → authoritative room clock → individual YouTube embedded players → drift correction → automatic next song → skip voting.**
+**device upload → shared room library → shared queue → authoritative room clock/state → native audio per client → drift correction → automatic next → majority skip/pause/resume voting**
 
-Manual local music upload is removed from the roadmap rather than retained as a fallback.
+Manual upload is **not** a fallback; it is the current and only active music source.
 
-Wave 4 remains **NOT VERIFIED** until fresh two-device real-device testing proves live synchronization, queue advancement, skip voting, shared volume, and simultaneous voice + music.
+Wave 4 remains **NOT VERIFIED** until fresh two-device real-device testing proves upload, shared-library selection, synchronized playback, automatic queue advancement, skip voting, shared volume, TV mirroring, and simultaneous voice + music.
 
 ---
 
@@ -520,7 +520,7 @@ Wave 4 remains **NOT VERIFIED** until fresh two-device real-device testing prove
 - Player transforms continue through Broadcast at 10Hz; Presence join/sync forces fresh transform handshakes so a newly joined device does not depend on a missed first packet.
 - Shared provider music state is included in Presence for late joiners and continues through Broadcast for play/pause/position updates.
 - Browser audio unlock is now remembered after the first user gesture on each device, allowing a remote shared track to start once the browser has granted audible playback permission.
-- Manual/local Add Song uploads are removed from the product architecture; Wave 4 now uses YouTube shared queue playback only.
+- Local-only Add Song playback is removed; uploads now enter the shared room music library and queue.
 - **Verification: NOT VERIFIED.** The implementation is committed, but the current Vercel account is over its daily deployment limit and the new commit cannot be deployed for two-device acceptance yet.
 
 ### Gate
@@ -1134,12 +1134,12 @@ For every wave, record:
 - **Behavior:** pause and resume are now room decisions, not single-player commands.
 - **Rule:** more than half of active room members must uniquely vote for the requested pause/resume state before the room changes state.
 - **One vote per player:** duplicate requests from the same client do not increase the count; changing intent before a majority starts a fresh vote for the new target state.
-- **YouTube isolation:** native YouTube PAUSED/PLAYING events no longer become room-wide commands. If a local player is manually paused/played against the authoritative room state, the app restores the room state instead of broadcasting an accidental pause/resume.
+- **Authoritative playback isolation:** local browser play/pause events do not become room-wide commands. If a client diverges from the authoritative room state, it restores the shared state instead of broadcasting an accidental change.
 - **Autoplay:** browser autoplay blocking remains local and does not count as a pause vote.
 - **Automated coverage:** shared pause vote normalization added to social-state tests.
 - **Browser/device result:** **NOT VERIFIED**. Fresh two-device acceptance is still required.
 
-### 2026-10-08 — Wave 4 YouTube jukebox implementation
+### 2026-10-08 — Historical Wave 4 YouTube implementation — SUPERSEDED
 
 - **Implementation:** replaced the Jamendo catalog and local/manual upload path with YouTube Data API search plus the official YouTube IFrame Player API.
 - **Shared state:** added a revisioned room music state containing current video, queue, requester metadata, room clock, play/pause state, shared volume, and unique skip votes.
