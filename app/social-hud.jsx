@@ -573,9 +573,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
     channelRef.current = channel;
 
-    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
-      mergeRemotePlayer(payload);
-    });
     gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const incoming = ballStateSnapshot(payload);
@@ -957,11 +954,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           if (result === "error") console.warn("GC Hangout social player broadcast rejected");
         });
       }
-      if (gameReadyRef.current) {
-        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
-          if (result === "error") console.warn("GC Hangout game player broadcast rejected");
-        });
-      }
     };
 
     const syncMusicPresence = (state) => {
@@ -997,7 +989,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
 
-    const playerTimer = window.setInterval(publishPlayer, 100);
+    const playerTimer = window.setInterval(publishPlayer, 150);
     const ballTimer = window.setInterval(() => {
       const state = channel.presenceState?.() || {};
       const authorityId = getBallAuthorityId(state);
