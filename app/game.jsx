@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Billboard, Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { GC_HANGOUT_PHOTO_DATA_URL } from "../lib/gc-hangout-photo.mjs";
+import { GC_HANGOUT_FRAME_PHOTO_A_DATA_URL, GC_HANGOUT_FRAME_PHOTO_B_DATA_URL } from "../lib/gc-hangout-frame-photos.mjs";
 import { INTERACTION_PHASE_MS, canReserveInteraction } from "../lib/game-state.mjs";
 import SocialHud from "./social-hud";
 
@@ -38,7 +39,9 @@ function useEmbeddedPhotoTexture(dataUrl) {
         bytes[index] = binary.charCodeAt(index);
       }
 
-      objectUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+      const mimeMatch = /^data:([^;,]+)[;,]/i.exec(dataUrl);
+      const mimeType = mimeMatch?.[1] || "image/jpeg";
+      objectUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
       image = new Image();
       image.decoding = "async";
 
@@ -584,8 +587,8 @@ function GraffitiWall() {
 }
 
 
-function WallPhotoFrame({ position, rotation = [0, 0, 0], scale = 1 }) {
-  const photo = useEmbeddedPhotoTexture(GC_HANGOUT_PHOTO_DATA_URL);
+function WallPhotoFrame({ position, rotation = [0, 0, 0], scale = 1, photoDataUrl = GC_HANGOUT_PHOTO_DATA_URL }) {
+  const photo = useEmbeddedPhotoTexture(photoDataUrl);
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
@@ -1030,9 +1033,9 @@ function Room({ player, remotePlayers = [], onMove, onNearby, interaction, joyst
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC_SPEAKER"} />
       <WallPhotoFrame position={[14.72, 3.0, 2.0]} rotation={[0, -Math.PI / 2, 0]} />
       {/* Additional frames stay on the side/front walls; the graffiti + TV wall remains untouched. */}
-      <WallPhotoFrame position={[-14.72, 3.0, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} />
-      <WallPhotoFrame position={[-14.72, 3.0, 4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} />
-      <WallPhotoFrame position={[0, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} />
+      <WallPhotoFrame position={[-14.72, 3.0, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_A_DATA_URL} />
+      <WallPhotoFrame position={[-14.72, 3.0, 4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_B_DATA_URL} />
+      <WallPhotoFrame position={[0, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_A_DATA_URL} />
       <GraffitiWall />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.018, 0]} receiveShadow><circleGeometry args={[4.7, 64]} /><meshStandardMaterial color="#303845" roughness={0.98} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}><ringGeometry args={[4.7, 4.82, 64]} /><meshBasicMaterial color="#7a8190" transparent opacity={0.28} /></mesh>
