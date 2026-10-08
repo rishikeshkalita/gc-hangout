@@ -833,7 +833,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const awayZ = horizontal > 0.001 ? dz / horizontal : facingZ;
       const kickX = facingX || awayX;
       const kickZ = facingZ || awayZ;
-      const kickSpeed = moving ? 5.4 + Math.min(moveSpeed, 8) * 0.32 : 2.2;
+      const kickSpeed = moving ? 1.8 + Math.min(moveSpeed, 8) * 0.14 : 1.2;
 
       const separation = BALL_PLAYER_TOUCH_RADIUS + 0.08;
       ball.x = playerX + awayX * separation;
@@ -841,7 +841,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.55, ball.y));
       ball.vx = kickX * kickSpeed + awayX * 0.5;
       ball.vz = kickZ * kickSpeed + awayZ * 0.5;
-      ball.vy = moving ? 0.28 : 0.12;
+      ball.vy = moving ? 0.06 : 0.03;
       ball.lastTouchId = id;
       ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
       ball.timestamp = now;
@@ -1524,7 +1524,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const by = Number(ballState?.y);
     const bz = Number(ballState?.z);
     if (![px, pz, bx, by, bz].every(Number.isFinite)) return false;
-    return Math.hypot(bx - px, bz - pz) <= 1.1 && Math.abs(by - 0.92) <= 1.05;
+    return Math.hypot(bx - px, bz - pz) <= 1.25 && Math.abs(by - 0.92) <= 1.35;
   }, [ballState?.x, ballState?.y, ballState?.z, playerState?.x, playerState?.z]);
 
   const kickBall = useCallback(() => {
@@ -1537,7 +1537,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const playerZ = Number(state?.z);
     if (![playerX, playerZ, ball.x, ball.y, ball.z].every(Number.isFinite)) return;
     const horizontal = Math.hypot(ball.x - playerX, ball.z - playerZ);
-    if (horizontal > 1.1 || Math.abs(ball.y - 0.92) > 1.05) return;
+    if (horizontal > 1.25 || Math.abs(ball.y - 0.92) > 1.35) return;
 
     const rot = Number(state?.rot) || 0;
     const facingX = Math.sin(rot);
