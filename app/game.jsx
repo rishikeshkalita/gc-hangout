@@ -28,45 +28,71 @@ function useEmbeddedPhotoTexture(dataUrl) {
   useEffect(() => {
     let disposed = false;
     let nextTexture = null;
+    let bitmap = null;
     let canvas = null;
-    const image = new Image();
-    image.decoding = "async";
 
-    image.onload = () => {
-      if (disposed) return;
+    const finish = (source, width, height) => {
+      if (disposed) {
+        source?.close?.();
+        return;
+      }
       try {
-        const sourceWidth = image.naturalWidth || image.width;
-        const sourceHeight = image.naturalHeight || image.height;
-        if (!sourceWidth || !sourceHeight) throw new Error("Photo has no dimensions");
-
         const maxDimension = 1024;
-        const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+        const scale = Math.min(1, maxDimension / Math.max(width, height));
         canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(sourceWidth * scale));
-        canvas.height = Math.max(1, Math.round(sourceHeight * scale));
-        const context = canvas.getContext("2d");
+        canvas.width = Math.max(1, Math.round(width * scale));
+        canvas.height = Math.max(1, Math.round(height * scale));
+        const context = canvas.getContext("2d", { alpha: false });
         if (!context) throw new Error("Canvas 2D context unavailable");
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
+        context.drawImage(source, 0, 0, canvas.width, canvas.height);
         nextTexture = new THREE.CanvasTexture(canvas);
         nextTexture.colorSpace = THREE.SRGBColorSpace;
         nextTexture.needsUpdate = true;
         setTexture(nextTexture);
       } catch (error) {
         console.error("GC photo failed to create texture", error);
+      } finally {
+        source?.close?.();
       }
     };
 
-    image.onerror = () => {
-      if (!disposed) console.error("GC photo failed to decode");
-    };
-    image.src = dataUrl;
+    (async () => {
+      try {
+        const response = await fetch(dataUrl, { cache: "force-cache" });
+        if (!response.ok) throw new Error(`Photo fetch failed: ${response.status}`);
+        const blob = await response.blob();
+
+        if (typeof createImageBitmap === "function") {
+          bitmap = await createImageBitmap(blob, {
+            imageOrientation: "from-image",
+            premultiplyAlpha: "default",
+            colorSpaceConversion: "default",
+          });
+          finish(bitmap, bitmap.width, bitmap.height);
+          bitmap = null;
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        const image = new Image();
+        image.decoding = "sync";
+        image.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          finish(image, image.naturalWidth || image.width, image.naturalHeight || image.height);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          if (!disposed) console.error("GC photo failed to decode");
+        };
+        image.src = objectUrl;
+      } catch (error) {
+        if (!disposed) console.error("GC photo failed to decode", error);
+      }
+    })();
 
     return () => {
       disposed = true;
-      image.onload = null;
-      image.onerror = null;
-      image.src = "";
+      if (bitmap) bitmap.close?.();
       if (nextTexture) nextTexture.dispose();
       canvas = null;
     };
