@@ -1122,9 +1122,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const handleGameStatus = async (status) => {
       gameReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
+        const state = playerStateRef.current;
         await gameChannel.track({
-          kind: "game",
+          kind: "player",
           name: nameRef.current || "Guest",
+          avatarId: state?.avatar?.id || "maya",
+          x: Number(state?.x) || 0,
+          z: Number(state?.z) || 0,
+          rot: Number(state?.rot) || 0,
+          moving: Boolean(state?.moving),
+          speed: Number(state?.speed) || 0,
           footballScores: footballScoresRef.current,
         });
         publishPlayer();
