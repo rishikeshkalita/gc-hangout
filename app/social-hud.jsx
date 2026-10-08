@@ -31,12 +31,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [authUserId, setAuthUserId] = useState("");
   const musicFileInputRef = useRef(null);
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
-  const speakerControlActive = Boolean(
-    speakerActive &&
-    interaction?.status === "active" &&
-    playerState &&
-    Math.hypot(Number(playerState.x) - 5.5, Number(playerState.z) + 3.65) <= 2.25
-  );
+  const speakerControlActive = Boolean(musicState.current);
   const [voiceOn, setVoiceOn] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("Tap mic to join voice");
@@ -47,6 +42,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const channelRef = useRef(null);
   const clientIdRef = useRef(createClientId());
   const roomAudioRef = useRef(null);
+  const roomAudioContextRef = useRef(null);
+  const roomAudioSourceRef = useRef(null);
+  const roomAudioGainRef = useRef(null);
   const roomAudioTrackRef = useRef("");
   const musicStateRef = useRef(musicState);
   const musicRefreshRef = useRef(null);
@@ -453,7 +451,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           updatedAt: stateRow.updated_at ? Date.parse(stateRow.updated_at) : Date.now(),
           pauseVotes: (votes || []).filter((v) => v.action === "pause").map((v) => v.user_id),
           resumeVotes: (votes || []).filter((v) => v.action === "resume").map((v) => v.user_id),
-          skipVotes: (votes || []).filter((v) => v.action === "skip").map((v) => v.user_id)
+          skipVotes: (votes || []).filter((v) => v.action === "skip").map((v) => v.user_id),
+          deleteVotes: (votes || []).filter((v) => v.action === "delete").map((v) => v.user_id)
         });
         if (next) setMusicState(next);
         if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
