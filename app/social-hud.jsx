@@ -1,19 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { EMOTES, MUSIC_PENDING_LIMIT, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
+import { EMOTES, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
+import { getSupabase, ensureAnonymousSession } from "../lib/supabase.js";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const ROOM_NAME = "main";
-
-function getSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  return createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-}
 
 function getIceServers() {
   const urls = (process.env.NEXT_PUBLIC_TURN_URLS || "stun:stun.l.google.com:19302").split(",").map((item) => item.trim()).filter(Boolean);
@@ -32,10 +23,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [chatToasts, setChatToasts] = useState([]);
   const [draft, setDraft] = useState("");
   const [tracks, setTracks] = useState([]);
-  const [musicSearch, setMusicSearch] = useState("lounge");
-  const [musicState, setMusicState] = useState({ current: null, track: null, queue: [], skipVotes: [], revision: 0, position: 0, startedAt: 0, playing: false, volume: 0.8, updatedAt: Date.now(), leaderId: "" });
+  const [musicSearch, setMusicSearch] = useState("");
+  const [musicState, setMusicState] = useState(normalizeMusicState(null));
   const [musicBusy, setMusicBusy] = useState(false);
-  const [musicStatus, setMusicStatus] = useState("Shared YouTube playback");
+  const [musicStatus, setMusicStatus] = useState("Shared uploaded music");
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [authUserId, setAuthUserId] = useState("");
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const speakerControlActive = Boolean(
     speakerActive &&
@@ -54,6 +47,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const roomAudioRef = useRef(null);
   const roomAudioTrackRef = useRef("");
   const musicStateRef = useRef(musicState);
+  const musicRefreshRef = useRef(null);
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
   const pendingCandidatesRef = useRef(new Map());
@@ -61,9 +55,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const remoteStreamsRef = useRef(new Map());
   const voiceEnabledRef = useRef(false);
   const sharedAudioUnlockedRef = useRef(Boolean(initialAudioUnlocked));
-  const musicPresenceRef = useRef(new Map());
   const activePresenceIdsRef = useRef(new Set([clientIdRef.current]));
-  const endedRevisionRef = useRef(-1);
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
   const interactionRef = useRef(interaction);
@@ -141,6 +133,24 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     pushChatToast(entry);
     void send(SOCIAL_EVENTS.ACTIVITY, { name: entry.name, message: text, icon, timestamp: entry.timestamp });
   }, [pushChatToast, send]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = await getSupabase();
+        if (!supabase) throw new Error("Supabase is not configured.");
+        const session = await ensureAnonymousSession(supabase, { name: String(name || "Guest").slice(0, 18) });
+        if (cancelled) return;
+        clientIdRef.current = session.user.id;
+        activePresenceIdsRef.current = new Set([session.user.id]);
+        setAuthUserId(session.user.id);
+      } catch (error) {
+        if (!cancelled) setMusicStatus(error?.message || "Anonymous multiplayer sign-in failed.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [name]);
 
   const interactionActivity = useMemo(() => {
     if (!interaction?.anchor || interaction.status !== "active") return null;
@@ -306,97 +316,48 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setRemoteEmotes((items) => [...items, { id: `${Date.now()}-${Math.random()}`, name: payload.name || "Guest", emote }].slice(-5));
       window.setTimeout(() => setRemoteEmotes((items) => items.slice(1)), 2600);
     });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC }, ({ payload }) => {
-      if (payload?.senderId === clientIdRef.current) return;
-      const next = normalizeMusicState(payload);
-      if (!next) return;
-      const previous = musicStateRef.current;
-      if (next.revision < previous.revision) return;
-      if (next.revision === previous.revision && next.updatedAt <= previous.updatedAt && next.leaderId === previous.leaderId) return;
-      if (next.playing && next.current) next.position = currentMusicPosition(next);
-      setMusicState(next);
-    });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_REQUEST }, ({ payload }) => {
-      const presenceIds = new Set(Object.keys(channel.presenceState()));
-      presenceIds.add(clientIdRef.current);
-      activePresenceIdsRef.current = presenceIds;
-      const currentLeader = [...presenceIds].sort()[0] || clientIdRef.current;
-      if (currentLeader !== clientIdRef.current) return;
-      const action = String(payload?.action || "");
-      const requesterId = String(payload?.senderId || "");
-      if (!requesterId) return;
-      const now = Date.now();
-      const state = normalizeMusicState(musicStateRef.current);
-      if (!state) return;
-      let next = state;
-
-      if (action === "add") {
-        const track = normalizeMusicTrack(payload.track);
-        if (!track) return;
-        const pendingByRequester = state.queue.filter((item) => item.requesterId === requesterId).length;
-        if (pendingByRequester >= MUSIC_PENDING_LIMIT || state.queue.length >= MUSIC_QUEUE_LIMIT) return;
-        if (state.current?.videoId === track.videoId || state.queue.some((item) => item.videoId === track.videoId)) return;
-        const queue = [...state.queue, { ...track, requesterId, requesterName: String(payload.requesterName || track.requesterName || "Guest").slice(0, 18), requestedAt: now }].slice(0, MUSIC_QUEUE_LIMIT);
-        if (!state.current) {
-          next = { ...state, revision: state.revision + 1, current: queue[0], track: queue[0], queue: queue.slice(1), position: 0, startedAt: now, playing: true, skipVotes: [], updatedAt: now };
-        } else {
-          next = { ...state, revision: state.revision + 1, queue, updatedAt: now };
+    const refreshMusicSnapshot = async () => {
+      const client = supabaseRef.current;
+      if (!client || !socialReadyRef.current) return;
+      try {
+        const { data: stateRow, error: stateError } = await client.from("gc_music_state").select("*").eq("room_id", ROOM_NAME).single();
+        if (stateError) throw stateError;
+        let current = null;
+        if (stateRow.current_track_id) {
+          const { data } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+          current = normalizeMusicTrack(data);
         }
-      } else if (action === "pause_vote") {
-        if (!state.current) return;
-        const desiredPlaying = Boolean(payload.desiredPlaying);
-        if (desiredPlaying === state.playing) return;
-        const votes = desiredPlaying === state.pauseTargetPlaying
-          ? [...new Set([...state.pauseVotes, requesterId])]
-          : [requesterId];
-        const activeCount = Math.max(1, activePresenceIdsRef.current.size);
-        if (votes.length > activeCount / 2) {
-          const position = currentMusicPosition(state, now);
-          next = {
-            ...state,
-            revision: state.revision + 1,
-            position,
-            startedAt: desiredPlaying ? now : 0,
-            playing: desiredPlaying,
-            updatedAt: now,
-            skipVotes: [],
-            pauseVotes: [],
-            pauseTargetPlaying: desiredPlaying,
-          };
-        } else {
-          next = {
-            ...state,
-            revision: state.revision + 1,
-            pauseVotes: votes,
-            pauseTargetPlaying: desiredPlaying,
-            updatedAt: now,
-          };
-        }
-      } else if (action === "volume") {
-        next = { ...state, revision: state.revision + 1, volume: Math.max(0, Math.min(1, Number(payload.volume) || 0)), updatedAt: now };
-      } else if (action === "skip") {
-        if (!state.current) return;
-        const votes = [...new Set([...state.skipVotes, requesterId])];
-        const activeCount = Math.max(1, activePresenceIdsRef.current.size);
-        if (votes.length > activeCount / 2) {
-          const upcoming = state.queue[0] || null;
-          next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming) ? false : true, updatedAt: now };
-        } else {
-          next = { ...state, revision: state.revision + 1, skipVotes: votes, updatedAt: now };
-        }
-      } else if (action === "ended") {
-        if (Number(payload.revision) !== state.revision || endedRevisionRef.current === state.revision) return;
-        endedRevisionRef.current = state.revision;
-        const upcoming = state.queue[0] || null;
-        next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming?.audioUrl ? now : 0, playing: Boolean(upcoming?.audioUrl), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming?.audioUrl) ? false : true, updatedAt: now };
-      } else {
-        return;
+        const { data: queueRows } = await client.from("gc_music_queue").select("id,queue_position,track:gc_music_tracks(*)").eq("room_id", ROOM_NAME).order("queue_position", { ascending: true }).limit(MUSIC_QUEUE_LIMIT);
+        const { data: votes } = stateRow.current_track_id
+          ? await client.from("gc_music_votes").select("action,user_id").eq("room_id", ROOM_NAME).eq("track_id", stateRow.current_track_id)
+          : { data: [] };
+        const next = normalizeMusicState({
+          current,
+          queue: (queueRows || []).map((row) => normalizeMusicTrack(row.track)).filter(Boolean),
+          revision: Number(stateRow.revision) || 0,
+          position: Number(stateRow.position) || 0,
+          startedAt: stateRow.started_at ? Date.parse(stateRow.started_at) : 0,
+          playing: stateRow.status === "playing",
+          volume: Number(stateRow.volume) || 0,
+          updatedAt: stateRow.updated_at ? Date.parse(stateRow.updated_at) : Date.now(),
+          pauseVotes: (votes || []).filter((v) => v.action === "pause").map((v) => v.user_id),
+          resumeVotes: (votes || []).filter((v) => v.action === "resume").map((v) => v.user_id),
+          skipVotes: (votes || []).filter((v) => v.action === "skip").map((v) => v.user_id)
+        });
+        if (next) setMusicState(next);
+        if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
+        musicRefreshRef.current = window.setTimeout(refreshMusicSnapshot, 5000);
+      } catch (error) {
+        console.warn("GC Hangout music state refresh failed", error);
       }
+    };
 
-      const normalized = normalizeMusicState({ ...next, leaderId: clientIdRef.current });
-      setMusicState(normalized);
-      void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.MUSIC, payload: { ...normalized, senderId: clientIdRef.current } });
-    });
+    channel
+      .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_state", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_queue", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_tracks", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); });
+    void refreshMusicSnapshot();
+
     channel.on("broadcast", { event: SOCIAL_EVENTS.VOICE }, async ({ payload }) => {
       if (payload?.senderId === clientIdRef.current || payload?.to !== clientIdRef.current) return;
       const peerId = String(payload.senderId || "");
@@ -457,17 +418,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const syncMusicPresence = (state) => {
       const ids = new Set(Object.keys(state || {}));
       ids.add(clientIdRef.current);
-      activePresenceIdsRef.current = ids;
-      const leaderId = [...ids].sort()[0] || clientIdRef.current;
-      const candidates = Object.entries(state || {})
-        .flatMap(([id, metas]) => (Array.isArray(metas) ? metas : [metas]).map((meta) => ({ id, music: normalizeMusicState(meta?.music) })))
-        .map((entry) => entry.music)
-        .filter(Boolean)
-        .sort((a, b) => b.revision - a.revision || b.updatedAt - a.updatedAt);
-      const candidate = candidates[0];
-      if (candidate && candidate.revision >= musicStateRef.current.revision) {
-        setMusicState({ ...candidate, leaderId });
-      } else if (leaderId === clientIdRef.current && musicStateRef.current.leaderId !== leaderId) {
+      activePresenceIdsRef.current = ids; else if (leaderId === clientIdRef.current && musicStateRef.current.leaderId !== leaderId) {
         const next = normalizeMusicState({ ...musicStateRef.current, leaderId, updatedAt: Date.now() });
         if (next) {
           setMusicState(next);
@@ -508,13 +459,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (key !== clientIdRef.current) {
         const meta = Array.isArray(newPresences) ? newPresences[0] : null;
         if (meta?.kind === "player") mergeRemotePlayer({ ...meta, senderId: key });
-        if (!musicStateRef.current.track && meta?.music) {
-          const next = normalizeMusicState(meta.music);
-          if (next?.track) {
-            if (next.playing) next.position += Math.max(0, (Date.now() - next.updatedAt) / 1000);
-            setMusicState(next);
-          }
-        }
         publishPlayer();
       }
     });
@@ -557,9 +501,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         speed: Number(state?.speed) || 0,
       });
       await channel.track({
+        kind: "player",
         name: nameRef.current || "Guest",
         voice: voiceEnabledRef.current,
-        music,
       });
       publishPlayer();
       void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
@@ -639,129 +583,246 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     };
   }, [closePeer, ensurePeer, pushChatToast, sendSignal]);
 
-  const sendMusicRequest = useCallback(async (action, payload = {}) => {
-    const channel = channelRef.current;
-    if (!channel || !socialReadyRef.current) return false;
-    return channel.send({
-      type: "broadcast",
-      event: SOCIAL_EVENTS.MUSIC_REQUEST,
-      payload: { action, ...payload, senderId: clientIdRef.current },
-    });
-  }, []);
-
-  useEffect(() => {
-    const channel = channelRef.current;
-    if (!channel || !socialReadyRef.current) return;
-    void channel.track({
-      name: nameRef.current || "Guest",
-      voice: voiceEnabledRef.current,
-      music: musicState,
-    });
-  }, [musicState]);
-
-  const enableVoice = useCallback(async () => {
-    if (voiceOn) {
-      voiceEnabledRef.current = false;
-      const channel = channelRef.current;
-      if (channel) void channel.track({ name: nameRef.current, voice: false });
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
-      peersRef.current.forEach((pc) => pc.close());
-      peersRef.current.clear();
-      setVoicePeers(0);
-      setVoiceOn(false);
-      setMuted(false);
-      setVoiceStatus("Tap mic to join voice");
-      pushActivity("left voice", "🎙️");
-      return;
-    }
+  const refreshMusicSnapshot = useCallback(async () => {
+    const client = supabaseRef.current;
+    if (!client || !authUserId) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
-      localStreamRef.current = stream;
-      voiceEnabledRef.current = true;
-      setVoiceOn(true);
-      setVoiceStatus("Voice connected");
-      pushActivity("joined voice", "🎙️");
-      const channel = channelRef.current;
-      if (channel) {
-        await channel.track({ name: nameRef.current, voice: true });
-        const state = channel.presenceState();
-        for (const peerId of Object.keys(state).filter((id) => id !== clientIdRef.current && clientIdRef.current < id)) await ensurePeer(peerId, true);
+      const { data: stateRow, error } = await client.from("gc_music_state").select("*").eq("room_id", ROOM_NAME).single();
+      if (error) throw error;
+      let current = null;
+      if (stateRow.current_track_id) {
+        const { data } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+        current = normalizeMusicTrack(data);
+      }
+      const { data: queueRows } = await client.from("gc_music_queue").select("id,queue_position,track:gc_music_tracks(*)").eq("room_id", ROOM_NAME).order("queue_position", { ascending: true }).limit(MUSIC_QUEUE_LIMIT);
+      const { data: votes } = stateRow.current_track_id
+        ? await client.from("gc_music_votes").select("action,user_id").eq("room_id", ROOM_NAME).eq("track_id", stateRow.current_track_id)
+        : { data: [] };
+      const next = normalizeMusicState({
+        current,
+        queue: (queueRows || []).map((row) => normalizeMusicTrack(row.track)).filter(Boolean),
+        revision: Number(stateRow.revision) || 0,
+        position: Number(stateRow.position) || 0,
+        startedAt: stateRow.started_at ? Date.parse(stateRow.started_at) : 0,
+        playing: stateRow.status === "playing",
+        volume: Number(stateRow.volume) || 0,
+        updatedAt: stateRow.updated_at ? Date.parse(stateRow.updated_at) : Date.now(),
+        pauseVotes: (votes || []).filter((v) => v.action === "pause").map((v) => v.user_id),
+        resumeVotes: (votes || []).filter((v) => v.action === "resume").map((v) => v.user_id),
+        skipVotes: (votes || []).filter((v) => v.action === "skip").map((v) => v.user_id)
+      });
+      if (next) {
+        setMusicState(next);
+        onMusicState?.(next);
       }
     } catch (error) {
-      setVoiceStatus(error?.name === "NotAllowedError" ? "Microphone permission denied" : "Microphone unavailable");
+      console.warn("Music refresh failed", error);
     }
-  }, [ensurePeer, pushActivity, voiceOn]);
+  }, [authUserId, onMusicState]);
 
-  const toggleMute = useCallback(() => {
-    const next = !muted;
-    localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; });
-    setMuted(next);
-  }, [muted]);
+  const rpcMusic = useCallback(async (fn, args = {}) => {
+    const client = supabaseRef.current;
+    if (!client || !authUserId) {
+      setMusicStatus("Connecting to room…");
+      return null;
+    }
+    const { data, error } = await client.rpc(fn, args);
+    if (error) {
+      setMusicStatus(error.message || "Music action failed.");
+      return null;
+    }
+    await refreshMusicSnapshot();
+    return data;
+  }, [authUserId, refreshMusicSnapshot]);
 
-  const loadMusic = useCallback(async (query = musicSearch) => {
-    const cleanQuery = String(query || "").trim();
-    if (cleanQuery.length < 2) {
-      setTracks([]);
-      setMusicStatus("Search for at least 2 characters.");
+  const queueTrack = useCallback(async (track) => {
+    const normalized = normalizeMusicTrack(track);
+    if (!normalized) return;
+    sharedAudioUnlockedRef.current = true;
+    const result = await rpcMusic("gc_music_queue_track", { p_track_id: normalized.id });
+    if (result) setMusicStatus("Added to the shared queue.");
+    setPanel("music");
+  }, [rpcMusic]);
+
+  const votePauseResume = useCallback(async () => {
+    if (!musicStateRef.current.current) {
+      if (tracks[0]) await queueTrack(tracks[0]);
       return;
     }
+    sharedAudioUnlockedRef.current = true;
+    await rpcMusic("gc_music_vote", { p_action: musicStateRef.current.playing ? "pause" : "resume" });
+  }, [queueTrack, rpcMusic, tracks]);
+
+  const setMusicVolume = useCallback(async (value) => {
+    const volume = Math.max(0, Math.min(1, Number(value)));
+    await rpcMusic("gc_music_set_volume", { p_volume: volume });
+  }, [rpcMusic]);
+
+  const voteSkip = useCallback(async () => {
+    if (!musicStateRef.current.current) return;
+    await rpcMusic("gc_music_vote", { p_action: "skip" });
+  }, [rpcMusic]);
+
+  const unlockAudio = useCallback(async () => {
+    const audio = roomAudioRef.current;
+    if (!audio) return;
+    try {
+      await audio.play();
+      setAudioBlocked(false);
+    } catch {
+      setMusicStatus("Browser audio permission is still blocked.");
+    }
+  }, []);
+
+  const loadMusic = useCallback(async (query = musicSearch) => {
+    const client = supabaseRef.current;
+    if (!client) return;
+    const cleanQuery = String(query || "").trim().toLowerCase();
     setMusicBusy(true);
     try {
-      const response = await fetch(`/api/music?search=${encodeURIComponent(cleanQuery)}`);
-      const data = await response.json();
-      setTracks(Array.isArray(data.tracks) ? data.tracks : []);
-      setMusicStatus(data.error || (data.tracks?.length ? "YouTube catalog ready. Tap Queue to start shared playback." : "No playable catalog results found."));
+      const { data, error } = await client.from("gc_music_tracks")
+        .select("*")
+        .eq("room_id", ROOM_NAME)
+        .eq("status", "ready")
+        .gt("expires_at", new Date().toISOString())
+        .order("uploaded_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      const filtered = (data || []).filter((track) => {
+        if (!cleanQuery) return true;
+        return [track.title, track.artist, track.filename].some((value) => String(value || "").toLowerCase().includes(cleanQuery));
+      });
+      setTracks(filtered.map(normalizeMusicTrack).filter(Boolean));
+      setMusicStatus(filtered.length ? "Room library ready." : "No matching uploaded tracks.");
     } catch (error) {
-      console.error("YouTube catalog load failed", error);
       setTracks([]);
-      setMusicStatus("Music catalog search is temporarily unavailable.");
+      setMusicStatus(error?.message || "Music library unavailable.");
     } finally {
       setMusicBusy(false);
     }
   }, [musicSearch]);
 
-  const openRoomMusic = useCallback(() => {
-    const url = "/music?room=" + encodeURIComponent(ROOM_NAME);
-    const opened = window.open(url, "gc-hangout-room-music");
-    if (!opened) {
-      setMusicStatus("Allow pop-ups to open the Room Music player.");
-      return false;
-    }
-    setMusicStatus("Room player opened. It runs independently from this panel.");
-    return true;
-  }, []);
-
-  const queueTrack = useCallback((track) => {
-    const normalized = normalizeMusicTrack({ ...track, requesterId: clientIdRef.current, requesterName: nameRef.current || "Guest", requestedAt: Date.now() });
-    if (!normalized) return;
-    sharedAudioUnlockedRef.current = true;
-    openRoomMusic();
-    void sendMusicRequest("add", { track: normalized, requesterName: nameRef.current || "Guest" }).then((sent) => {
-      if (!sent) setMusicStatus("Music connection is not ready. Try Queue again.");
-    });
-    setPanel("music");
-  }, [openRoomMusic, sendMusicRequest]);
-
-  const votePauseResume = useCallback(() => {
-    sharedAudioUnlockedRef.current = true;
-    if (!musicStateRef.current.current) {
-      if (tracks[0]) queueTrack(tracks[0]);
+  const uploadMusic = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const allowed = new Set(["audio/mpeg","audio/mp4","audio/x-m4a","audio/aac","audio/ogg","audio/webm","audio/wav","audio/x-wav","audio/flac","audio/x-flac"]);
+    if (file.size > 26214400) {
+      setMusicStatus("That file is larger than the 25 MB limit.");
       return;
     }
-    const desiredPlaying = !musicStateRef.current.playing;
-    void sendMusicRequest("pause_vote", { desiredPlaying });
-  }, [queueTrack, sendMusicRequest, tracks]);
+    if (file.type && !allowed.has(file.type)) {
+      setMusicStatus("Unsupported audio type. Use MP3, WAV, M4A/AAC, OGG, FLAC, or WebM.");
+      return;
+    }
+    setMusicBusy(true);
+    let trackId = null;
+    let objectUrl = null;
+    try {
+      const client = supabaseRef.current;
+      if (!client) throw new Error("Room backend is not ready.");
+      const baseName = file.name.replace(/\.[^.]+$/, "").slice(0, 100) || "Untitled track";
+      objectUrl = URL.createObjectURL(file);
+      const duration = await new Promise((resolve, reject) => {
+        const audio = new Audio();
+        audio.preload = "metadata";
+        audio.onloadedmetadata = () => resolve(Number.isFinite(audio.duration) ? audio.duration : 0);
+        audio.onerror = () => reject(new Error("The selected file could not be decoded by this browser."));
+        audio.src = objectUrl;
+      });
+      const { data: uploadInfo, error: beginError } = await client.rpc("gc_music_begin_upload", {
+        p_title: baseName,
+        p_artist: "Unknown artist",
+        p_filename: file.name,
+        p_mime_type: file.type,
+        p_file_size: file.size
+      });
+      if (beginError) throw beginError;
+      const info = Array.isArray(uploadInfo) ? uploadInfo[0] : uploadInfo;
+      trackId = info?.track_id;
+      const storagePath = info?.storage_path;
+      if (!trackId || !storagePath) throw new Error("Upload reservation failed.");
+      const { error: uploadError } = await client.storage.from("gc-music").upload(storagePath, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { error: finalizeError } = await client.rpc("gc_music_finalize_upload", { p_track_id: trackId, p_duration: duration });
+      if (finalizeError) throw finalizeError;
+      setMusicStatus("Uploaded. Available to the room for 72 hours.");
+      await loadMusic("");
+    } catch (error) {
+      if (trackId) await supabaseRef.current?.rpc("gc_music_abort_upload", { p_track_id: trackId });
+      setMusicStatus(error?.message || "Upload failed.");
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setMusicBusy(false);
+    }
+  }, [loadMusic]);
 
-  const setMusicVolume = useCallback((value) => {
-    const volume = Math.max(0, Math.min(1, Number(value)));
-    void sendMusicRequest("volume", { volume });
-  }, [sendMusicRequest]);
+  useEffect(() => {
+    const audio = roomAudioRef.current || new Audio();
+    roomAudioRef.current = audio;
+    audio.preload = "auto";
+    audio.playsInline = true;
+    audio.volume = musicVolume;
+    return () => {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      roomAudioRef.current = null;
+    };
+  }, []);
 
-  const voteSkip = useCallback(() => {
-    if (!musicStateRef.current.current) return;
-    void sendMusicRequest("skip");
-  }, [sendMusicRequest]);
+  useEffect(() => {
+    const audio = roomAudioRef.current;
+    const current = musicState.current;
+    if (!audio) return;
+    audio.volume = musicVolume;
+    if (!current) {
+      audio.pause();
+      roomAudioTrackRef.current = "";
+      return;
+    }
+    let cancelled = false;
+    const target = Math.max(0, currentMusicPosition(musicState));
+    (async () => {
+      try {
+        if (roomAudioTrackRef.current !== current.id) {
+          const client = supabaseRef.current;
+          if (!client) return;
+          const { data, error } = await client.storage.from("gc-music").createSignedUrl(current.storagePath, 14400);
+          if (error || !data?.signedUrl) throw error || new Error("Could not prepare room audio.");
+          if (cancelled) return;
+          roomAudioTrackRef.current = current.id;
+          audio.src = data.signedUrl;
+          audio.load();
+        }
+        if (Number.isFinite(target) && Math.abs(audio.currentTime - target) > 1.25) audio.currentTime = target;
+        if (musicState.playing) {
+          await audio.play();
+          setAudioBlocked(false);
+        } else {
+          audio.pause();
+        }
+      } catch {
+        if (!cancelled) {
+          setAudioBlocked(true);
+          setMusicStatus("Tap Enable Room Audio to allow playback.");
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [musicState, musicVolume]);
+
+  useEffect(() => {
+    const audio = roomAudioRef.current;
+    if (!audio) return;
+    const onEnded = async () => {
+      const current = musicStateRef.current.current;
+      if (!current || !supabaseRef.current) return;
+      await supabaseRef.current.rpc("gc_music_advance_if_current", { p_track_id: current.id });
+    };
+    audio.addEventListener("ended", onEnded);
+    return () => audio.removeEventListener("ended", onEnded);
+  }, []);
 
   const sendChat = useCallback(() => {
     const message = sanitizeChatMessage(draft);
@@ -829,39 +890,43 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
       {panel === "music" && (
         <section className="social-panel music-panel" onPointerDown={(event) => event.stopPropagation()}>
-          <div className="social-panel-head"><strong>Shared music</strong><span>{musicState.current ? `${musicState.current.title} · ${musicState.current.artist}` : "Nothing playing"}</span></div>
-          <button className="music-player-launch" onClick={openRoomMusic}>
-            <span>🎧</span>
-            <span><strong>Open Room Music</strong><small>Separate YouTube player · closing this panel will not stop it</small></span>
-            <b>↗</b>
-          </button>
-          <div className="music-now">
-            <div className="music-main-row">
-              <button className="music-main" onClick={votePauseResume}>{musicState.playing ? "Vote to pause" : "Vote to resume"}{musicState.current ? ` · ${musicState.current.title}` : ""}</button>
-              <button className="music-next" onClick={voteSkip} disabled={!musicState.current}>Skip vote</button>
+          <div className="social-panel-head"><strong>Shared music</strong><span>{musicState.current ? musicState.current.title : "Room library"}</span></div>
+          {musicState.current && (
+            <div className="music-now">
+              <div className="music-main-row">
+                <button className="music-main" onClick={() => void votePauseResume()}>{musicState.playing ? "Vote to pause" : "Vote to resume"}</button>
+                <button className="music-next" onClick={() => void voteSkip()}>Vote to skip</button>
+              </div>
+              <span>{Math.floor(currentMusicPosition(musicState))}s · {musicState.playing ? musicState.pauseVotes.length : musicState.resumeVotes.length} votes · {musicState.skipVotes.length} skip votes</span>
             </div>
-            <span>{musicState.current ? `${Math.floor(currentMusicPosition(musicState))}s · ${musicState.playing ? `${musicState.pauseVotes.length} pause vote${musicState.pauseVotes.length === 1 ? "" : "s"}` : `${musicState.pauseVotes.length} resume vote${musicState.pauseVotes.length === 1 ? "" : "s"}`} · ${musicState.skipVotes.length} skip vote${musicState.skipVotes.length === 1 ? "" : "s"}` : "Queue a video to start the room"}</span>
+          )}
+          {audioBlocked && <button className="music-player-launch" onClick={() => void unlockAudio()}><span>🔊</span><span><strong>Enable Room Audio</strong><small>Browser permission is required on this device.</small></span><b>▶</b></button>}
+          <div className="speaker-volume">
+            <span>🔊 Room volume</span>
+            <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => void setMusicVolume(event.target.value)} />
+            <b>{Math.round(musicVolume * 100)}%</b>
           </div>
-          <div className="speaker-volume-note">Room volume is shared. Walk to the floor speaker to change it.</div>
+          <label className="music-player-launch">
+            <span>⬆️</span><span><strong>Upload music</strong><small>25 MB maximum · deleted after 72 hours</small></span><b>＋</b>
+            <input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/webm,audio/wav,audio/x-wav,audio/flac,audio/x-flac" onChange={uploadMusic} disabled={musicBusy} hidden />
+          </label>
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
-            <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search YouTube music" inputMode="search" enterKeyHint="search" />
+            <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search room uploads" inputMode="search" enterKeyHint="search" />
             <button type="submit" disabled={musicBusy}>{musicBusy ? "…" : "Search"}</button>
           </form>
           <div className="track-list">
             {tracks.map((track) => (
-              <button key={track.id} className="track" onClick={() => queueTrack(track)}>
-                <img src={track.thumbnail} alt="" />
-                <span><b>{track.title}</b><small>{track.artist}</small></span><em>＋ Queue</em>
+              <button key={track.id} className="track" onClick={() => void queueTrack(track)}>
+                <span>🎵</span><span><b>{track.title}</b><small>{track.artist} · expires {new Date(track.expiresAt).toLocaleDateString()}</small></span><em>＋ Queue</em>
               </button>
             ))}
-            {!tracks.length && <div className="social-empty">Search the catalog to add a track to the shared queue.</div>}
+            {!tracks.length && <div className="social-empty">Upload a track or search the shared room library.</div>}
           </div>
           <div className="music-queue">
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
-            {musicState.queue.slice(0, 8).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName}</small></div>)}
+            {musicState.queue.slice(0, 10).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName || "Room member"}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · Anyone can queue. More than half of active players must vote to pause/resume or advance the room. The YouTube player is separate from this panel; closing the panel does not stop room music.</small>
-          <small className="youtube-attribution">Catalog source · <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy</a></small>
+          <small className="social-note">{musicStatus} · 50% vote required for pause/resume/skip · shared application volume · room music is independent of Chat and Voice.</small>
         </section>
       )}
 
