@@ -119,7 +119,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const ballTouchCooldownRef = useRef(new Map());
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
-  const gameReadyRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
 
