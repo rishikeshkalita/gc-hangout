@@ -646,8 +646,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       return;
     }
     sharedAudioUnlockedRef.current = true;
-    await rpcMusic("gc_music_vote", { p_action: musicStateRef.current.playing ? "pause" : "resume" });
-  }, [queueTrack, rpcMusic, tracks]);
+    const action = musicStateRef.current.playing ? "pause" : "resume";
+    const result = await rpcMusic("gc_music_vote", { p_action: action });
+    if (result !== null) {
+      pushActivity(
+        action === "pause" ? "voted to pause the room music" : "voted to resume the room music",
+        action === "pause" ? "⏸️" : "▶️"
+      );
+    }
+  }, [queueTrack, rpcMusic, tracks, pushActivity]);
 
   const setMusicVolume = useCallback(async (value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
@@ -656,8 +663,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
   const voteSkip = useCallback(async () => {
     if (!musicStateRef.current.current) return;
-    await rpcMusic("gc_music_vote", { p_action: "skip" });
-  }, [rpcMusic]);
+    const result = await rpcMusic("gc_music_vote", { p_action: "skip" });
+    if (result !== null) pushActivity("voted to skip the current track", "⏭️");
+  }, [rpcMusic, pushActivity]);
 
   const unlockAudio = useCallback(async () => {
     const audio = roomAudioRef.current;
@@ -743,6 +751,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const { error: finalizeError } = await client.rpc("gc_music_finalize_upload", { p_track_id: trackId, p_duration: duration });
       if (finalizeError) throw finalizeError;
       setMusicStatus("Uploaded. Available to the room for 72 hours.");
+      pushActivity(`uploaded “${baseName}” to the shared music library`, "🎵");
       await loadMusic("");
     } catch (error) {
       if (trackId) await supabaseRef.current?.rpc("gc_music_abort_upload", { p_track_id: trackId });
