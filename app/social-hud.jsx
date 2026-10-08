@@ -348,8 +348,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         if (!supabase) throw new Error("Supabase is not configured.");
         const session = await ensureAnonymousSession(supabase, { name: String(name || "Guest").slice(0, 18) });
         if (cancelled) return;
-        clientIdRef.current = session.user.id;
-        activePresenceIdsRef.current = new Set([session.user.id]);
+        // Keep the multiplayer identity per browser tab, not per Supabase auth user.
+        // Supabase persists anonymous sessions, so two tabs can legitimately share the
+        // same auth user. Using that user id as the Presence/Broadcast identity causes
+        // one tab to treat the other tab's messages as its own and collapse Presence.
+        activePresenceIdsRef.current = new Set([clientIdRef.current]);
         setAuthUserId(session.user.id);
       } catch (error) {
         if (!cancelled) setMusicStatus(error?.message || "Anonymous multiplayer sign-in failed.");
@@ -1099,7 +1102,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     };
 
-    void channel.subscribe(handleSocialStatus);
+    void channel.subscribe((status, error) => {
+      if (error) console.error("GC Hangout social realtime subscribe error:", error);
+      handleSocialStatus(status);
+    });
 
     return () => {
       peersRef.current.forEach((pc) => pc.close());
