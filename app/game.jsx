@@ -1124,7 +1124,7 @@ function findSafeExit(anchor, fallback) {
 
 export default function Game() {
   const [player, setPlayer] = useState(() => ({ id: "local", name: "You", avatar: AVATARS[0], x: 0, z: 1.5, rot: Math.PI, moving: false, speed: 0 }));
-  const [ballState, setBallState] = useState(() => ({ x: 0, y: 0.28, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() }));
+  const [ballState, setBallState] = useState(() => ({ x: 2.2, y: 0.28, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() }));
   const [name, setName] = useState("You");
   const [avatarId, setAvatarId] = useState("maya");
   const [settingsOpen, setSettingsOpen] = useState(false);
