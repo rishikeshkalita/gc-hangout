@@ -104,6 +104,9 @@ update storage.buckets set
 where id='gc-music';
 
 drop policy if exists "gc_hangout_music_public_read" on storage.objects;
+drop policy if exists "gc_hangout_music_anon_upload" on storage.objects;
+drop policy if exists "gc_hangout_music_anon_update" on storage.objects;
+drop policy if exists "gc_hangout_music_anon_delete" on storage.objects;
 drop policy if exists "gc music authenticated read" on storage.objects;
 create policy "gc music authenticated read" on storage.objects for select to authenticated
 using (bucket_id='gc-music');
