@@ -105,6 +105,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const ballRef = useRef({ x: 2.2, y: BALL_FLOOR_Y, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() });
   const ballTouchRef = useRef(new Map());
   const ballPlayerMotionRef = useRef(new Map());
+  const ballPredictionUntilRef = useRef(0);
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
   const gameReadyRef = useRef(false);
@@ -591,6 +592,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ballRef.current = incoming;
       onBallState?.(incoming);
     });
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const state = gameChannel.presenceState?.() || {};
+      if (getBallAuthorityId(state) !== clientIdRef.current) return;
+      applyNetworkBallTouch(payload);
+    });
     channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const message = String(payload?.message || "").trim().slice(0, 140);
@@ -731,6 +738,49 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     });
 
+    const applyNetworkBallTouch = (payload) => {
+      const ball = ballRef.current;
+      const playerX = Number(payload?.x);
+      const playerZ = Number(payload?.z);
+      if (!Number.isFinite(playerX) || !Number.isFinite(playerZ)) return false;
+
+      const dx = ball.x - playerX;
+      const dz = ball.z - playerZ;
+      const horizontal = Math.hypot(dx, dz);
+      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || Math.abs(ball.y - 0.92) > 0.82) {
+        if (horizontal > BALL_PLAYER_RELEASE_RADIUS) {
+          ballTouchRef.current.delete(String(payload?.senderId || ""));
+        }
+        return false;
+      }
+
+      const id = String(payload?.senderId || "");
+      if (ballTouchRef.current.has(id)) return false;
+      ballTouchRef.current.set(id, true);
+
+      const rot = Number(payload?.rot) || 0;
+      const facingX = Math.sin(rot);
+      const facingZ = Math.cos(rot);
+      const moveSpeed = Math.max(0, Number(payload?.speed) || 0);
+      const moving = Boolean(payload?.moving) || moveSpeed > 0.25;
+      const awayX = horizontal > 0.001 ? dx / horizontal : facingX;
+      const awayZ = horizontal > 0.001 ? dz / horizontal : facingZ;
+      const kickX = facingX || awayX;
+      const kickZ = facingZ || awayZ;
+      const kickSpeed = moving ? 5.4 + Math.min(moveSpeed, 8) * 0.32 : 2.2;
+
+      const separation = BALL_PLAYER_TOUCH_RADIUS + 0.08;
+      ball.x = playerX + awayX * separation;
+      ball.z = playerZ + awayZ * separation;
+      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.55, ball.y));
+      ball.vx = kickX * kickSpeed + awayX * 0.5;
+      ball.vz = kickZ * kickSpeed + awayZ * 0.5;
+      ball.vy = moving ? 0.28 : 0.12;
+      ball.timestamp = Date.now();
+      onBallState?.(ball);
+      return true;
+    };
+
     const publishPlayer = () => {
       const state = playerStateRef.current;
       if (!state || !gameReadyRef.current) return;
@@ -807,11 +857,49 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const ballTimer = window.setInterval(() => {
       const state = gameChannel.presenceState?.() || {};
       const authorityId = getBallAuthorityId(state);
-      if (authorityId !== clientIdRef.current) return;
-      for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
-      const payload = { ...ballRef.current, senderId: clientIdRef.current };
-      onBallState?.(ballRef.current);
-      void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
+      const now = Date.now();
+      const local = playerStateRef.current;
+      let localTouch = false;
+
+      // Predict the local player's first contact immediately, regardless of which
+      // client currently owns the authoritative ball. This prevents the avatar
+      // from visually walking through a stationary ball while the network round
+      // trip is still pending.
+      if (local && Number.isFinite(Number(local.x)) && Number.isFinite(Number(local.z))) {
+        const dx = ballRef.current.x - Number(local.x);
+        const dz = ballRef.current.z - Number(local.z);
+        const horizontal = Math.hypot(dx, dz);
+        const vertical = Math.abs(ballRef.current.y - 0.92);
+        if (horizontal <= BALL_PLAYER_TOUCH_RADIUS && vertical <= 0.82 && !ballTouchRef.current.has(clientIdRef.current)) {
+          const payload = {
+            senderId: clientIdRef.current,
+            x: Number(local.x),
+            z: Number(local.z),
+            rot: Number(local.rot) || 0,
+            moving: Boolean(local.moving),
+            speed: Number(local.speed) || 0,
+          };
+          localTouch = applyNetworkBallTouch(payload);
+          if (localTouch) {
+            ballPredictionUntilRef.current = now + 420;
+            void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload });
+          }
+        } else if (horizontal > BALL_PLAYER_RELEASE_RADIUS || vertical > 0.95) {
+          ballTouchRef.current.delete(clientIdRef.current);
+        }
+      }
+
+      if (authorityId === clientIdRef.current) {
+        for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
+        const payload = { ...ballRef.current, senderId: clientIdRef.current };
+        onBallState?.(ballRef.current);
+        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
+      } else if (localTouch || now < ballPredictionUntilRef.current) {
+        // Short client-side prediction keeps the kick visible before the next
+        // authoritative snapshot arrives.
+        for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
+        onBallState?.(ballRef.current);
+      }
     }, 33);
     const pruneTimer = window.setInterval(() => {
       const cutoff = Date.now() - 1800;
@@ -918,6 +1006,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       socialReadyRef.current = false;
       gameReadyRef.current = false;
       sessionStartedRef.current = false;
+      ballPredictionUntilRef.current = 0;
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
