@@ -792,3 +792,24 @@ button { border: 0; cursor: pointer; }
   .youtube-player-meta strong { font-size: 9px; }
   .youtube-player-meta span { font-size: 8px; }
 }
+
+
+.youtube-mini-player {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(62px + env(safe-area-inset-bottom));
+  z-index: 34;
+  width: 200px;
+  height: 112px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 8px;
+  background: #000;
+  box-shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+.youtube-mini-player iframe {
+  display: block;
+  width: 200px;
+  height: 112px;
+  border: 0;
+}
