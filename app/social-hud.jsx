@@ -29,9 +29,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [musicStatus, setMusicStatus] = useState("Shared uploaded music");
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [authUserId, setAuthUserId] = useState("");
+  const musicFileInputRef = useRef(null);
   const musicVolume = Math.max(0, Math.min(1, Number(musicState.volume ?? 0.8)));
   const speakerControlActive = Boolean(
     speakerActive &&
+    interaction?.status === "active" &&
     playerState &&
     Math.hypot(Number(playerState.x) - 5.5, Number(playerState.z) + 3.65) <= 2.25
   );
@@ -895,15 +897,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             </div>
           )}
           {audioBlocked && <button className="music-player-launch" onClick={() => void unlockAudio()}><span>🔊</span><span><strong>Enable Room Audio</strong><small>Browser permission is required on this device.</small></span><b>▶</b></button>}
-          <div className="speaker-volume">
-            <span>🔊 Room volume</span>
-            <input type="range" min="0" max="1" step="0.01" value={musicVolume} onChange={(event) => void setMusicVolume(event.target.value)} />
-            <b>{Math.round(musicVolume * 100)}%</b>
-          </div>
-          <label className="music-player-launch">
-            <span>⬆️</span><span><strong>Upload music</strong><small>25 MB maximum · deleted after 72 hours</small></span><b>＋</b>
-            <input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/webm,audio/wav,audio/x-wav,audio/flac,audio/x-flac" onChange={uploadMusic} disabled={musicBusy} hidden />
-          </label>
+          <button type="button" className="music-player-launch" onClick={() => musicFileInputRef.current?.click()} disabled={musicBusy}>
+            <span>⬆️</span><span><strong>{musicBusy ? "Uploading…" : "Upload music"}</strong><small>25 MB maximum · deleted after 72 hours</small></span><b>＋</b>
+          </button>
+          <input
+            ref={musicFileInputRef}
+            type="file"
+            accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/webm,audio/wav,audio/x-wav,audio/flac,audio/x-flac"
+            onChange={uploadMusic}
+            disabled={musicBusy}
+            hidden
+          />
           <form className="music-search" onSubmit={(event) => { event.preventDefault(); void loadMusic(musicSearch); }}>
             <input value={musicSearch} onChange={(event) => setMusicSearch(event.target.value)} placeholder="Search room uploads" inputMode="search" enterKeyHint="search" />
             <button type="submit" disabled={musicBusy}>{musicBusy ? "…" : "Search"}</button>
