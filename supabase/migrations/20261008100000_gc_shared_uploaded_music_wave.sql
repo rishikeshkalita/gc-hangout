@@ -56,6 +56,13 @@ create table if not exists public.gc_room_sessions (
 create index if not exists gc_music_tracks_room_status_idx on public.gc_music_tracks(room_id,status,expires_at);
 create index if not exists gc_music_queue_room_idx on public.gc_music_queue(room_id,queue_position);
 create unique index if not exists gc_music_queue_unique_track on public.gc_music_queue(room_id,track_id);
+create index if not exists gc_music_tracks_uploader_idx on public.gc_music_tracks(uploader_id);
+create index if not exists gc_music_queue_track_idx on public.gc_music_queue(track_id);
+create index if not exists gc_music_queue_added_by_idx on public.gc_music_queue(added_by);
+create index if not exists gc_music_state_current_track_idx on public.gc_music_state(current_track_id);
+create index if not exists gc_music_votes_track_idx on public.gc_music_votes(track_id);
+create index if not exists gc_music_votes_user_idx on public.gc_music_votes(user_id);
+create index if not exists gc_room_sessions_user_idx on public.gc_room_sessions(user_id);
 
 alter table public.gc_music_tracks enable row level security;
 alter table public.gc_music_queue enable row level security;
@@ -96,6 +103,7 @@ update storage.buckets set
   allowed_mime_types=array['audio/mpeg','audio/mp4','audio/x-m4a','audio/aac','audio/ogg','audio/webm','audio/wav','audio/x-wav','audio/flac','audio/x-flac']
 where id='gc-music';
 
+drop policy if exists "gc_hangout_music_public_read" on storage.objects;
 drop policy if exists "gc music authenticated read" on storage.objects;
 create policy "gc music authenticated read" on storage.objects for select to authenticated
 using (bucket_id='gc-music');
