@@ -27,26 +27,12 @@ function useEmbeddedPhotoTexture(dataUrl) {
 
   useEffect(() => {
     let disposed = false;
-    let objectUrl = null;
     let image = null;
     let nextTexture = null;
 
     try {
-      const comma = dataUrl.indexOf(",");
-      if (comma < 0) throw new Error("Invalid embedded photo data");
-
-      const binary = atob(dataUrl.slice(comma + 1));
-      const bytes = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
-      }
-
-      const mimeMatch = /^data:([^;,]+)[;,]/i.exec(dataUrl);
-      const mimeType = mimeMatch?.[1] || "image/jpeg";
-      objectUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
       image = new Image();
       image.decoding = "async";
-
       image.onload = () => {
         if (disposed) return;
         nextTexture = new THREE.Texture(image);
@@ -54,12 +40,10 @@ function useEmbeddedPhotoTexture(dataUrl) {
         nextTexture.needsUpdate = true;
         setTexture(nextTexture);
       };
-
       image.onerror = () => {
         if (!disposed) console.error("GC photo failed to decode");
       };
-
-      image.src = objectUrl;
+      image.src = dataUrl;
     } catch (error) {
       if (!disposed) console.error("GC photo failed to prepare", error);
     }
@@ -67,7 +51,6 @@ function useEmbeddedPhotoTexture(dataUrl) {
     return () => {
       disposed = true;
       if (image) image.src = "";
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (nextTexture) nextTexture.dispose();
     };
   }, [dataUrl]);
