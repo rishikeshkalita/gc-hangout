@@ -13,7 +13,6 @@ const BALL_WALL_BOUNCE = 0.72;
 const BALL_FRICTION = 0.986;
 const BALL_TOUCH_COOLDOWN_MS = 220;
 const BALL_PLAYER_TOUCH_RADIUS = 0.72;
-const BALL_PLAYER_BODY_RADIUS = 0.42;
 const BALL_OBSTACLES = Object.freeze([
   { x: -9.8, z: -7.25, rx: 3.15, rz: 0.95 },
   { x: -9.8, z: 0.55, rx: 3.15, rz: 0.95 },
@@ -191,7 +190,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const horizontal = Math.hypot(dx, dz);
       const playerY = 0.92;
       const vertical = Math.abs(ball.y - playerY);
-      const contactDistance = BALL_PLAYER_BODY_RADIUS + BALL_RADIUS;
       if (horizontal > BALL_PLAYER_TOUCH_RADIUS || vertical > 0.82) continue;
 
       const id = String(player.id || clientIdRef.current);
