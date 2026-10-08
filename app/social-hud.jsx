@@ -242,12 +242,36 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     return pc;
   }, [addRemoteStream, closePeer, sendSignal]);
 
+  const setAudioSessionType = useCallback((type) => {
+    try {
+      if ("audioSession" in navigator && navigator.audioSession) {
+        navigator.audioSession.type = type;
+      }
+    } catch (error) {
+      console.warn("Audio session type change failed", error);
+    }
+  }, []);
+
+  const resumeRoomMusic = useCallback(async () => {
+    const audio = roomAudioRef.current;
+    const current = musicStateRef.current.current;
+    if (!audio || !current || !musicStateRef.current.playing) return;
+    audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
+    try {
+      await audio.play();
+      setAudioBlocked(false);
+    } catch (error) {
+      console.warn("Room music resume after voice change failed", error);
+    }
+  }, []);
+
   const enableVoice = useCallback(async () => {
     if (voiceEnabledRef.current) {
       voiceEnabledRef.current = false;
       setVoiceOn(false);
       setVoiceStatus("Leaving voice…");
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      setAudioSessionType("playback");
       localStreamRef.current = null;
       for (const peerId of Array.from(peersRef.current.keys())) closePeer(peerId);
       if (socialReadyRef.current) {
@@ -257,6 +281,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           voice: false,
         });
       }
+      await resumeRoomMusic();
       setVoiceStatus("Tap mic to join voice");
       return;
     }
@@ -268,6 +293,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
     try {
       setVoiceStatus("Requesting microphone permission…");
+      setAudioSessionType("play-and-record");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -282,6 +308,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMuted(false);
       stream.getAudioTracks().forEach((track) => { track.enabled = true; });
       setVoiceStatus("Voice connected");
+      await resumeRoomMusic();
 
       if (socialReadyRef.current) {
         await channelRef.current?.track({
@@ -299,6 +326,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
       setVoiceOn(false);
+      setAudioSessionType("playback");
       const errorName = error?.name || "UnknownError";
       if (errorName === "NotAllowedError") {
         setVoiceStatus("Microphone permission was denied. Allow mic access for this site and try again.");
@@ -311,7 +339,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
       console.error("Voice microphone start failed", error);
     }
-  }, [closePeer, ensurePeer]);
+  }, [closePeer, ensurePeer, resumeRoomMusic, setAudioSessionType]);
 
   const toggleMute = useCallback(() => {
     const nextMuted = !muted;
@@ -738,6 +766,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
   const setMusicVolume = useCallback(async (value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
+    setMusicState((current) => ({ ...current, volume }));
+    if (roomAudioRef.current) roomAudioRef.current.volume = volume;
     await rpcMusic("gc_music_set_volume", { p_volume: volume });
   }, [rpcMusic]);
 
@@ -869,6 +899,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [loadMusic]);
 
   useEffect(() => {
+    setAudioSessionType("playback");
     const audio = roomAudioRef.current || new Audio();
     roomAudioRef.current = audio;
     audio.preload = "auto";
@@ -880,7 +911,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       audio.load();
       roomAudioRef.current = null;
     };
-  }, []);
+  }, [setAudioSessionType]);
 
   useEffect(() => {
     const audio = roomAudioRef.current;
