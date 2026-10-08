@@ -5,6 +5,47 @@ import { EMOTES, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, createClientId, currentMusicP
 import { getSupabase, ensureAnonymousSession } from "../lib/supabase.js";
 
 const ROOM_NAME = "main";
+const BALL_RADIUS = 0.28;
+const BALL_FLOOR_Y = BALL_RADIUS;
+const BALL_GRAVITY = 9.8;
+const BALL_FLOOR_BOUNCE = 0.62;
+const BALL_WALL_BOUNCE = 0.72;
+const BALL_FRICTION = 0.986;
+const BALL_TOUCH_COOLDOWN_MS = 220;
+const BALL_PLAYER_TOUCH_RADIUS = 0.86;
+const BALL_OBSTACLES = Object.freeze([
+  { x: -9.8, z: -7.25, rx: 3.15, rz: 0.95 },
+  { x: -9.8, z: 0.55, rx: 3.15, rz: 0.95 },
+  { x: -9.8, z: -3.35, rx: 1.25, rz: 0.95 },
+  { x: 0, z: -9.15, rx: 4.8, rz: 0.78 },
+  { x: 9.7, z: 5.8, rx: 2.75, rz: 1.65 },
+  { x: 8.2, z: 3.95, rx: 0.72, rz: 0.72 },
+  { x: 9.7, z: 3.95, rx: 0.72, rz: 0.72 },
+  { x: 11.2, z: 3.95, rx: 0.72, rz: 0.72 },
+  { x: 8.2, z: 7.65, rx: 0.72, rz: 0.72 },
+  { x: 9.7, z: 7.65, rx: 0.72, rz: 0.72 },
+  { x: 11.2, z: 7.65, rx: 0.72, rz: 0.72 },
+  { x: 8.7, z: -6.5, rx: 2.05, rz: 1.85 },
+  { x: 4.0, z: 1.35, rx: 1.38, rz: 1.25 },
+  { x: 5.5, z: -4.55, rx: 0.95, rz: 0.72 },
+  { x: -13.1, z: 7.5, rx: 0.78, rz: 0.78 },
+  { x: 13.0, z: -7.7, rx: 0.92, rz: 0.92 },
+  { x: -5.7, z: 6.8, rx: 0.58, rz: 0.58 },
+  { x: 5.8, z: 6.8, rx: 0.58, rz: 0.58 },
+]);
+
+const clampBall = (value, min, max) => Math.max(min, Math.min(max, value));
+const ballStateSnapshot = (value) => ({
+  x: Number(value?.x) || 0,
+  y: Math.max(BALL_FLOOR_Y, Number(value?.y) || BALL_FLOOR_Y),
+  z: Number(value?.z) || 0,
+  vx: Number(value?.vx) || 0,
+  vy: Number(value?.vy) || 0,
+  vz: Number(value?.vz) || 0,
+  rotationX: Number(value?.rotationX) || 0,
+  rotationZ: Number(value?.rotationZ) || 0,
+  timestamp: Number(value?.timestamp) || Date.now(),
+});
 
 function getIceServers() {
   const urls = (process.env.NEXT_PUBLIC_TURN_URLS || "stun:stun.l.google.com:19302").split(",").map((item) => item.trim()).filter(Boolean);
@@ -17,7 +58,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, onPairAction, remotePlayers = [], initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, remotePlayers = [], initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -61,11 +102,128 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const interactionRef = useRef(interaction);
   const emoteRef = useRef(emote);
   const remotePlayersRef = useRef(new Map());
+  const ballRef = useRef({ x: 0, y: BALL_FLOOR_Y, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() });
+  const ballTouchRef = useRef(new Map());
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
   const gameReadyRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
+
+  const getBallAuthorityId = useCallback((state) => {
+    const ids = new Set(Object.keys(state || {}));
+    ids.add(clientIdRef.current);
+    return [...ids].sort()[0] || clientIdRef.current;
+  }, []);
+
+  const simulateBallStep = useCallback((dt) => {
+    const ball = ballRef.current;
+    const previousX = ball.x;
+    const previousZ = ball.z;
+    ball.vy -= BALL_GRAVITY * dt;
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+    ball.z += ball.vz * dt;
+
+    if (ball.y < BALL_FLOOR_Y) {
+      ball.y = BALL_FLOOR_Y;
+      if (ball.vy < -0.35) ball.vy = -ball.vy * BALL_FLOOR_BOUNCE;
+      else ball.vy = 0;
+      ball.vx *= BALL_FRICTION;
+      ball.vz *= BALL_FRICTION;
+    }
+
+    const wallX = 15 - BALL_RADIUS;
+    const wallZ = 10 - BALL_RADIUS;
+    if (ball.x < -wallX) { ball.x = -wallX; ball.vx = Math.abs(ball.vx) * BALL_WALL_BOUNCE; }
+    if (ball.x > wallX) { ball.x = wallX; ball.vx = -Math.abs(ball.vx) * BALL_WALL_BOUNCE; }
+    if (ball.z < -wallZ) { ball.z = -wallZ; ball.vz = Math.abs(ball.vz) * BALL_WALL_BOUNCE; }
+    if (ball.z > wallZ) { ball.z = wallZ; ball.vz = -Math.abs(ball.vz) * BALL_WALL_BOUNCE; }
+
+    for (const obstacle of BALL_OBSTACLES) {
+      const minX = obstacle.x - obstacle.rx - BALL_RADIUS;
+      const maxX = obstacle.x + obstacle.rx + BALL_RADIUS;
+      const minZ = obstacle.z - obstacle.rz - BALL_RADIUS;
+      const maxZ = obstacle.z + obstacle.rz + BALL_RADIUS;
+      if (ball.x < minX || ball.x > maxX || ball.z < minZ || ball.z > maxZ) continue;
+
+      const qx = clampBall(ball.x, obstacle.x - obstacle.rx, obstacle.x + obstacle.rx);
+      const qz = clampBall(ball.z, obstacle.z - obstacle.rz, obstacle.z + obstacle.rz);
+      let nx = ball.x - qx;
+      let nz = ball.z - qz;
+      const distance = Math.hypot(nx, nz);
+
+      if (distance > 0 && distance < BALL_RADIUS) {
+        nx /= distance;
+        nz /= distance;
+        const penetration = BALL_RADIUS - distance;
+        ball.x += nx * penetration;
+        ball.z += nz * penetration;
+        const outward = ball.vx * nx + ball.vz * nz;
+        if (outward < 0) {
+          ball.vx -= (1 + BALL_WALL_BOUNCE) * outward * nx;
+          ball.vz -= (1 + BALL_WALL_BOUNCE) * outward * nz;
+        }
+        continue;
+      }
+
+      if (distance === 0) {
+        const dx = Math.min(Math.abs(ball.x - (obstacle.x - obstacle.rx)), Math.abs((obstacle.x + obstacle.rx) - ball.x));
+        const dz = Math.min(Math.abs(ball.z - (obstacle.z - obstacle.rz)), Math.abs((obstacle.z + obstacle.rz) - ball.z));
+        if (dx < dz) {
+          const nx2 = ball.x < obstacle.x ? -1 : 1;
+          ball.x = obstacle.x + nx2 * (obstacle.rx + BALL_RADIUS);
+          if (ball.vx * nx2 < 0) ball.vx = -ball.vx * BALL_WALL_BOUNCE;
+        } else {
+          const nz2 = ball.z < obstacle.z ? -1 : 1;
+          ball.z = obstacle.z + nz2 * (obstacle.rz + BALL_RADIUS);
+          if (ball.vz * nz2 < 0) ball.vz = -ball.vz * BALL_WALL_BOUNCE;
+        }
+      }
+    }
+
+    const players = [{ id: clientIdRef.current, ...(playerStateRef.current || {}) }, ...remotePlayersRef.current.values()];
+    for (const player of players) {
+      if (!Number.isFinite(Number(player?.x)) || !Number.isFinite(Number(player?.z))) continue;
+      const dx = ball.x - Number(player.x);
+      const dz = ball.z - Number(player.z);
+      const horizontal = Math.hypot(dx, dz);
+      const playerY = 0.92;
+      const vertical = Math.abs(ball.y - playerY);
+      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || vertical > 1.0) continue;
+
+      const id = String(player.id || clientIdRef.current);
+      const lastTouch = Number(ballTouchRef.current.get(id) || 0);
+      if (Date.now() - lastTouch < BALL_TOUCH_COOLDOWN_MS) continue;
+      ballTouchRef.current.set(id, Date.now());
+
+      let nx = horizontal > 0.001 ? dx / horizontal : Math.sin(Number(player.rot) || 0);
+      let nz = horizontal > 0.001 ? dz / horizontal : Math.cos(Number(player.rot) || 0);
+      const facingX = Math.sin(Number(player.rot) || 0);
+      const facingZ = Math.cos(Number(player.rot) || 0);
+      const moving = Boolean(player.moving);
+      const speed = Math.max(0, Number(player.speed) || 0);
+      const kick = moving ? 5.4 + Math.min(speed, 8) * 0.24 : 3.0;
+      const upward = moving ? 3.5 : 2.5;
+      if (moving) {
+        nx = facingX;
+        nz = facingZ;
+      }
+      ball.x = Number(player.x) + nx * (BALL_PLAYER_TOUCH_RADIUS + 0.04);
+      ball.z = Number(player.z) + nz * (BALL_PLAYER_TOUCH_RADIUS + 0.04);
+      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.95, Number(playerY)));
+      ball.vx = nx * kick;
+      ball.vz = nz * kick;
+      ball.vy = upward;
+    }
+
+    const horizontalSpeed = Math.hypot(ball.vx, ball.vz);
+    ball.rotationX += ball.vz * dt / BALL_RADIUS;
+    ball.rotationZ -= ball.vx * dt / BALL_RADIUS;
+    ball.timestamp = Date.now();
+
+    return Math.abs(ball.x - previousX) + Math.abs(ball.z - previousZ) + horizontalSpeed;
+  }, []);
 
   const mergeRemotePlayer = useCallback((payload) => {
     if (!payload || payload.senderId === clientIdRef.current) return;
@@ -390,6 +548,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     gameChannel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
       mergeRemotePlayer(payload);
     });
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const incoming = ballStateSnapshot(payload);
+      if (incoming.timestamp < Number(ballRef.current.timestamp || 0)) return;
+      ballRef.current = incoming;
+      onBallState?.(incoming);
+    });
     channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const message = String(payload?.message || "").trim().slice(0, 140);
@@ -603,6 +768,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
     const playerTimer = window.setInterval(publishPlayer, 100);
+    const ballTimer = window.setInterval(() => {
+      const state = gameChannel.presenceState?.() || {};
+      const authorityId = getBallAuthorityId(state);
+      if (authorityId !== clientIdRef.current) return;
+      simulateBallStep(1 / 30);
+      const payload = { ...ballRef.current, senderId: clientIdRef.current };
+      onBallState?.(ballRef.current);
+      void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
+    }, 33);
     const pruneTimer = window.setInterval(() => {
       const cutoff = Date.now() - 1800;
       let changed = false;
@@ -701,6 +875,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       remoteAudioRef.current.forEach((audio) => audio.remove());
       remoteAudioRef.current.clear();
       window.clearInterval(playerTimer);
+      window.clearInterval(ballTimer);
       window.clearInterval(pruneTimer);
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -715,7 +890,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
-  }, [authUserId, closePeer, ensurePeer, pushChatToast, sendSignal]);
+  }, [authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
 
   const refreshMusicSnapshot = useCallback(async () => {
     const client = supabaseRef.current;
