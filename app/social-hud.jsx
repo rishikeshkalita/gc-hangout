@@ -335,7 +335,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         if (state.current?.videoId === track.videoId || state.queue.some((item) => item.videoId === track.videoId)) return;
         const queue = [...state.queue, { ...track, requesterId, requesterName: String(payload.requesterName || track.requesterName || "Guest").slice(0, 18), requestedAt: now }].slice(0, MUSIC_QUEUE_LIMIT);
         if (!state.current) {
-          next = { ...state, revision: state.revision + 1, current: queue[0], track: queue[0], queue: queue.slice(1), position: 0, startedAt: now, playing: true, skipVotes: [], updatedAt: now };
+          next = { ...state, revision: state.revision + 1, current: queue[0], track: queue[0], queue: queue.slice(1), position: 0, startedAt: now, playing: Boolean(queue[0]?.audioUrl), skipVotes: [], updatedAt: now };
         } else {
           next = { ...state, revision: state.revision + 1, queue, updatedAt: now };
         }
@@ -377,7 +377,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         const activeCount = Math.max(1, activePresenceIdsRef.current.size);
         if (votes.length > activeCount / 2) {
           const upcoming = state.queue[0] || null;
-          next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming) ? false : true, updatedAt: now };
+          next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming?.audioUrl ? now : 0, playing: Boolean(upcoming?.audioUrl), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming?.audioUrl) ? false : true, updatedAt: now };
         } else {
           next = { ...state, revision: state.revision + 1, skipVotes: votes, updatedAt: now };
         }
@@ -385,7 +385,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         if (Number(payload.revision) !== state.revision || endedRevisionRef.current === state.revision) return;
         endedRevisionRef.current = state.revision;
         const upcoming = state.queue[0] || null;
-        next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming ? now : 0, playing: Boolean(upcoming), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming) ? false : true, updatedAt: now };
+        next = { ...state, revision: state.revision + 1, current: upcoming, track: upcoming, queue: state.queue.slice(1), position: 0, startedAt: upcoming?.audioUrl ? now : 0, playing: Boolean(upcoming?.audioUrl), skipVotes: [], pauseVotes: [], pauseTargetPlaying: Boolean(upcoming?.audioUrl) ? false : true, updatedAt: now };
       } else {
         return;
       }
@@ -649,18 +649,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   useEffect(() => {
     const channel = channelRef.current;
     if (!channel || !socialReadyRef.current) return;
-    const ids = new Set(Object.keys(channel.presenceState() || {}));
-    ids.add(clientIdRef.current);
-    activePresenceIdsRef.current = ids;
-    const leaderId = [...ids].sort()[0] || clientIdRef.current;
-    if (leaderId === clientIdRef.current && musicStateRef.current.leaderId !== leaderId) {
-      const next = normalizeMusicState({ ...musicStateRef.current, leaderId, updatedAt: Date.now() });
-      if (next) {
-        setMusicState(next);
-        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.MUSIC, payload: { ...next, senderId: clientIdRef.current } });
-      }
-    }
-  }, [musicState.revision, musicState.leaderId]);
+    void channel.track({
+      name: nameRef.current || "Guest",
+      voice: voiceEnabledRef.current,
+      music: musicState,
+    });
+  }, [musicState]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
