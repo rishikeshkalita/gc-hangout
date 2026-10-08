@@ -281,7 +281,7 @@ function HumanAvatar({ avatar, name, moving, local, pose = "idle", seatStyle = n
   );
 }
 
-function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, emote, pairAction }) {
+function LocalPlayer({ state, ballState = null, onMove, onNearby, interaction, joystickRef, motionResetKey, pov, emote, pairAction }) {
   const keys = useRef(new Set());
   const yaw = useRef(0.2);
   const pitch = useRef(0.38);
@@ -399,8 +399,21 @@ function LocalPlayer({ state, onMove, onNearby, interaction, joystickRef, motion
         const dirZ = forwardZ * f + rightZ * s;
         const distance = speed * safeDt;
         const moved = tryMove(current.x, current.z, dirX * distance, dirZ * distance);
-        current.x = moved.x;
-        current.z = moved.z;
+        const ballX = Number(ballState?.x);
+        const ballZ = Number(ballState?.z);
+        const ballDistance = Number.isFinite(ballX) && Number.isFinite(ballZ)
+          ? Math.hypot(moved.x - ballX, moved.z - ballZ)
+          : Infinity;
+        const BALL_PLAYER_COLLISION_RADIUS = 0.72;
+        if (ballDistance < BALL_PLAYER_COLLISION_RADIUS) {
+          // The player cannot walk through the football. Keep the previous
+          // position; the dedicated KICK control is responsible for moving it.
+          current.x = current.x;
+          current.z = current.z;
+        } else {
+          current.x = moved.x;
+          current.z = moved.z;
+        }
         current.rot = Math.atan2(dirX, dirZ);
         current.moving = true;
         current.speed = speed;
@@ -1044,10 +1057,10 @@ function FootballGoal({ z }) {
       <mesh position={[-1.5, 1, 0]} castShadow><boxGeometry args={[0.08, 2, 0.08]} /><meshStandardMaterial {...frameMaterial} /></mesh>
       <mesh position={[1.5, 1, 0]} castShadow><boxGeometry args={[0.08, 2, 0.08]} /><meshStandardMaterial {...frameMaterial} /></mesh>
       <mesh position={[0, 2, 0]} castShadow><boxGeometry args={[3.08, 0.08, 0.08]} /><meshStandardMaterial {...frameMaterial} /></mesh>
-      <mesh position={[0, 1, direction * 0.82]}><planeGeometry args={[3, 2]} /><meshStandardMaterial {...netMaterial} /></mesh>
-      {[-1, 0, 1].map((x) => <mesh key={x} position={[x * 0.75, 1, direction * 0.84]}><boxGeometry args={[0.025, 2, 0.025]} /><meshBasicMaterial color="#cfd5df" transparent opacity={0.28} /></mesh>)}
-      {[0.5, 1, 1.5].map((y) => <mesh key={y} position={[0, y, direction * 0.84]}><boxGeometry args={[3, 0.025, 0.025]} /><meshBasicMaterial color="#cfd5df" transparent opacity={0.28} /></mesh>)}
-      <mesh position={[0, 0.04, direction * 0.46]} receiveShadow><boxGeometry args={[3.15, 0.06, 0.9]} /><meshStandardMaterial color="#1c222b" roughness={0.9} /></mesh>
+      <mesh position={[0, 1, -direction * 0.82]}><planeGeometry args={[3, 2]} /><meshStandardMaterial {...netMaterial} /></mesh>
+      {[-1, 0, 1].map((x) => <mesh key={x} position={[x * 0.75, 1, -direction * 0.84]}><boxGeometry args={[0.025, 2, 0.025]} /><meshBasicMaterial color="#cfd5df" transparent opacity={0.28} /></mesh>)}
+      {[0.5, 1, 1.5].map((y) => <mesh key={y} position={[0, y, -direction * 0.84]}><boxGeometry args={[3, 0.025, 0.025]} /><meshBasicMaterial color="#cfd5df" transparent opacity={0.28} /></mesh>)}
+      <mesh position={[0, 0.04, -direction * 0.46]} receiveShadow><boxGeometry args={[3.15, 0.06, 0.9]} /><meshStandardMaterial color="#1c222b" roughness={0.9} /></mesh>
     </group>
   );
 }
@@ -1168,7 +1181,7 @@ function Room({ player, remotePlayers = [], ballState = null, footballScores = [
       <GraffitiWall />
       <FootballCourt />
       <Football state={ballState} />
-      <LocalPlayer state={player} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} pairAction={pairAction} />
+      <LocalPlayer state={player} ballState={ballState} onMove={onMove} onNearby={onNearby} interaction={interaction} joystickRef={joystickRef} motionResetKey={motionResetKey} pov={pov} emote={emote} pairAction={pairAction} />
       <RemotePlayers players={remotePlayers} />
     </>
   );
