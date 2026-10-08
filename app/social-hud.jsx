@@ -12,7 +12,8 @@ const BALL_FLOOR_BOUNCE = 0.62;
 const BALL_WALL_BOUNCE = 0.72;
 const BALL_FRICTION = 0.986;
 const BALL_TOUCH_COOLDOWN_MS = 220;
-const BALL_PLAYER_TOUCH_RADIUS = 0.86;
+const BALL_PLAYER_TOUCH_RADIUS = 0.72;
+const BALL_PLAYER_BODY_RADIUS = 0.42;
 const BALL_OBSTACLES = Object.freeze([
   { x: -9.8, z: -7.25, rx: 3.15, rz: 0.95 },
   { x: -9.8, z: 0.55, rx: 3.15, rz: 0.95 },
@@ -102,7 +103,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const interactionRef = useRef(interaction);
   const emoteRef = useRef(emote);
   const remotePlayersRef = useRef(new Map());
-  const ballRef = useRef({ x: 0, y: BALL_FLOOR_Y, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() });
+  const ballRef = useRef({ x: 2.2, y: BALL_FLOOR_Y, z: 1.5, vx: 0, vy: 0, vz: 0, rotationX: 0, rotationZ: 0, timestamp: Date.now() });
   const ballTouchRef = useRef(new Map());
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
@@ -190,12 +191,14 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const horizontal = Math.hypot(dx, dz);
       const playerY = 0.92;
       const vertical = Math.abs(ball.y - playerY);
-      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || vertical > 1.0) continue;
+      const contactDistance = BALL_PLAYER_BODY_RADIUS + BALL_RADIUS;
+      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || vertical > 0.82) continue;
 
       const id = String(player.id || clientIdRef.current);
+      const now = Date.now();
       const lastTouch = Number(ballTouchRef.current.get(id) || 0);
       if (Date.now() - lastTouch < BALL_TOUCH_COOLDOWN_MS) continue;
-      ballTouchRef.current.set(id, Date.now());
+      ballTouchRef.current.set(id, now);
 
       let nx = horizontal > 0.001 ? dx / horizontal : Math.sin(Number(player.rot) || 0);
       let nz = horizontal > 0.001 ? dz / horizontal : Math.cos(Number(player.rot) || 0);
@@ -203,15 +206,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const facingZ = Math.cos(Number(player.rot) || 0);
       const moving = Boolean(player.moving);
       const speed = Math.max(0, Number(player.speed) || 0);
-      const kick = moving ? 5.4 + Math.min(speed, 8) * 0.24 : 3.0;
-      const upward = moving ? 3.5 : 2.5;
+      const kick = moving ? 5.8 + Math.min(speed, 8) * 0.3 : 2.4;
+      const upward = moving ? 1.25 : 0.45;
       if (moving) {
         nx = facingX;
         nz = facingZ;
       }
       ball.x = Number(player.x) + nx * (BALL_PLAYER_TOUCH_RADIUS + 0.04);
       ball.z = Number(player.z) + nz * (BALL_PLAYER_TOUCH_RADIUS + 0.04);
-      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.95, Number(playerY)));
+      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.68, ball.y));
       ball.vx = nx * kick;
       ball.vz = nz * kick;
       ball.vy = upward;
