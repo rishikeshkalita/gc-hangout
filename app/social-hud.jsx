@@ -772,7 +772,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const state = gameChannel.presenceState?.() || {};
       const authorityId = getBallAuthorityId(state);
       if (authorityId !== clientIdRef.current) return;
-      simulateBallStep(1 / 30);
+      for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
       const payload = { ...ballRef.current, senderId: clientIdRef.current };
       onBallState?.(ballRef.current);
       void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
