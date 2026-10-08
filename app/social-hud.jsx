@@ -594,7 +594,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     // A Presence rate-limit closes the entire channel, which would otherwise
     // stop player/ball updates as well as chat/music/voice.
     const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: false, ack: true } },
+      // Gameplay is a high-frequency Broadcast stream. Keep this channel public so
+      // every movement/ball packet does not trigger private-channel authorization
+      // checks and exhaust the Realtime authorization connection pool.
+      config: { broadcast: { self: false, ack: true } },
     });
     gameChannelRef.current = gameChannel;
 
