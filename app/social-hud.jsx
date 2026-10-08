@@ -94,6 +94,25 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
   }, [onRemotePlayers]);
 
+  const readPresencePlayers = useCallback((state) => {
+    const seen = new Set();
+    for (const [id, presences] of Object.entries(state || {})) {
+      if (id === clientIdRef.current) continue;
+      const meta = Array.isArray(presences) ? presences[0] : null;
+      if (!meta || meta.kind !== "player") continue;
+      seen.add(id);
+      mergeRemotePlayer({ ...meta, senderId: id });
+    }
+    let changed = false;
+    for (const id of remotePlayersRef.current.keys()) {
+      if (!seen.has(id)) {
+        remotePlayersRef.current.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
+  }, [mergeRemotePlayer, onRemotePlayers]);
+
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => { playerStateRef.current = playerState; }, [playerState]);
   useEffect(() => { interactionRef.current = interaction; }, [interaction]);
@@ -724,7 +743,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         updatedAt: stateRow.updated_at ? Date.parse(stateRow.updated_at) : Date.now(),
         pauseVotes: (votes || []).filter((v) => v.action === "pause").map((v) => v.user_id),
         resumeVotes: (votes || []).filter((v) => v.action === "resume").map((v) => v.user_id),
-        skipVotes: (votes || []).filter((v) => v.action === "skip").map((v) => v.user_id)
+        skipVotes: (votes || []).filter((v) => v.action === "skip").map((v) => v.user_id),
+        deleteVotes: (votes || []).filter((v) => v.action === "delete").map((v) => v.user_id)
       });
       if (next) {
         setMusicState(next);
