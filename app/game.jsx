@@ -27,37 +27,35 @@ function useEmbeddedPhotoTexture(dataUrl) {
 
   useEffect(() => {
     let disposed = false;
-    let image = null;
     let nextTexture = null;
+    const loader = new THREE.TextureLoader();
 
-    try {
-      image = new Image();
-      image.decoding = "async";
-      image.onload = () => {
-        if (disposed) return;
-        nextTexture = new THREE.Texture(image);
+    loader.load(
+      dataUrl,
+      (loaded) => {
+        if (disposed) {
+          loaded.dispose();
+          return;
+        }
+        nextTexture = loaded;
         nextTexture.colorSpace = THREE.SRGBColorSpace;
         nextTexture.needsUpdate = true;
         setTexture(nextTexture);
-      };
-      image.onerror = () => {
-        if (!disposed) console.error("GC photo failed to decode");
-      };
-      image.src = dataUrl;
-    } catch (error) {
-      if (!disposed) console.error("GC photo failed to prepare", error);
-    }
+      },
+      undefined,
+      (error) => {
+        if (!disposed) console.error("GC photo failed to decode", error);
+      },
+    );
 
     return () => {
       disposed = true;
-      if (image) image.src = "";
       if (nextTexture) nextTexture.dispose();
     };
   }, [dataUrl]);
 
   return texture;
 }
-
 
 const INTERACTION_ANCHORS = Object.freeze([
   { id: "sofa-a-1", type: "SIT", seatStyle: "sofa", label: "Sit", x: -11.4, z: -7.25, rot: 0, targetX: -11.4, targetZ: -7.25, targetRot: 0, triggerX: -11.4, triggerZ: -5.75, exitX: -6.0, exitZ: -5.75, radius: 1.55 },
