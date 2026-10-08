@@ -1108,9 +1108,14 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           </form>
           <div className="track-list">
             {tracks.map((track) => (
-              <button key={track.id} className="track" onClick={() => void queueTrack(track)}>
-                <span>🎵</span><span><b>{track.title}</b><small>{track.artist} · expires {new Date(track.expiresAt).toLocaleDateString()}</small></span><em>＋ Queue</em>
-              </button>
+              <div key={track.id} className="track">
+                <button type="button" className="track-queue" onClick={() => void queueTrack(track)} disabled={musicBusy}>
+                  <span>🎵</span><span><b>{track.title}</b><small>{track.artist} · expires {new Date(track.expiresAt).toLocaleDateString()}</small></span>
+                </button>
+                <button type="button" className="track-delete" onClick={() => void voteDelete(track)} disabled={musicBusy} title="Vote to delete this shared track">
+                  🗑 {musicState.deleteVotes.includes(track.id) ? "Voted" : "Vote delete"}
+                </button>
+              </div>
             ))}
             {!tracks.length && <div className="social-empty">Upload a track or search the shared room library.</div>}
           </div>
@@ -1118,7 +1123,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             <strong>Queue · {musicState.queue.length}/{MUSIC_QUEUE_LIMIT}</strong>
             {musicState.queue.slice(0, 10).map((track, index) => <div key={track.id}><span>{index + 1}. {track.title}</span><small>{track.requesterName || "Room member"}</small></div>)}
           </div>
-          <small className="social-note">{musicStatus} · 50% vote required for pause/resume/skip · shared application volume · room music is independent of Chat and Voice.</small>
+          <small className="social-note">{musicStatus} · 50% vote required for pause/resume/skip/delete · shared room volume · room music is independent of Chat and Voice.</small>
         </section>
       )}
 
