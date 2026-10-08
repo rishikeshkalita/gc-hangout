@@ -13,6 +13,10 @@ const BALL_WALL_BOUNCE = 0.72;
 const BALL_FRICTION = 0.986;
 const BALL_PLAYER_TOUCH_RADIUS = 0.74;
 const BALL_PLAYER_RELEASE_RADIUS = 0.96;
+const FOOTBALL_COURT_CENTER_X = -3.2;
+const FOOTBALL_GOAL_HALF_WIDTH = 1.5;
+const FOOTBALL_GOAL_HEIGHT = 2;
+const FOOTBALL_GOAL_LINE_Z = 7.95;
 const BALL_OBSTACLES = Object.freeze([
   { x: -9.8, z: -7.25, rx: 3.15, rz: 0.95 },
   { x: -9.8, z: 0.55, rx: 3.15, rz: 0.95 },
@@ -30,7 +34,7 @@ const BALL_OBSTACLES = Object.freeze([
   { x: 5.5, z: -4.55, rx: 0.95, rz: 0.72 },
   { x: -13.1, z: 7.5, rx: 0.78, rz: 0.78 },
   { x: 13.0, z: -7.7, rx: 0.92, rz: 0.92 },
-  { x: -5.7, z: 6.8, rx: 0.58, rz: 0.58 },
+  { x: -12.0, z: 5.8, rx: 0.58, rz: 0.58 },
   { x: 5.8, z: 6.8, rx: 0.58, rz: 0.58 },
 ]);
 
@@ -45,6 +49,8 @@ const ballStateSnapshot = (value) => ({
   rotationX: Number(value?.rotationX) || 0,
   rotationZ: Number(value?.rotationZ) || 0,
   timestamp: Number(value?.timestamp) || Date.now(),
+  lastTouchId: value?.lastTouchId ? String(value.lastTouchId) : null,
+  lastTouchName: value?.lastTouchName ? String(value.lastTouchName).slice(0, 18) : null,
 });
 
 function getIceServers() {
@@ -58,7 +64,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, remotePlayers = [], initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, onFootballScores, remotePlayers = [], initialAudioUnlocked = false }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -106,6 +112,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const ballTouchRef = useRef(new Map());
   const ballPlayerMotionRef = useRef(new Map());
   const ballPredictionUntilRef = useRef(0);
+  const footballScoresRef = useRef([]);
+  const footballGoalRef = useRef(null);
   const lastActivityInteractionRef = useRef("");
   const socialReadyRef = useRef(false);
   const gameReadyRef = useRef(false);
@@ -252,6 +260,30 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.vx = kickX * kickSpeed + awayX * 0.45;
       ball.vz = kickZ * kickSpeed + awayZ * 0.45;
       ball.vy = upward;
+      ball.lastTouchId = id;
+      ball.lastTouchName = String(player.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
+    }
+
+    const withinGoalMouth = Math.abs(ball.x - FOOTBALL_COURT_CENTER_X) <= FOOTBALL_GOAL_HALF_WIDTH - BALL_RADIUS;
+    const belowCrossbar = ball.y <= FOOTBALL_GOAL_HEIGHT - BALL_RADIUS;
+    const crossedPositive = previousZ < FOOTBALL_GOAL_LINE_Z && ball.z >= FOOTBALL_GOAL_LINE_Z && ball.vz > 0;
+    const crossedNegative = previousZ > -FOOTBALL_GOAL_LINE_Z && ball.z <= -FOOTBALL_GOAL_LINE_Z && ball.vz < 0;
+    if (withinGoalMouth && belowCrossbar && (crossedPositive || crossedNegative)) {
+      footballGoalRef.current = {
+        direction: crossedPositive ? "north" : "south",
+        scorerId: ball.lastTouchId || null,
+        scorerName: ball.lastTouchName || "Guest",
+        timestamp: Date.now(),
+      };
+      ball.x = FOOTBALL_COURT_CENTER_X;
+      ball.y = BALL_FLOOR_Y;
+      ball.z = 0;
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.vz = 0;
+      ball.rotationX = 0;
+      ball.rotationZ = 0;
+      ball.timestamp = Date.now();
     }
 
     const horizontalSpeed = Math.hypot(ball.vx, ball.vz);
@@ -289,12 +321,27 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
   }, [onRemotePlayers]);
 
+  const applyFootballScores = useCallback((scores) => {
+    const normalized = (Array.isArray(scores) ? scores : [])
+      .map((entry) => ({
+        id: String(entry?.id || "").slice(0, 80),
+        name: String(entry?.name || "Player").slice(0, 18),
+        goals: Math.max(0, Math.floor(Number(entry?.goals) || 0)),
+      }))
+      .filter((entry) => entry.id)
+      .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
+      .slice(0, 20);
+    footballScoresRef.current = normalized;
+    onFootballScores?.(normalized);
+  }, [onFootballScores]);
+
   const readPresencePlayers = useCallback((state) => {
     const seen = new Set();
     for (const [id, presences] of Object.entries(state || {})) {
       if (id === clientIdRef.current) continue;
       const meta = Array.isArray(presences) ? presences[0] : null;
       if (!meta || meta.kind !== "player") continue;
+      if (Array.isArray(meta.footballScores) && meta.footballScores.length) applyFootballScores(meta.footballScores);
       seen.add(id);
       mergeRemotePlayer({ ...meta, senderId: id });
     }
@@ -306,7 +353,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     }
     if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
-  }, [mergeRemotePlayer, onRemotePlayers]);
+  }, [applyFootballScores, mergeRemotePlayer, onRemotePlayers]);
 
   useEffect(() => { nameRef.current = name; }, [name]);
   useEffect(() => { playerStateRef.current = playerState; }, [playerState]);
@@ -598,6 +645,26 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (getBallAuthorityId(state) !== clientIdRef.current) return;
       applyNetworkBallTouch(payload);
     });
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.FOOTBALL_SCORE }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      applyFootballScores(payload?.scores || []);
+      if (payload?.ball) {
+        const incoming = ballStateSnapshot(payload.ball);
+        ballRef.current = incoming;
+        onBallState?.(incoming);
+      }
+      const scorer = String(payload?.scorerName || "").trim();
+      if (scorer) {
+        pushChatToast({
+          id: `football-goal-${payload?.timestamp || Date.now()}`,
+          name: scorer,
+          message: "⚽ scored a goal",
+          timestamp: Number(payload?.timestamp) || Date.now(),
+          local: false,
+          activity: true,
+        });
+      }
+    });
     channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const message = String(payload?.message || "").trim().slice(0, 140);
@@ -776,9 +843,80 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.vx = kickX * kickSpeed + awayX * 0.5;
       ball.vz = kickZ * kickSpeed + awayZ * 0.5;
       ball.vy = moving ? 0.28 : 0.12;
+      ball.lastTouchId = id;
+      ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
       ball.timestamp = Date.now();
       onBallState?.(ball);
       return true;
+    };
+
+    const recordFootballGoal = async (goal) => {
+      if (!goal || !goal.scorerId || Date.now() < Number(goal.timestamp || 0) - 2000) return;
+      const current = footballScoresRef.current.slice();
+      const index = current.findIndex((entry) => entry.id === String(goal.scorerId));
+      if (index >= 0) {
+        current[index] = { ...current[index], goals: current[index].goals + 1, name: String(goal.scorerName || current[index].name).slice(0, 18) };
+      } else {
+        current.push({ id: String(goal.scorerId), name: String(goal.scorerName || "Guest").slice(0, 18), goals: 1 });
+      }
+      current.sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
+      const scores = current.slice(0, 20);
+      applyFootballScores(scores);
+      const resetBall = ballStateSnapshot(ballRef.current);
+      resetBall.x = FOOTBALL_COURT_CENTER_X;
+      resetBall.y = BALL_FLOOR_Y;
+      resetBall.z = 0;
+      resetBall.vx = 0;
+      resetBall.vy = 0;
+      resetBall.vz = 0;
+      resetBall.lastTouchId = null;
+      resetBall.lastTouchName = null;
+      resetBall.timestamp = Date.now();
+      ballRef.current = resetBall;
+      onBallState?.(resetBall);
+      void gameChannel.send({
+        type: "broadcast",
+        event: SOCIAL_EVENTS.FOOTBALL_SCORE,
+        payload: {
+          senderId: clientIdRef.current,
+          scorerId: String(goal.scorerId),
+          scorerName: String(goal.scorerName || "Guest").slice(0, 18),
+          direction: goal.direction,
+          scores,
+          ball: resetBall,
+          timestamp: Date.now(),
+        },
+      });
+      void publishFootballScoresPresence();
+      pushChatToast({
+        id: `football-goal-local-${Date.now()}`,
+        name: nameRef.current || "Guest",
+        message: String(goal.scorerId) === clientIdRef.current ? "⚽ you scored" : `⚽ ${String(goal.scorerName || "Guest").slice(0, 18)} scored`,
+        timestamp: Date.now(),
+        local: true,
+        activity: true,
+      });
+    };
+
+    const publishFootballScoresPresence = async () => {
+      const scores = footballScoresRef.current;
+      if (!gameReadyRef.current || !scores.length) return;
+      try {
+        const state = playerStateRef.current;
+        await gameChannel.track({
+          kind: "player",
+          name: nameRef.current || "Guest",
+          avatarId: state?.avatar?.id || "maya",
+          x: Number(state?.x) || 0,
+          z: Number(state?.z) || 0,
+          rot: Number(state?.rot) || 0,
+          moving: Boolean(state?.moving),
+          speed: Number(state?.speed) || 0,
+          footballScores: scores,
+        });
+      } catch (error) {
+        console.warn("Football score presence update failed", error);
+      }
     };
 
     const publishPlayer = () => {
@@ -890,7 +1028,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
 
       if (authorityId === clientIdRef.current) {
+        footballGoalRef.current = null;
         for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
+        const goal = footballGoalRef.current;
+        if (goal && now - footballGoalRef.current.timestamp < 1500) {
+          footballGoalRef.current = null;
+          void recordFootballGoal(goal);
+        }
         const payload = { ...ballRef.current, senderId: clientIdRef.current };
         onBallState?.(ballRef.current);
         void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
@@ -932,6 +1076,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         rot: Number(state?.rot) || 0,
         moving: Boolean(state?.moving),
         speed: Number(state?.speed) || 0,
+        footballScores: footballScoresRef.current,
       });
       await channel.track({
         kind: "player",
@@ -1007,6 +1152,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       gameReadyRef.current = false;
       sessionStartedRef.current = false;
       ballPredictionUntilRef.current = 0;
+      footballScoresRef.current = [];
+      footballGoalRef.current = null;
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
