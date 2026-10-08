@@ -761,10 +761,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const playerZ = Number(payload?.z);
       if (!Number.isFinite(playerX) || !Number.isFinite(playerZ)) return false;
 
+      const incomingX = Number(payload?.ballX);
+      const incomingY = Number(payload?.ballY);
+      const incomingZ = Number(payload?.ballZ);
       const dx = ball.x - playerX;
       const dz = ball.z - playerZ;
       const horizontal = Math.hypot(dx, dz);
-      if (horizontal > BALL_PLAYER_TOUCH_RADIUS || Math.abs(ball.y - 0.92) > 0.82) return false;
+      const incomingHorizontal = Number.isFinite(incomingX) && Number.isFinite(incomingZ)
+        ? Math.hypot(incomingX - playerX, incomingZ - playerZ)
+        : Infinity;
+      if (horizontal > BALL_PLAYER_TOUCH_RADIUS && incomingHorizontal > BALL_PLAYER_TOUCH_RADIUS) return false;
 
       const id = String(payload?.senderId || "");
       const now = Date.now();
@@ -781,12 +787,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const kickZ = facingDot >= -0.35 ? facingZ : awayZ;
 
       const separation = BALL_PLAYER_TOUCH_RADIUS + 0.12;
-      ball.x = playerX + awayX * separation;
-      ball.z = playerZ + awayZ * separation;
-      ball.y = Math.max(BALL_FLOOR_Y, Math.min(0.48, ball.y));
-      ball.vx = kickX * 9.5 + awayX * 0.8;
-      ball.vz = kickZ * 9.5 + awayZ * 0.8;
-      ball.vy = 1.15;
+      ball.x = Number.isFinite(incomingX) ? incomingX : playerX + awayX * separation;
+      ball.z = Number.isFinite(incomingZ) ? incomingZ : playerZ + awayZ * separation;
+      ball.y = Number.isFinite(incomingY) ? Math.max(BALL_FLOOR_Y, incomingY) : Math.max(BALL_FLOOR_Y, Math.min(0.48, ball.y));
+      ball.vx = Number.isFinite(Number(payload?.ballVx)) ? Number(payload.ballVx) : kickX * 9.5 + awayX * 0.8;
+      ball.vz = Number.isFinite(Number(payload?.ballVz)) ? Number(payload.ballVz) : kickZ * 9.5 + awayZ * 0.8;
+      ball.vy = Number.isFinite(Number(payload?.ballVy)) ? Number(payload.ballVy) : 1.15;
       ball.lastTouchId = id;
       ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
       ball.timestamp = now;
@@ -1136,7 +1142,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       supabase.removeChannel(gameChannel);
       channelRef.current = null;
     };
-  }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, pushChatToast, sendSignal, simulateBallStep]);
+  }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, publishBallState, pushChatToast, sendSignal, simulateBallStep]);
 
   const refreshMusicSnapshot = useCallback(async () => {
     const client = supabaseRef.current;
@@ -1534,6 +1540,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       z: playerZ,
       rot,
       name: nameRef.current || "Player",
+      ballX: ball.x,
+      ballY: ball.y,
+      ballZ: ball.z,
+      ballVx: ball.vx,
+      ballVy: ball.vy,
+      ballVz: ball.vz,
       timestamp: now,
     });
   }, [kickAvailable, publishBallState, send]);
