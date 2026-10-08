@@ -28,29 +28,47 @@ function useEmbeddedPhotoTexture(dataUrl) {
   useEffect(() => {
     let disposed = false;
     let nextTexture = null;
-    const loader = new THREE.TextureLoader();
+    let canvas = null;
+    const image = new Image();
+    image.decoding = "async";
 
-    loader.load(
-      dataUrl,
-      (loaded) => {
-        if (disposed) {
-          loaded.dispose();
-          return;
-        }
-        nextTexture = loaded;
+    image.onload = () => {
+      if (disposed) return;
+      try {
+        const sourceWidth = image.naturalWidth || image.width;
+        const sourceHeight = image.naturalHeight || image.height;
+        if (!sourceWidth || !sourceHeight) throw new Error("Photo has no dimensions");
+
+        const maxDimension = 1024;
+        const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+        canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+        canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Canvas 2D context unavailable");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        nextTexture = new THREE.CanvasTexture(canvas);
         nextTexture.colorSpace = THREE.SRGBColorSpace;
         nextTexture.needsUpdate = true;
         setTexture(nextTexture);
-      },
-      undefined,
-      (error) => {
-        if (!disposed) console.error("GC photo failed to decode", error);
-      },
-    );
+      } catch (error) {
+        console.error("GC photo failed to create texture", error);
+      }
+    };
+
+    image.onerror = () => {
+      if (!disposed) console.error("GC photo failed to decode");
+    };
+    image.src = dataUrl;
 
     return () => {
       disposed = true;
+      image.onload = null;
+      image.onerror = null;
+      image.src = "";
       if (nextTexture) nextTexture.dispose();
+      canvas = null;
     };
   }, [dataUrl]);
 
@@ -593,7 +611,7 @@ function WallPhotoFrame({ position, rotation = [0, 0, 0], scale = 1, photoDataUr
       </RoundedBox>
       <mesh position={[0, 0, 0.085]}>
         <planeGeometry args={[3.02, 2.22]} />
-        <meshBasicMaterial map={photo} toneMapped={false} />
+        <meshBasicMaterial map={photo} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
       <RoundedBox args={[3.22, 0.09, 0.07]} position={[0, 1.19, 0.11]} radius={0.02} smoothness={3} castShadow>
         <meshStandardMaterial color="#8a6044" roughness={0.5} />
