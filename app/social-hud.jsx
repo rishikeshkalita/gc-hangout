@@ -614,6 +614,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         });
       }
     });
+    // Multiplayer transforms also use the primary social channel.
+    // This makes player visibility independent of the football/game channel.
+    channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
+      mergeRemotePlayer(payload);
+    });
     channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const message = String(payload?.message || "").trim().slice(0, 140);
@@ -922,8 +927,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
     const publishPlayer = () => {
       const state = playerStateRef.current;
-      if (!state || !gameReadyRef.current) return;
-      void gameChannel.send({
+      if (!state || !socialReadyRef.current) return;
+      void channel.send({
         type: "broadcast",
         event: SOCIAL_EVENTS.PLAYER,
         payload: {
@@ -1059,7 +1064,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
     }, 700);
     const sendInitialPlayer = async () => {
-      if (sessionStartedRef.current || !socialReadyRef.current || !gameReadyRef.current) return;
+      if (sessionStartedRef.current || !socialReadyRef.current) return;
       sessionStartedRef.current = true;
       const state = playerStateRef.current;
       const music = musicStateRef.current;
