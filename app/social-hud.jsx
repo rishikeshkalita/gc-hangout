@@ -95,6 +95,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const roomAudioTrackRef = useRef("");
   const musicStateRef = useRef(musicState);
   const musicRefreshRef = useRef(null);
+  const queuePendingRef = useRef(new Set());
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
   const pendingCandidatesRef = useRef(new Map());
@@ -713,6 +714,34 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     };
 
+    channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_SYNC }, ({ payload }) => {
+      if (!payload || payload.senderId === clientIdRef.current) return;
+      const revision = Number(payload.revision) || 0;
+      const current = musicStateRef.current;
+      if (revision && revision < Number(current.revision || 0)) return;
+      const incomingTrack = normalizeMusicTrack(payload.track);
+      const queuedTrack = normalizeMusicTrack(payload.queueTrack);
+      const action = String(payload.action || "");
+      setMusicState((state) => {
+        let next = { ...state, revision: Math.max(Number(state.revision) || 0, revision), updatedAt: Date.now() };
+        if (Number.isFinite(Number(payload.volume))) next.volume = Math.max(0, Math.min(1, Number(payload.volume)));
+        if (action === "queue" && queuedTrack) {
+          if (payload.currentTrackId === queuedTrack.id) {
+            next = { ...next, current: queuedTrack, track: queuedTrack, queue: state.queue.filter((item) => item.id !== queuedTrack.id), position: 0, startedAt: Number(payload.startedAt) || Date.now(), playing: true };
+          } else {
+            next = { ...next, queue: [...state.queue.filter((item) => item.id !== queuedTrack.id), queuedTrack] };
+          }
+        } else if (action === "skip") {
+          next = { ...next, current: incomingTrack, track: incomingTrack, queue: incomingTrack ? state.queue.filter((item) => item.id !== incomingTrack.id) : state.queue, position: Number(payload.position) || 0, startedAt: Number(payload.startedAt) || 0, playing: Boolean(payload.playing && incomingTrack), pauseVotes: [], resumeVotes: [], skipVotes: [] };
+        } else if (action === "pause" || action === "resume") {
+          next = { ...next, position: Math.max(0, Number(payload.position) || 0), startedAt: Number(payload.startedAt) || 0, playing: Boolean(payload.playing && state.current) };
+        } else if (action === "volume") {
+          next.volume = Math.max(0, Math.min(1, Number(payload.volume)));
+        }
+        return normalizeMusicState(next);
+      });
+    });
+
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_VOLUME }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const volume = Math.max(0, Math.min(1, Number(payload?.volume)));
@@ -1163,6 +1192,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       footballScoresRef.current = [];
       footballGoalRef.current = null;
       ballTouchCooldownRef.current.clear();
+      queuePendingRef.current.clear();
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
@@ -1222,18 +1252,33 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMusicStatus(error.message || "Music action failed.");
       return null;
     }
-    await refreshMusicSnapshot();
+    void refreshMusicSnapshot();
     return data;
   }, [authUserId, refreshMusicSnapshot]);
 
   const queueTrack = useCallback(async (track) => {
     const normalized = normalizeMusicTrack(track);
-    if (!normalized) return;
+    if (!normalized || queuePendingRef.current.has(normalized.id)) return;
+    queuePendingRef.current.add(normalized.id);
     sharedAudioUnlockedRef.current = true;
-    const result = await rpcMusic("gc_music_queue_track", { p_track_id: normalized.id });
-    if (result) setMusicStatus("Added to the shared queue.");
+    if (roomAudioRef.current) roomAudioRef.current.autoplay = true;
+    try {
+      const result = await rpcMusic("gc_music_queue_track", { p_track_id: normalized.id });
+      if (result) {
+        const row = Array.isArray(result) ? result[0] : result;
+        const currentId = row?.current_track_id ? String(row.current_track_id) : null;
+        const startedAt = Date.parse(row?.started_at || "") || Date.now();
+        setMusicState((state) => normalizeMusicState(currentId === normalized.id
+          ? { ...state, current: normalized, track: normalized, queue: state.queue.filter((item) => item.id !== normalized.id), position: 0, startedAt, playing: row?.status === "playing", revision: Number(row?.revision) || state.revision }
+          : { ...state, queue: [...state.queue.filter((item) => item.id !== normalized.id), normalized], revision: Number(row?.revision) || state.revision }));
+        void send(SOCIAL_EVENTS.MUSIC_SYNC, { action: "queue", queueTrack: normalized, track: currentId === normalized.id ? normalized : null, currentTrackId: currentId, playing: row?.status === "playing", position: Number(row?.position) || 0, startedAt, revision: Number(row?.revision) || 0, senderId: clientIdRef.current });
+        setMusicStatus("Added to the shared queue.");
+      }
+    } finally {
+      queuePendingRef.current.delete(normalized.id);
+    }
     setPanel("music");
-  }, [rpcMusic]);
+  }, [rpcMusic, send]);
 
   const votePauseResume = useCallback(async () => {
     if (!musicStateRef.current.current) {
@@ -1244,10 +1289,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const action = musicStateRef.current.playing ? "pause" : "resume";
     const result = await rpcMusic("gc_music_vote", { p_action: action });
     if (result !== null) {
-      pushActivity(
-        action === "pause" ? "voted to pause the room music" : "voted to resume the room music",
-        action === "pause" ? "⏸️" : "▶️"
-      );
+      const row = Array.isArray(result) ? result[0] : result;
+      const startedAt = Date.parse(row?.started_at || "") || 0;
+      setMusicState((state) => normalizeMusicState({ ...state, position: Number(row?.position) || state.position, startedAt, playing: row?.status === "playing" && Boolean(state.current), revision: Number(row?.revision) || state.revision }));
+      void send(SOCIAL_EVENTS.MUSIC_SYNC, { action, playing: row?.status === "playing", position: Number(row?.position) || 0, startedAt, revision: Number(row?.revision) || 0, senderId: clientIdRef.current });
+      pushActivity(action === "pause" ? "voted to pause the room music" : "voted to resume the room music", action === "pause" ? "⏸️" : "▶️");
     }
   }, [queueTrack, rpcMusic, tracks, pushActivity]);
 
@@ -1257,14 +1303,25 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     if (roomAudioRef.current) roomAudioRef.current.volume = volume;
     const result = await rpcMusic("gc_music_set_volume", { p_volume: volume });
     if (result) {
-      void send(SOCIAL_EVENTS.MUSIC_VOLUME, { volume, revision: Number(result.revision) || 0 });
+      const row = Array.isArray(result) ? result[0] : result;
+      const revision = Number(row?.revision) || 0;
+      void send(SOCIAL_EVENTS.MUSIC_VOLUME, { volume, revision });
+      void send(SOCIAL_EVENTS.MUSIC_SYNC, { action: "volume", volume, revision, senderId: clientIdRef.current });
     }
   }, [rpcMusic, send]);
 
   const voteSkip = useCallback(async () => {
     if (!musicStateRef.current.current) return;
     const result = await rpcMusic("gc_music_vote", { p_action: "skip" });
-    if (result !== null) pushActivity("voted to skip the current track", "⏭️");
+    if (result !== null) {
+      const row = Array.isArray(result) ? result[0] : result;
+      const nextId = row?.current_track_id ? String(row.current_track_id) : null;
+      const nextTrack = nextId ? (musicStateRef.current.queue.find((item) => item.id === nextId) || tracks.find((item) => item.id === nextId) || null) : null;
+      const startedAt = Date.parse(row?.started_at || "") || 0;
+      setMusicState((state) => normalizeMusicState({ ...state, current: nextTrack, track: nextTrack, queue: nextId ? state.queue.filter((item) => item.id !== nextId) : state.queue, position: Number(row?.position) || 0, startedAt, playing: row?.status === "playing" && Boolean(nextTrack), revision: Number(row?.revision) || state.revision, pauseVotes: [], resumeVotes: [], skipVotes: [] }));
+      void send(SOCIAL_EVENTS.MUSIC_SYNC, { action: "skip", track: nextTrack, currentTrackId: nextId, playing: row?.status === "playing", position: Number(row?.position) || 0, startedAt, revision: Number(row?.revision) || 0, senderId: clientIdRef.current });
+      pushActivity("voted to skip the current track", "⏭️");
+    }
   }, [rpcMusic, pushActivity]);
 
   const voteDelete = useCallback(async (track) => {
@@ -1402,11 +1459,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     audio.preload = "auto";
     audio.playsInline = true;
     audio.crossOrigin = "anonymous";
-    audio.volume = musicVolume;
+    audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
 
-    // Keep shared music on the native HTMLMediaElement output path.
-    // Web Audio is intentionally not used here: iOS/WebKit can report that
-    // an AudioContext is running while the MediaElementSource path is silent.
     const handlePlaying = () => setAudioBlocked(false);
     const handleError = () => {
       setAudioBlocked(true);
@@ -1428,7 +1482,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       roomAudioContextRef.current = null;
       if (context) void context.close().catch(() => {});
     };
-  }, [musicVolume, setAudioSessionType]);
+  }, [setAudioSessionType]);
+
+  useEffect(() => {
+    const audio = roomAudioRef.current;
+    if (!audio) return;
+    audio.volume = musicVolume;
+  }, [musicVolume]);
 
   useEffect(() => {
     const audio = roomAudioRef.current;
@@ -1632,7 +1692,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             </div>
           )}
           {audioBlocked && <button className="music-player-launch" onClick={() => void unlockAudio()}><span>🔊</span><span><strong>Enable Room Audio</strong><small>Browser permission is required on this device.</small></span><b>▶</b></button>}
-          <button type="button" className="music-player-launch" onClick={() => musicFileInputRef.current?.click()} disabled={musicBusy}>
+          <button type="button" className="music-player-launch" onClick={() => musicFileInputRef.current?.click()} disabled={musicBusy || queuePendingRef.current.has(track.id)}>
             <span>⬆️</span><span><strong>{musicBusy ? "Uploading…" : "Upload music"}</strong><small>25 MB maximum · deleted after 72 hours</small></span><b>＋</b>
           </button>
           <input
