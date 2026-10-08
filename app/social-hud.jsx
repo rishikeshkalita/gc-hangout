@@ -565,7 +565,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     }
 
     const channel = supabase.channel(`gc-hangout:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: true, ack: true }, presence: { key: clientIdRef.current } },
+      config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
       config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
@@ -927,28 +927,34 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
     const publishPlayer = () => {
       const state = playerStateRef.current;
-      if (!state || !socialReadyRef.current) return;
-      void channel.send({
-        type: "broadcast",
-        event: SOCIAL_EVENTS.PLAYER,
-        payload: {
-          senderId: clientIdRef.current,
-          name: nameRef.current || "Guest",
-          avatarId: state.avatar?.id || "maya",
-          interactionType: interactionRef.current?.anchor?.type || "",
-          interactionPhase: interactionRef.current?.phase || "sync",
-          seatStyle: interactionRef.current?.anchor?.seatStyle || null,
-          foodKind: interactionRef.current?.anchor?.foodKind || "pizza",
-          drinkKind: interactionRef.current?.anchor?.drinkKind || "water",
-          emote: emoteRef.current || null,
-          x: Number(state.x) || 0,
-          z: Number(state.z) || 0,
-          rot: Number(state.rot) || 0,
-          moving: Boolean(state.moving),
-          speed: Number(state.speed) || 0,
-          timestamp: Date.now(),
-        },
-      });
+      if (!state) return;
+      const payload = {
+        senderId: clientIdRef.current,
+        name: nameRef.current || "Guest",
+        avatarId: state.avatar?.id || "maya",
+        interactionType: interactionRef.current?.anchor?.type || "",
+        interactionPhase: interactionRef.current?.phase || "sync",
+        seatStyle: interactionRef.current?.anchor?.seatStyle || null,
+        foodKind: interactionRef.current?.anchor?.foodKind || "pizza",
+        drinkKind: interactionRef.current?.anchor?.drinkKind || "water",
+        emote: emoteRef.current || null,
+        x: Number(state.x) || 0,
+        z: Number(state.z) || 0,
+        rot: Number(state.rot) || 0,
+        moving: Boolean(state.moving),
+        speed: Number(state.speed) || 0,
+        timestamp: Date.now(),
+      };
+      if (socialReadyRef.current) {
+        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
+          if (result === "error") console.warn("GC Hangout social player broadcast rejected");
+        });
+      }
+      if (gameReadyRef.current) {
+        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
+          if (result === "error") console.warn("GC Hangout game player broadcast rejected");
+        });
+      }
     };
 
     const syncMusicPresence = (state) => {
@@ -1068,23 +1074,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       sessionStartedRef.current = true;
       const state = playerStateRef.current;
       const music = musicStateRef.current;
-      await gameChannel.track({
-        kind: "player",
-        name: nameRef.current || "Guest",
-        avatarId: state?.avatar?.id || "maya",
-        interactionType: interactionRef.current?.anchor?.type || "",
-        interactionPhase: interactionRef.current?.phase || "sync",
-        seatStyle: interactionRef.current?.anchor?.seatStyle || null,
-        foodKind: interactionRef.current?.anchor?.foodKind || "pizza",
-        drinkKind: interactionRef.current?.anchor?.drinkKind || "water",
-        emote: emoteRef.current || null,
-        x: Number(state?.x) || 0,
-        z: Number(state?.z) || 0,
-        rot: Number(state?.rot) || 0,
-        moving: Boolean(state?.moving),
-        speed: Number(state?.speed) || 0,
-        footballScores: footballScoresRef.current,
-      });
       await channel.track({
         kind: "player",
         name: nameRef.current || "Guest",
@@ -1133,7 +1122,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const handleGameStatus = async (status) => {
       gameReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
-        await sendInitialPlayer();
+        await gameChannel.track({
+          kind: "game",
+          name: nameRef.current || "Guest",
+          footballScores: footballScoresRef.current,
+        });
+        publishPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
         console.warn("GC Hangout game realtime status:", status);
         sessionStartedRef.current = false;
