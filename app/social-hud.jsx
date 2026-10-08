@@ -87,6 +87,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const [remoteEmotes, setRemoteEmotes] = useState([]);
   const supabaseRef = useRef(null);
   const channelRef = useRef(null);
+  const gameChannelRef = useRef(null);
+  const gameReadyRef = useRef(false);
   const clientIdRef = useRef(createClientId());
   const roomAudioRef = useRef(null);
   const roomAudioContextRef = useRef(null);
@@ -122,9 +124,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
 
-  const getBallAuthorityId = useCallback((state) => {
-    const ids = new Set(Object.keys(state || {}));
-    ids.add(clientIdRef.current);
+  const getBallAuthorityId = useCallback(() => {
+    const ids = new Set([clientIdRef.current, ...remotePlayersRef.current.keys()]);
     return [...ids].sort()[0] || clientIdRef.current;
   }, []);
 
@@ -324,6 +325,23 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     }
   }, []);
 
+
+  const sendGame = useCallback(async (event, payload) => {
+    const gameChannel = gameChannelRef.current;
+    if (!gameChannel || !gameReadyRef.current) return false;
+    try {
+      const result = await gameChannel.send({
+        type: "broadcast",
+        event,
+        payload: { ...payload, senderId: clientIdRef.current },
+      });
+      if (result === "error") console.warn("GC Hangout game broadcast rejected", event);
+      return result === "ok" || result?.status === "ok" || result === undefined;
+    } catch (error) {
+      console.warn("GC Hangout game send failed", event, error);
+      return false;
+    }
+  }, []);
 
   const pushActivity = useCallback((message, icon = "•") => {
     const text = String(message || "").trim().slice(0, 140);
@@ -572,26 +590,32 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
     channelRef.current = channel;
 
-    channel.on("broadcast", { event: SOCIAL_EVENTS.BALL }, ({ payload }) => {
+    // Keep high-frequency gameplay Broadcasts off the Presence channel.
+    // A Presence rate-limit closes the entire channel, which would otherwise
+    // stop player/ball updates as well as chat/music/voice.
+    const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
+      config: { private: true, broadcast: { self: false, ack: true } },
+    });
+    gameChannelRef.current = gameChannel;
+
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       const incoming = ballStateSnapshot(payload);
       if (incoming.timestamp < Number(ballRef.current.timestamp || 0)) return;
       ballRef.current = incoming;
       onBallState?.(incoming);
     });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.BALL_KICK }, ({ payload }) => {
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_KICK }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
-      const state = channel.presenceState?.() || {};
-      if (getBallAuthorityId(state) !== clientIdRef.current) return;
+      if (getBallAuthorityId() !== clientIdRef.current) return;
       applyNetworkBallKick(payload);
     });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
-      const state = channel.presenceState?.() || {};
-      if (getBallAuthorityId(state) !== clientIdRef.current) return;
+      if (getBallAuthorityId() !== clientIdRef.current) return;
       applyNetworkBallTouch(payload);
     });
-    channel.on("broadcast", { event: SOCIAL_EVENTS.FOOTBALL_SCORE }, ({ payload }) => {
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.FOOTBALL_SCORE }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
       applyFootballScores(payload?.scores || []);
       if (payload?.ball) {
@@ -613,7 +637,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
     // Multiplayer transforms also use the primary social channel.
     // This makes player visibility independent of the football/game channel.
-    channel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
+    gameChannel.on("broadcast", { event: SOCIAL_EVENTS.PLAYER }, ({ payload }) => {
       mergeRemotePlayer(payload);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.ACTIVITY }, ({ payload }) => {
@@ -900,7 +924,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       resetBall.timestamp = Date.now();
       ballRef.current = resetBall;
       onBallState?.(resetBall);
-      void channel.send({
+      void gameChannel.send({
         type: "broadcast",
         event: SOCIAL_EVENTS.FOOTBALL_SCORE,
         payload: {
@@ -949,8 +973,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         timestamp: Date.now(),
       };
       if (socialReadyRef.current) {
-        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
-          if (result === "error") console.warn("GC Hangout social player broadcast rejected");
+        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
+          if (result === "error") console.warn("GC Hangout game player broadcast rejected");
         });
       }
     };
@@ -1019,7 +1043,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             const lastTouch = Number(ballTouchCooldownRef.current.get(clientIdRef.current) || 0);
             if (now - lastTouch >= 180) {
               ballTouchCooldownRef.current.set(clientIdRef.current, now);
-              void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload: touchPayload });
+              void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload: touchPayload });
             }
           }
         }
@@ -1035,7 +1059,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         }
         const payload = { ...ballRef.current, senderId: clientIdRef.current };
         const snapshot = publishBallState();
-        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
+        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
       } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
         // authoritative snapshot arrives.
@@ -1055,7 +1079,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
     }, 700);
     const sendInitialPlayer = async () => {
-      if (sessionStartedRef.current || !socialReadyRef.current) return;
+      if (sessionStartedRef.current || !gameReadyRef.current) return;
       sessionStartedRef.current = true;
       publishPlayer();
       void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
@@ -1094,7 +1118,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
             .forEach((id) => void ensurePeer(id, true));
         }
-        void sendInitialPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
         console.warn("GC Hangout social realtime status:", status);
         sessionStartedRef.current = false;
@@ -1105,6 +1128,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     void channel.subscribe((status, error) => {
       if (error) console.error("GC Hangout social realtime subscribe error:", error);
       handleSocialStatus(status);
+    });
+
+    void gameChannel.subscribe((status, error) => {
+      gameReadyRef.current = status === "SUBSCRIBED";
+      if (error) console.error("GC Hangout game realtime subscribe error:", error);
+      if (status === "SUBSCRIBED") {
+        void sendInitialPlayer();
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.warn("GC Hangout game realtime status:", status, error || "");
+      }
     });
 
     return () => {
@@ -1119,6 +1152,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
       socialReadyRef.current = false;
+      gameReadyRef.current = false;
       sessionStartedRef.current = false;
       ballPredictionUntilRef.current = 0;
       footballScoresRef.current = [];
@@ -1128,8 +1162,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       remotePlayersRef.current.clear();
       onRemotePlayers?.([]);
       void channel.unsubscribe();
+      void gameChannel.unsubscribe();
       supabase.removeChannel(channel);
+      supabase.removeChannel(gameChannel);
       channelRef.current = null;
+      gameChannelRef.current = null;
     };
   }, [applyFootballScores, authUserId, closePeer, ensurePeer, getBallAuthorityId, onBallState, publishBallState, pushChatToast, sendSignal, simulateBallStep]);
 
@@ -1547,7 +1584,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     ball.timestamp = now;
     ballPredictionUntilRef.current = now + 520;
     publishBallState();
-    void send(SOCIAL_EVENTS.BALL_KICK, {
+    void sendGame(SOCIAL_EVENTS.BALL_KICK, {
       x: playerX,
       z: playerZ,
       rot,
@@ -1560,7 +1597,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ballVz: ball.vz,
       timestamp: now,
     });
-  }, [kickAvailable, publishBallState, send]);
+  }, [kickAvailable, publishBallState, sendGame]);
 
   const chatRows = useMemo(() => chat.slice(-12), [chat]);
 
