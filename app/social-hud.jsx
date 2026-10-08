@@ -847,8 +847,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
             title="YouTube music"
             width="200"
             height="200"
-            src={`https://www.youtube.com/embed/${musicState.current.videoId}?autoplay=1&playsinline=1&controls=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+            src={`https://www.youtube.com/embed/${musicState.current.videoId}?autoplay=0&playsinline=1&controls=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
             allow="autoplay; encrypted-media; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
+            loading="eager"
             allowFullScreen={false}
           />
         </div>
