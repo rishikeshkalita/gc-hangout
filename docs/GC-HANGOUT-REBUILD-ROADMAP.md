@@ -182,6 +182,14 @@ These product rules override implementation convenience:
 - [ ] Test two-client behavior as soon as the shared-state layer exists.
 - [ ] Treat human-avatar rendering as a hard dependency of the player experience, not optional decoration.
 
+# Current roadmap status — 2026-10-08
+
+- **Current formal wave: WAVE 4 of 7 — Shared Music + Chat + Voice + Emotes.**
+- **Wave 4 gate: NOT VERIFIED** pending fresh two-device browser/device acceptance.
+- **Wave 5 implementation exists in part:** multiplayer player synchronization and shared-state hardening are already present, but Wave 5 is not formally accepted until real-device verification.
+- **Remaining formal waves after Wave 4:** Wave 5, Wave 6, Wave 7.
+- **Important implementation correction:** the active music system is **uploaded shared audio**, not YouTube. Historical YouTube entries are retained only as history; they are not current product requirements.
+
 # Rebuild Waves
 
 We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related systems, gets tested locally, and then becomes a stable checkpoint.
@@ -378,126 +386,67 @@ We use **7 larger waves**, not dozens of tiny tasks. Each wave bundles related s
 
 **Goal:** replace the unreliable device-local music architecture with a genuinely shared, live-synchronized room music system, while keeping voice chat completely independent from music.
 
-### Final music architecture — YouTube shared jukebox
+### Final music architecture — shared uploaded audio
 
-**Decision:** manual/local audio upload is removed completely from the product plan. GC Hangout uses YouTube as the primary and only music source for this wave.
+**Decision (2026-10-08):** YouTube is removed completely from the music architecture. The authoritative implementation uses user-uploaded audio stored in the private Supabase `gc-music` bucket. This supersedes the earlier YouTube/Jamendo planning text below in historical records.
 
-- [ ] Remove the old local MP3/WAV/M4A/AAC/OGG/WebM picker and device-local Blob/object-URL playback path.
-- [ ] Remove the old local/shared-audio upload UI and storage-backed music upload path.
-- [ ] Add YouTube search using the official YouTube Data API.
-- [ ] Add an official YouTube embedded player for room playback.
-- [ ] Store only portable YouTube metadata in shared room state: videoId, title, artist/channel, requester, playback state, room clock, and revision.
-- [ ] Every connected client loads the same YouTube video.
-- [ ] Synchronize playback from an authoritative room clock rather than trusting any individual device.
-- [ ] Periodically correct playback drift; avoid continuous seek loops.
-- [ ] Keep a monotonic/revisioned room state so stale client events cannot overwrite newer music state.
-- [ ] A song ending on multiple clients must advance the queue only once for that room revision.
-- [ ] If YouTube rejects a video as unavailable/not embeddable, reject it from the queue and let the requester choose another.
-- [ ] Handle browser autoplay restrictions honestly with an explicit “Tap to enable room audio” / resume action when required.
-- [ ] Keep YouTube player presentation compliant with YouTube embedded-player requirements; do not extract or hide YouTube audio as a separate backend stream.
+- [x] Remove YouTube/Jamendo playback and search from the active music runtime.
+- [x] Remove device-local Blob/object-URL playback as the room source of truth.
+- [x] Allow every player to upload audio from their own device.
+- [x] Support MP3, WAV, M4A/AAC, OGG, FLAC, and WebM subject to browser decoding support.
+- [x] Store uploaded tracks in the shared room music library so the uploader does not need to remain connected.
+- [x] Use a private `gc-music` storage bucket with signed URLs for playback.
+- [x] Keep music state authoritative in Supabase rather than in any individual client.
+- [x] Synchronize clients using authoritative room state, server timestamps, revisions, and bounded drift correction.
+- [x] Keep the music UI independent from the audio engine so closing Music/Chat/Voice panels does not stop playback.
+- [x] TV reads the same authoritative music state and displays current track metadata/progress.
+- [x] Voice/WebRTC lifecycle is independent of music playback.
 
-### Shared queue — no controller/DJ
+#### Upload and storage limits
 
-There is **no permanent controller**. Every player participates in the room jukebox.
+- [x] Maximum individual file size: **25 MB**.
+- [x] Maximum active tracks per room: **100**.
+- [x] Maximum active room music storage: **1 GB**.
+- [x] Track expiry: **72 hours**.
+- [x] Maximum shared queue length: **100**.
+- [x] Storage bucket is private; playback uses signed URLs.
+- [x] Upload/finalize/abort operations are authenticated RPCs; anonymous clients cannot execute them.
 
-- [ ] Any player can search YouTube.
-- [ ] Any player can add a song to the shared queue.
-- [ ] Queue shows requester and song metadata.
-- [ ] Queue has a bounded maximum length.
-- [ ] Each player has a small pending-song limit to prevent spam.
-- [ ] Duplicate videos are rejected while already current/queued.
-- [ ] Current song automatically advances to the next queue item when playback ends.
-- [ ] No client independently decides the next song.
-- [ ] Queue advancement is authoritative and idempotent.
+#### Shared music state
+
+- [x] `gc_music_tracks` stores room, uploader, metadata, storage path, size, duration, status, and expiry.
+- [x] `gc_music_queue` stores authoritative queue membership/order.
+- [x] `gc_music_state` stores current track, status, position, room clock, volume, revision, and update time.
+- [x] `gc_music_votes` stores unique room votes for shared actions.
+- [x] `gc_room_sessions` tracks active room sessions for majority decisions and cleanup.
+- [x] Supabase Realtime publishes music state, queue, and track changes.
+
+#### Authoritative playback behavior
+
+- [x] Current track and playback state come from the shared room state.
+- [x] Each client creates its own native `Audio` element from the signed track URL.
+- [x] Clients seek toward the authoritative room position only when drift exceeds the correction threshold.
+- [x] Browser autoplay restrictions are handled locally with an explicit room-audio enable/resume action.
+- [x] A track ending on multiple clients advances the queue through an idempotent authoritative RPC so the room advances once.
+- [x] Automatic next-track behavior is preserved.
+- [x] Shared volume is authoritative and applied to connected clients.
+- [x] Pause/resume requires **more than 50% of active sessions** to vote for the requested state.
+- [x] Skip requires the configured room majority and is revision-safe.
+- [x] Expired tracks are cleaned up automatically by the scheduled music cleanup function.
+
+#### Shared queue — no controller/DJ
+
+There is **no permanent controller**. Every player participates in the room music system.
+
+- [x] Any authenticated player can upload a track.
+- [x] Any player can select a shared-library track and add it to the queue.
+- [x] Queue membership and ordering are shared.
+- [x] Queue is bounded at 100 items.
+- [x] Track/library limits are enforced by the backend.
+- [x] Uploader presence is not required for later playback.
 
 ### Skip voting
 
-- [ ] Any player can vote to skip the current song.
-- [ ] One vote per player per current-song revision.
-- [ ] Skip when **3 unique players vote**, or when **more than 50% of active players** vote.
-- [ ] Duplicate votes are ignored.
-- [ ] Skip votes reset automatically when the current-song revision changes.
-- [ ] A successful skip advances the queue exactly once.
-- [ ] The skip decision is authoritative in shared room state.
-
-### Music + voice coexistence
-
-Voice chat is a completely separate subsystem.
-
-- [ ] YouTube music lifecycle never tears down microphone tracks or WebRTC peers.
-- [ ] Microphone permission/start/stop never destroys or replaces the music player.
-- [ ] Voice mute/unmute never changes shared music state.
-- [ ] Multiple players can speak while the shared song continues playing.
-- [ ] Browser audio recovery must not accidentally publish a shared pause.
-- [ ] Local browser autoplay/audio restrictions remain local to that device; they must not pause the room for everyone.
-
-### Physical music speaker
-
-- [ ] Keep the physical 3D music speaker on the floor, away from the TV.
-- [ ] Speaker is the room's music interaction station, not a controller.
-- [ ] Nearby interaction opens the music/queue/volume controls.
-- [ ] Volume UI is not permanently visible.
-- [ ] Shared room volume changes apply to all clients' YouTube players.
-- [ ] Hardware/system/browser volume remains local and cannot be remotely controlled.
-- [ ] Speaker lighting/glow/pulse reacts to music playback.
-
-### TV + music display
-
-- [ ] TV displays current shared YouTube song metadata.
-- [ ] GC HANGOUT branding remains readable.
-- [ ] TV READY / WATCHING status has its own visual region.
-- [ ] Long titles truncate/wrap safely.
-- [ ] Artist remains readable.
-- [ ] Progress display does not overlap metadata.
-- [ ] Mobile layout has no text collisions.
-
-### Chat
-
-- [ ] Compact temporary chat notifications near the top safe area.
-- [ ] Sender + message are visible.
-- [ ] Toasts fade and remove automatically.
-- [ ] Compact control opens full chat/history.
-- [ ] No permanent bottom chat panel.
-- [ ] Chat does not interfere with joystick/camera gestures.
-- [ ] iPhone Safari input remains mobile-safe.
-
-### Voice
-
-- [ ] WebRTC voice transport with Supabase Realtime signaling.
-- [ ] Microphone permission handling.
-- [ ] Mute/unmute.
-- [ ] Voice presence/teardown cleanup.
-- [ ] Voice failure remains non-blocking to the room.
-- [ ] Music and voice are tested simultaneously on two devices.
-
-### Emotes / social feedback
-
-- [ ] Wave.
-- [ ] Clap.
-- [ ] Dance.
-- [ ] Emote movement lock and return to normal movement.
-- [ ] Remote emotes are visible to other players.
-- [ ] Pair actions such as hug/kiss/fight are shared events with visible animation on both participants.
-
-### Gate
-
-- [ ] YouTube search works.
-- [ ] A can add a YouTube song and B sees the same shared queue/current song.
-- [ ] A and B play the same video from the same room clock.
-- [ ] Playback drift is corrected without seek/playback jitter.
-- [ ] Song end advances exactly once.
-- [ ] Skip voting works with 3 unique votes and majority fallback.
-- [ ] Any player can queue songs; no controller is required.
-- [ ] Shared volume changes affect all clients while local hardware volume remains local.
-- [ ] Voice remains active while music is playing.
-- [ ] Voice join/leave/mute does not stop or reset shared music.
-- [ ] Chat delivery/toasts work on two clients.
-- [ ] Emotes and pair actions are visible remotely.
-- [ ] TV metadata remains readable on mobile.
-- [ ] Fresh two-device real-device acceptance passes.
-- [ ] **Status: NOT VERIFIED** until the above behavior is observed live.
-
-### Architecture invariants
 
 These are hard rules for the implementation:
 
@@ -1031,6 +980,17 @@ Examples:
 - **Isolation:** player synchronization uses the existing Supabase room channel and does not alter music, chat, voice, or interaction state ownership.
 - **Verification:** source-level wiring and cleanup were checked. Fresh two-device browser acceptance is **NOT YET VERIFIED**.
 
+### 2026-10-08 — Roadmap corrected to match uploaded shared music implementation
+
+- **Supersedes:** earlier Wave 4 YouTube/Jamendo music architecture decisions and the YouTube Definition-of-Done items.
+- **Current source of truth:** uploaded audio in private Supabase `gc-music` storage with authoritative Supabase music state.
+- **Implemented limits:** 25 MB/file, 100 active tracks/room, 1 GB active room storage, 72-hour expiry, and 100-item queue.
+- **Implemented synchronization:** authoritative current-track/playback state, server-clock position, revisioning, bounded drift correction, automatic next, shared volume, and majority pause/resume/skip decisions.
+- **Implemented voice isolation:** music playback is independent from microphone/WebRTC lifecycle.
+- **Implemented TV integration:** TV mirrors the shared music track metadata and playback progress.
+- **Verification:** backend/schema/RPC/storage wiring is verified; automated source/build checks have passed at implementation checkpoints. Fresh two-device browser acceptance of upload, synchronized playback, TV mirroring, universal volume, and voice coexistence is still **NOT VERIFIED**.
+- **Deployment:** no new deployment is claimed solely because the roadmap was corrected.
+
 ### Wave update format
 
 For every wave, record:
@@ -1057,8 +1017,8 @@ For every wave, record:
 - [ ] Food/eating.
 - [ ] Drinks/drinking.
 - [ ] TV.
-- [ ] YouTube shared music playback.
-- [ ] YouTube search and shared queue.
+- [ ] Shared uploaded music playback.
+- [ ] Shared music library and queue.
 - [ ] Synchronized music with drift correction.
 - [ ] Skip voting and automatic queue advance.
 - [ ] Chat without mobile zoom.
