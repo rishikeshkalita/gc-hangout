@@ -1370,6 +1370,7 @@ export default function Game() {
         onRemotePlayers={setRemotePlayers}
         onBallState={setBallState}
         onFootballScores={setFootballScores}
+        ballState={ballState}
         playerState={player}
         interaction={interaction}
         emote={emote}
