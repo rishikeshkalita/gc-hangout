@@ -254,8 +254,11 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const audio = roomAudioRef.current;
     const current = musicStateRef.current.current;
     if (!audio || !current || !musicStateRef.current.playing) return;
-    audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
+    const volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
+    if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = volume;
+    audio.volume = 1;
     try {
+      if (roomAudioContextRef.current?.state === "suspended") await roomAudioContextRef.current.resume();
       await audio.play();
       setAudioBlocked(false);
     } catch (error) {
