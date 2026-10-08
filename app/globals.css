@@ -502,6 +502,25 @@ button { border: 0; cursor: pointer; }
   background: rgba(255,255,255,.045);
   text-align: left;
 }
+.track-queue {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  color: inherit;
+  text-align: left;
+}
+.track-delete {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(255,110,110,.18);
+  border-radius: 8px;
+  color: #e7b0b0;
+  background: rgba(255,80,80,.06);
+  font-size: 9px;
+}
+.track-delete:disabled { opacity: .45; cursor: default; }
 .track.selected {
   background: rgba(117,103,238,.24);
   border-color: rgba(174,162,255,.28);
