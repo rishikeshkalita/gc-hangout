@@ -1059,32 +1059,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const authorityId = getBallAuthorityId(state);
       const now = Date.now();
       const local = playerStateRef.current;
-      let localTouch = false;
-
-      // Predict the local player's first contact immediately, regardless of which
-      // client currently owns the authoritative ball. This prevents the avatar
-      // from visually walking through a stationary ball while the network round
-      // trip is still pending.
       if (local && Number.isFinite(Number(local.x)) && Number.isFinite(Number(local.z))) {
         const dx = ballRef.current.x - Number(local.x);
         const dz = ballRef.current.z - Number(local.z);
         const horizontal = Math.hypot(dx, dz);
         const vertical = Math.abs(ballRef.current.y - 0.92);
-        if (horizontal <= BALL_PLAYER_TOUCH_RADIUS && vertical <= 0.82 && !ballTouchRef.current.has(clientIdRef.current)) {
-          const payload = {
-            senderId: clientIdRef.current,
-            x: Number(local.x),
-            z: Number(local.z),
-            rot: Number(local.rot) || 0,
-            moving: Boolean(local.moving),
-            speed: Number(local.speed) || 0,
-          };
-          localTouch = applyNetworkBallTouch(payload);
-          if (localTouch) {
-            ballPredictionUntilRef.current = now + 420;
-            void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL_TOUCH, payload });
-          }
-        } else if (horizontal > BALL_PLAYER_RELEASE_RADIUS || vertical > 0.95) {
+        if (horizontal > BALL_PLAYER_RELEASE_RADIUS || vertical > 0.95) {
           ballTouchRef.current.delete(clientIdRef.current);
         }
       }
@@ -1100,7 +1080,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         const payload = { ...ballRef.current, senderId: clientIdRef.current };
         onBallState?.(ballRef.current);
         void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
-      } else if (localTouch || now < ballPredictionUntilRef.current) {
+      } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
         // authoritative snapshot arrives.
         for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
