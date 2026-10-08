@@ -149,7 +149,7 @@ begin delete from public.gc_music_tracks where id=p_track_id and uploader_id=aut
 
 create or replace function public.gc_music_queue_track(p_track_id uuid)
 returns public.gc_music_state language plpgsql security definer set search_path=public as $$
-declare v_state public.gc_music_state; v_track public.gc_music_tracks; v_next bigint; v_now timestamptz:=now();
+declare v_state public.gc_music_state; v_track public.gc_music_tracks; v_next bigint; v_queue_count integer; v_now timestamptz:=now();
 begin
   if auth.uid() is null then raise exception 'not authorized'; end if;
   select * into v_track from public.gc_music_tracks where id=p_track_id and room_id='main' and status='ready' and expires_at>v_now for share;
@@ -159,6 +159,8 @@ begin
   if v_state.current_track_id is null then
     update public.gc_music_state set current_track_id=p_track_id,status='playing',position=0,started_at=v_now,revision=revision+1,updated_at=v_now where room_id='main' returning * into v_state;
   else
+    select count(*)::integer into v_queue_count from public.gc_music_queue where room_id='main';
+    if v_queue_count>=100 then raise exception 'shared queue is full'; end if;
     select coalesce(max(queue_position),0)+1 into v_next from public.gc_music_queue where room_id='main';
     insert into public.gc_music_queue(room_id,track_id,added_by,queue_position) values('main',p_track_id,auth.uid(),v_next);
     update public.gc_music_state set revision=revision+1,updated_at=v_now where room_id='main' returning * into v_state;
