@@ -461,10 +461,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const current = musicStateRef.current.current;
     if (!audio || !current || !musicStateRef.current.playing) return;
     const volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
-    if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = volume;
-    audio.volume = 1;
+    audio.volume = volume;
     try {
-      if (roomAudioContextRef.current?.state === "suspended") await roomAudioContextRef.current.resume();
       await audio.play();
       setAudioBlocked(false);
     } catch (error) {
@@ -715,8 +713,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const volume = Math.max(0, Math.min(1, Number(payload?.volume)));
       if (!Number.isFinite(volume)) return;
       setMusicState((current) => ({ ...current, volume }));
-      if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = volume;
-      if (roomAudioRef.current) roomAudioRef.current.volume = 1;
+      if (roomAudioRef.current) roomAudioRef.current.volume = volume;
     });
 
     channel
@@ -1251,8 +1248,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const setMusicVolume = useCallback(async (value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
     setMusicState((current) => ({ ...current, volume }));
-    if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = volume;
-    if (roomAudioRef.current) roomAudioRef.current.volume = 1;
+    if (roomAudioRef.current) roomAudioRef.current.volume = volume;
     const result = await rpcMusic("gc_music_set_volume", { p_volume: volume });
     if (result) {
       void send(SOCIAL_EVENTS.MUSIC_VOLUME, { volume, revision: Number(result.revision) || 0 });
@@ -1400,26 +1396,22 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     audio.preload = "auto";
     audio.playsInline = true;
     audio.crossOrigin = "anonymous";
-    audio.volume = 1;
+    audio.volume = musicVolume;
 
-    try {
-      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextCtor && !roomAudioContextRef.current) {
-        const context = new AudioContextCtor();
-        const source = context.createMediaElementSource(audio);
-        const gain = context.createGain();
-        gain.gain.value = musicVolume;
-        source.connect(gain);
-        gain.connect(context.destination);
-        roomAudioContextRef.current = context;
-        roomAudioSourceRef.current = source;
-        roomAudioGainRef.current = gain;
-      }
-    } catch (error) {
-      console.warn("GC Hangout Web Audio volume control unavailable", error);
-    }
+    // Keep shared music on the native HTMLMediaElement output path.
+    // Web Audio is intentionally not used here: iOS/WebKit can report that
+    // an AudioContext is running while the MediaElementSource path is silent.
+    const handlePlaying = () => setAudioBlocked(false);
+    const handleError = () => {
+      setAudioBlocked(true);
+      setMusicStatus("The shared audio stream could not be played on this device.");
+    };
+    audio.addEventListener("playing", handlePlaying);
+    audio.addEventListener("error", handleError);
 
     return () => {
+      audio.removeEventListener("playing", handlePlaying);
+      audio.removeEventListener("error", handleError);
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
@@ -1430,15 +1422,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       roomAudioContextRef.current = null;
       if (context) void context.close().catch(() => {});
     };
-  }, [setAudioSessionType]);
+  }, [musicVolume, setAudioSessionType]);
 
   useEffect(() => {
     const audio = roomAudioRef.current;
     const current = musicState.current;
     if (!audio) return;
-    if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = musicVolume;
-    audio.volume = 1;
-    if (roomAudioContextRef.current?.state === "suspended") void roomAudioContextRef.current.resume().catch(() => {});
+    audio.volume = musicVolume;
     if (!current) {
       audio.pause();
       roomAudioTrackRef.current = "";
