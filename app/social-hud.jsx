@@ -127,6 +127,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     return [...ids].sort()[0] || clientIdRef.current;
   }, []);
 
+  const publishBallState = useCallback(() => {
+    const snapshot = ballStateSnapshot(ballRef.current);
+    onBallState?.(snapshot);
+    return snapshot;
+  }, [onBallState]);
+
   const simulateBallStep = useCallback((dt) => {
     const ball = ballRef.current;
     const previousX = ball.x;
@@ -784,7 +790,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.lastTouchId = id;
       ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
       ball.timestamp = now;
-      onBallState?.(ball);
+      publishBallState();
       return true;
     };
 
@@ -829,7 +835,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ball.lastTouchId = id;
       ball.lastTouchName = String(payload?.name || remotePlayersRef.current.get(id)?.name || (id === clientIdRef.current ? nameRef.current : "Player")).slice(0, 18);
       ball.timestamp = Date.now();
-      onBallState?.(ball);
+      publishBallState();
       return true;
     };
 
@@ -1004,13 +1010,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           void recordFootballGoal(goal);
         }
         const payload = { ...ballRef.current, senderId: clientIdRef.current };
-        onBallState?.(ballRef.current);
-        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload });
+        const snapshot = publishBallState();
+        void gameChannel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
       } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
         // authoritative snapshot arrives.
         for (let step = 0; step < 4; step += 1) simulateBallStep(1 / 120);
-        onBallState?.(ballRef.current);
+        publishBallState();
       }
     }, 33);
     const pruneTimer = window.setInterval(() => {
@@ -1486,7 +1492,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const by = Number(ballState?.y);
     const bz = Number(ballState?.z);
     if (![px, pz, bx, by, bz].every(Number.isFinite)) return false;
-    return Math.hypot(bx - px, bz - pz) <= 0.9 && Math.abs(by - 0.92) <= 0.82;
+    return Math.hypot(bx - px, bz - pz) <= BALL_PLAYER_TOUCH_RADIUS && Math.abs(by - 0.92) <= 0.82;
   }, [ballState?.x, ballState?.y, ballState?.z, playerState?.x, playerState?.z]);
 
   const kickBall = useCallback(() => {
@@ -1522,7 +1528,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     ball.lastTouchName = String(nameRef.current || "Player").slice(0, 18);
     ball.timestamp = now;
     ballPredictionUntilRef.current = now + 520;
-    onBallState?.(ball);
+    publishBallState();
     void send(SOCIAL_EVENTS.BALL_KICK, {
       x: playerX,
       z: playerZ,
@@ -1530,7 +1536,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       name: nameRef.current || "Player",
       timestamp: now,
     });
-  }, [kickAvailable, onBallState, send]);
+  }, [kickAvailable, publishBallState, send]);
 
   const chatRows = useMemo(() => chat.slice(-12), [chat]);
 
