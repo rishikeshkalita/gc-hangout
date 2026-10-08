@@ -693,24 +693,46 @@ button { border: 0; cursor: pointer; }
   }
 }
 
-/* Shared YouTube playback — docked inside the music panel */
-.youtube-panel-player {
+
+/* Room music player */
+.music-player-launch {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border: 1px solid rgba(117,103,238,.34);
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(117,103,238,.12);
+  text-align: left;
+}
+.music-player-launch > span:first-child {
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  width: 100%;
-  margin: 0 0 10px;
-}
-.youtube-panel-player iframe {
-  display: block;
-  width: 200px;
-  height: 200px;
-  max-width: 100%;
-  border: 0;
   border-radius: 10px;
-  background: #000;
-  box-shadow: 0 8px 28px rgba(0,0,0,.28);
+  background: rgba(117,103,238,.2);
+  font-size: 18px;
 }
-.music-panel {
-  overflow-y: auto;
-  overscroll-behavior: contain;
+.music-player-launch span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.music-player-launch strong {
+  font-size: 11px;
+}
+.music-player-launch small {
+  color: #9da4b4;
+  font-size: 9px;
+  line-height: 1.25;
+}
+.music-player-launch > b {
+  color: #b7adff;
+  font-size: 16px;
 }
