@@ -317,7 +317,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMusicState(next);
     });
     channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_REQUEST }, ({ payload }) => {
-      const currentLeader = [...activePresenceIdsRef.current].sort()[0] || clientIdRef.current;
+      const presenceIds = new Set(Object.keys(channel.presenceState()));
+      presenceIds.add(clientIdRef.current);
+      activePresenceIdsRef.current = presenceIds;
+      const currentLeader = [...presenceIds].sort()[0] || clientIdRef.current;
       if (currentLeader !== clientIdRef.current) return;
       const action = String(payload?.action || "");
       const requesterId = String(payload?.senderId || "");
@@ -708,7 +711,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const response = await fetch(`/api/music?search=${encodeURIComponent(cleanQuery)}`);
       const data = await response.json();
       setTracks(Array.isArray(data.tracks) ? data.tracks : []);
-      setMusicStatus(data.error || (data.tracks?.length ? "YouTube catalog ready. Playback requires a direct/licensed audio source." : "No playable catalog results found."));
+      setMusicStatus(data.error || (data.tracks?.length ? "YouTube catalog ready. Tap Queue to start shared playback." : "No playable catalog results found."));
     } catch (error) {
       console.error("YouTube catalog load failed", error);
       setTracks([]);
@@ -722,7 +725,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const normalized = normalizeMusicTrack({ ...track, requesterId: clientIdRef.current, requesterName: nameRef.current || "Guest", requestedAt: Date.now() });
     if (!normalized) return;
     sharedAudioUnlockedRef.current = true;
-    void sendMusicRequest("add", { track: normalized, requesterName: nameRef.current || "Guest" });
+    void sendMusicRequest("add", { track: normalized, requesterName: nameRef.current || "Guest" }).then((sent) => {
+      if (!sent) setMusicStatus("Music connection is not ready. Try Queue again.");
+    });
     setPanel("music");
   }, [sendMusicRequest]);
 
