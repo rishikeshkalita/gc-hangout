@@ -569,7 +569,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     const gameChannel = supabase.channel(`gc-hangout-game:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
+      config: { private: true, broadcast: { self: false, ack: true } },
     });
     channelRef.current = channel;
 
@@ -585,13 +585,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
     gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_KICK }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
-      const state = gameChannel.presenceState?.() || {};
+      const state = channel.presenceState?.() || {};
       if (getBallAuthorityId(state) !== clientIdRef.current) return;
       applyNetworkBallKick(payload);
     });
     gameChannel.on("broadcast", { event: SOCIAL_EVENTS.BALL_TOUCH }, ({ payload }) => {
       if (payload?.senderId === clientIdRef.current) return;
-      const state = gameChannel.presenceState?.() || {};
+      const state = channel.presenceState?.() || {};
       if (getBallAuthorityId(state) !== clientIdRef.current) return;
       applyNetworkBallTouch(payload);
     });
@@ -917,7 +917,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           timestamp: Date.now(),
         },
       });
-      void publishFootballScoresPresence();
       pushChatToast({
         id: `football-goal-local-${Date.now()}`,
         name: nameRef.current || "Guest",
@@ -932,27 +931,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       ...footballScoresRef.current,
       { id: clientIdRef.current, name: String(nameRef.current || "Guest").slice(0, 18), goals: 0 },
     ]);
-
-    const publishFootballScoresPresence = async () => {
-      const scores = footballScoresRef.current;
-      if (!gameReadyRef.current || !scores.length) return;
-      try {
-        const state = playerStateRef.current;
-        await gameChannel.track({
-          kind: "player",
-          name: nameRef.current || "Guest",
-          avatarId: state?.avatar?.id || "maya",
-          x: Number(state?.x) || 0,
-          z: Number(state?.z) || 0,
-          rot: Number(state?.rot) || 0,
-          moving: Boolean(state?.moving),
-          speed: Number(state?.speed) || 0,
-          footballScores: scores,
-        });
-      } catch (error) {
-        console.warn("Football score presence update failed", error);
-      }
-    };
 
     const publishPlayer = () => {
       const state = playerStateRef.current;
@@ -1019,28 +997,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
     });
 
-    gameChannel.on("presence", { event: "sync" }, () => {
-      const state = gameChannel.presenceState();
-      readPresencePlayers(state);
-      const peers = Object.keys(state).filter((id) => id !== clientIdRef.current);
-      // Force every existing client to publish a fresh transform to a newly joined client.
-      peers.forEach(() => publishPlayer());
-    });
-    gameChannel.on("presence", { event: "join" }, ({ key, newPresences }) => {
-      if (key !== clientIdRef.current) {
-        const meta = Array.isArray(newPresences) ? newPresences[0] : null;
-        if (meta?.kind === "player") mergeRemotePlayer({ ...meta, senderId: key });
-        publishPlayer();
-      }
-    });
-    gameChannel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
-      if (remotePlayersRef.current.delete(key)) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
-      const meta = Array.isArray(leftPresences) ? leftPresences[0] : null;
-      pushChatToast({ id: `leave-${key}-${Date.now()}`, name: String(meta?.name || "Guest").slice(0, 18), message: "👋 left the room", timestamp: Date.now(), local: false, activity: true });
-    });
     const playerTimer = window.setInterval(publishPlayer, 100);
     const ballTimer = window.setInterval(() => {
-      const state = gameChannel.presenceState?.() || {};
+      const state = channel.presenceState?.() || {};
       const authorityId = getBallAuthorityId(state);
       const now = Date.now();
       const local = playerStateRef.current;
@@ -1107,19 +1066,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const sendInitialPlayer = async () => {
       if (sessionStartedRef.current || !socialReadyRef.current) return;
       sessionStartedRef.current = true;
-      const state = playerStateRef.current;
-      await channel.track({
-        kind: "player",
-        name: nameRef.current || "Guest",
-        avatarId: state?.avatar?.id || "maya",
-        x: Number(state?.x) || 0,
-        z: Number(state?.z) || 0,
-        rot: Number(state?.rot) || 0,
-        moving: Boolean(state?.moving),
-        speed: Number(state?.speed) || 0,
-        voice: voiceEnabledRef.current,
-        footballScores: footballScoresRef.current,
-      });
       publishPlayer();
       void send(SOCIAL_EVENTS.ACTIVITY, { name: nameRef.current || "Guest", message: "joined the room", icon: "👋", timestamp: Date.now() });
     };
@@ -1171,18 +1117,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const handleGameStatus = async (status) => {
       gameReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
-        const state = playerStateRef.current;
-        await gameChannel.track({
-          kind: "player",
-          name: nameRef.current || "Guest",
-          avatarId: state?.avatar?.id || "maya",
-          x: Number(state?.x) || 0,
-          z: Number(state?.z) || 0,
-          rot: Number(state?.rot) || 0,
-          moving: Boolean(state?.moving),
-          speed: Number(state?.speed) || 0,
-          footballScores: footballScoresRef.current,
-        });
         publishPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
         console.warn("GC Hangout game realtime status:", status);
