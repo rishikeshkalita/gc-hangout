@@ -752,7 +752,7 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
       {!hasTrack ? (
         <>
           <Text position={[0, 0.34, 0.08]} fontSize={0.31} color="#ffffff" anchorX="center" maxWidth={6.6} whiteSpace="nowrap">TV READY</Text>
-          <Text position={[0, -0.08, 0.08]} fontSize={0.16} color="#8f99b8" anchorX="center" maxWidth={6.3} whiteSpace="nowrap">Search YouTube music to light up the room</Text>
+          <Text position={[0, -0.08, 0.08]} fontSize={0.16} color="#8f99b8" anchorX="center" maxWidth={6.3} whiteSpace="nowrap">Search shared room music music to light up the room</Text>
         </>
       ) : (
         <>
@@ -808,7 +808,7 @@ function TVScreen({ watching = false, track = null, playing = false, startedAt =
         <meshBasicMaterial color="#d8ceff" />
       </mesh>
 
-      <Text position={[-3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="left">YOUTUBE</Text>
+      <Text position={[-3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="left">shared room music</Text>
       <Text position={[3.45, -0.98, 0.07]} fontSize={0.095} color="#6f7788" anchorX="right">
         {hasTrack ? (playing ? "PLAYING TO ROOM" : "PAUSED") : "READY"}
       </Text>
