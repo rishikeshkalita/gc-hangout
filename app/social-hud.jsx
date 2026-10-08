@@ -462,6 +462,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       }
     };
 
+    channel.on("broadcast", { event: SOCIAL_EVENTS.MUSIC_VOLUME }, ({ payload }) => {
+      if (payload?.senderId === clientIdRef.current) return;
+      const volume = Math.max(0, Math.min(1, Number(payload?.volume)));
+      if (!Number.isFinite(volume)) return;
+      setMusicState((current) => ({ ...current, volume }));
+      if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = volume;
+      if (roomAudioRef.current) roomAudioRef.current.volume = 1;
+    });
+
     channel
       .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_state", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_queue", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
@@ -766,14 +775,25 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const setMusicVolume = useCallback(async (value) => {
     const volume = Math.max(0, Math.min(1, Number(value)));
     setMusicState((current) => ({ ...current, volume }));
-    if (roomAudioRef.current) roomAudioRef.current.volume = volume;
-    await rpcMusic("gc_music_set_volume", { p_volume: volume });
-  }, [rpcMusic]);
+    if (roomAudioGainRef.current) roomAudioGainRef.current.gain.value = volume;
+    if (roomAudioRef.current) roomAudioRef.current.volume = 1;
+    const result = await rpcMusic("gc_music_set_volume", { p_volume: volume });
+    if (result) {
+      void send(SOCIAL_EVENTS.MUSIC_VOLUME, { volume, revision: Number(result.revision) || 0 });
+    }
+  }, [rpcMusic, send]);
 
   const voteSkip = useCallback(async () => {
     if (!musicStateRef.current.current) return;
     const result = await rpcMusic("gc_music_vote", { p_action: "skip" });
     if (result !== null) pushActivity("voted to skip the current track", "⏭️");
+  }, [rpcMusic, pushActivity]);
+
+  const voteDelete = useCallback(async (track) => {
+    const normalized = normalizeMusicTrack(track);
+    if (!normalized) return;
+    const result = await rpcMusic("gc_music_delete_vote", { p_track_id: normalized.id });
+    if (result !== null) pushActivity(`voted to delete “${normalized.title}”`, "🗑️");
   }, [rpcMusic, pushActivity]);
 
   const unlockAudio = useCallback(async () => {
