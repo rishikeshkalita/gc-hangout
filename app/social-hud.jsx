@@ -719,6 +719,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         musicRefreshRef.current = window.setTimeout(refreshMusicSnapshot, 5000);
       } catch (error) {
         console.warn("GC Hangout music state refresh failed", error);
+        if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
+        musicRefreshRef.current = window.setTimeout(refreshMusicSnapshot, 5000);
       }
     };
 
