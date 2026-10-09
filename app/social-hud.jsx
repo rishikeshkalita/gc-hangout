@@ -122,8 +122,20 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
 
-  const getBallAuthorityId = useCallback(() => {
-    const ids = new Set([clientIdRef.current, ...remotePlayersRef.current.keys()]);
+  const getBallAuthorityId = useCallback((presenceSnapshot = null) => {
+    const presence = presenceSnapshot || channelRef.current?.presenceState?.() || {};
+    const presentIds = Object.entries(presence)
+      .filter(([id, entries]) => id !== clientIdRef.current
+        && Array.isArray(entries)
+        && entries.some((entry) => entry?.kind === "player"))
+      .map(([id]) => id);
+    const ids = new Set([clientIdRef.current, ...presentIds]);
+    if (presentIds.length === 0) {
+      const cutoff = Date.now() - 2500;
+      for (const [id, player] of remotePlayersRef.current) {
+        if (Number(player.lastSeen || 0) >= cutoff) ids.add(id);
+      }
+    }
     return [...ids].sort()[0] || clientIdRef.current;
   }, []);
 
