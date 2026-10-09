@@ -289,12 +289,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       seen.add(id);
       mergeRemotePlayer({ ...meta, senderId: id });
     }
+    // Presence can be incomplete even while a device is actively publishing
+    // database-backed snapshots. Do not delete those players just because they
+    // were absent from this Presence sync; only prune entries that are stale.
+    const staleBefore = Date.now() - 2500;
     let changed = false;
-    for (const id of remotePlayersRef.current.keys()) {
-      if (!seen.has(id)) {
-        remotePlayersRef.current.delete(id);
-        changed = true;
-      }
+    for (const [id, player] of remotePlayersRef.current) {
+      if (seen.has(id) || Number(player.lastSeen || 0) > staleBefore) continue;
+      remotePlayersRef.current.delete(id);
+      changed = true;
     }
     if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
   }, [applyFootballScores, mergeRemotePlayer, onRemotePlayers]);
