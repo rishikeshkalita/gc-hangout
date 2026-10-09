@@ -9,6 +9,7 @@ import {
   normalizeMusicTrack,
   sanitizeChatMessage,
   currentMusicPosition,
+  chooseRoomAuthority,
 } from "../lib/social-state.mjs";
 
 test("social client ids are scoped and non-empty", () => {
@@ -75,4 +76,24 @@ test("music state tracks unique pause/resume votes and target intent", () => {
   assert.deepEqual(state.pauseVotes, ["a", "b"]);
   assert.equal(state.pauseTargetPlaying, false);
   assert.equal(currentMusicPosition({ ...state, playing: false }, 1000), 12);
+});
+
+
+test("football authority election is deterministic from shared presence", () => {
+  const presence = {
+    "gc-z": [{ kind: "player" }],
+    "gc-a": [{ kind: "player" }],
+    "gc-voice-only": [{ kind: "voice" }],
+  };
+  assert.equal(chooseRoomAuthority("gc-m", presence), "gc-a");
+  assert.equal(chooseRoomAuthority("gc-a", presence), "gc-a");
+});
+
+test("football authority fallback ignores stale snapshots", () => {
+  const now = 10000;
+  const players = new Map([
+    ["gc-stale", { lastSeen: 1000 }],
+    ["gc-fresh", { lastSeen: 9500 }],
+  ]);
+  assert.equal(chooseRoomAuthority("gc-local", {}, players, now), "gc-fresh");
 });
