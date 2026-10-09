@@ -1036,6 +1036,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         const id = String(row?.client_id || "");
         if (!id || id === clientIdRef.current || !row?.payload) continue;
         seen.add(id);
+        // The database heartbeat also discovers peers if Presence hydration is delayed.
+        void ensureGamePeer(id, clientIdRef.current < id);
         mergeRemotePlayer({ ...row.payload, senderId: id });
       }
       // Keep transient broadcast/presence players briefly, then remove them if
