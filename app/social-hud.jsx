@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EMOTES, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
+import { EMOTES, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, chooseRoomAuthority, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
 import { getSupabase, ensureAnonymousSession } from "../lib/supabase.js";
 
 const ROOM_NAME = "main";
@@ -122,10 +122,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
 
-  const getBallAuthorityId = useCallback(() => {
-    const ids = new Set([clientIdRef.current, ...remotePlayersRef.current.keys()]);
-    return [...ids].sort()[0] || clientIdRef.current;
-  }, []);
+  const getBallAuthorityId = useCallback((presenceSnapshot = null) => (
+    chooseRoomAuthority(
+      clientIdRef.current,
+      presenceSnapshot || channelRef.current?.presenceState?.() || {},
+      remotePlayersRef.current,
+    )
+  ), []);
 
   const publishBallState = useCallback(() => {
     const snapshot = ballStateSnapshot(ballRef.current);
@@ -707,6 +710,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         musicRefreshRef.current = window.setTimeout(refreshMusicSnapshot, 5000);
       } catch (error) {
         console.warn("GC Hangout music state refresh failed", error);
+        if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
+        musicRefreshRef.current = window.setTimeout(refreshMusicSnapshot, 5000);
       }
     };
 
@@ -929,6 +934,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     ]);
 
     let lastDatabasePlayerWriteAt = 0;
+    let lastBallBroadcastAt = 0;
     let databasePlayerWriteInFlight = false;
     let databasePlayerReadErrorLogged = false;
 
@@ -1096,9 +1102,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           footballGoalRef.current = null;
           void recordFootballGoal(goal);
         }
-        const payload = { ...ballRef.current, senderId: clientIdRef.current };
         const snapshot = publishBallState();
-        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
+        // Keep local physics at 30 Hz, but broadcast snapshots at 15 Hz to
+        // reduce Realtime fan-out and database authorization pressure.
+        if (now - lastBallBroadcastAt >= 66) {
+          lastBallBroadcastAt = now;
+          void channel.send({
+            type: "broadcast",
+            event: SOCIAL_EVENTS.BALL,
+            payload: { ...snapshot, senderId: clientIdRef.current },
+          });
+        }
       } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
         // authoritative snapshot arrives.
@@ -1171,6 +1185,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
 
     return () => {
+      if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
+      musicRefreshRef.current = null;
       peersRef.current.forEach((pc) => pc.close());
       peersRef.current.clear();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
