@@ -28,28 +28,33 @@ test("emotes only accept supported values", () => {
   assert.equal(normalizeEmote("explode"), null);
 });
 
-test("music state normalizes a YouTube track", () => {
+test("music state normalizes a shared uploaded track", () => {
   const track = normalizeMusicTrack({
-    videoId: "dQw4w9WgXcQ",
+    id: "11111111-1111-4111-8111-111111111111",
     title: "Late Lounge",
     artist: "Guest",
+    filename: "late-lounge.mp3",
+    storage_path: "main/late-lounge.mp3",
     duration: 180,
   });
   const state = normalizeMusicState({
     current: track,
     position: 12.5,
+    startedAt: 1000,
     playing: true,
     senderId: "gc-test",
   });
-  assert.equal(state.current.videoId, "dQw4w9WgXcQ");
+  assert.equal(state.current.id, "11111111-1111-4111-8111-111111111111");
+  assert.equal(state.current.storagePath, "main/late-lounge.mp3");
   assert.equal(state.position, 12.5);
   assert.equal(state.playing, true);
   assert.equal(state.volume, 0.8);
 });
 
-test("invalid YouTube music state is rejected", () => {
-  assert.equal(normalizeMusicState({ current: { videoId: "bad" } }), null);
-  assert.equal(normalizeMusicState(null), null);
+test("tracks without storage identifiers normalize to no current track", () => {
+  assert.equal(normalizeMusicTrack({ videoId: "bad" }), null);
+  assert.equal(normalizeMusicState({ current: { videoId: "bad" } }).current, null);
+  assert.equal(normalizeMusicState(null).current, null);
 });
 
 test("chat time formatting returns a stable non-empty string", () => {
@@ -64,17 +69,15 @@ test("music volume is clamped to the shared 0..1 range", () => {
 });
 
 
-test("music state tracks unique pause/resume votes and target intent", () => {
+test("music state deduplicates votes and derives the paused playback position", () => {
   const state = normalizeMusicState({
-    current: { videoId: "dQw4w9WgXcQ", title: "Late Lounge", artist: "Guest" },
+    current: { id: "track-1", title: "Late Lounge", artist: "Guest" },
     playing: true,
     pauseVotes: ["a", "a", "b"],
-    pauseTargetPlaying: false,
     position: 12,
-    startedAt: 0,
+    startedAt: 1000,
   });
   assert.deepEqual(state.pauseVotes, ["a", "b"]);
-  assert.equal(state.pauseTargetPlaying, false);
   assert.equal(currentMusicPosition({ ...state, playing: false }, 1000), 12);
 });
 
