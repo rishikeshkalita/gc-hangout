@@ -934,6 +934,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     ]);
 
     let lastDatabasePlayerWriteAt = 0;
+    let lastBallBroadcastAt = 0;
     let databasePlayerWriteInFlight = false;
     let databasePlayerReadErrorLogged = false;
 
@@ -1101,9 +1102,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           footballGoalRef.current = null;
           void recordFootballGoal(goal);
         }
-        const payload = { ...ballRef.current, senderId: clientIdRef.current };
         const snapshot = publishBallState();
-        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.BALL, payload: { ...snapshot, senderId: clientIdRef.current } });
+        // Keep local physics at 30 Hz, but broadcast snapshots at 15 Hz to
+        // reduce Realtime fan-out and database authorization pressure.
+        if (now - lastBallBroadcastAt >= 66) {
+          lastBallBroadcastAt = now;
+          void channel.send({
+            type: "broadcast",
+            event: SOCIAL_EVENTS.BALL,
+            payload: { ...snapshot, senderId: clientIdRef.current },
+          });
+        }
       } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
         // authoritative snapshot arrives.
