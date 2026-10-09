@@ -1201,7 +1201,7 @@ function Room({ player, remotePlayers = [], ballState = null, footballScores = [
       <MusicSpeaker playing={Boolean(tvState?.playing)} volume={Number(tvState?.volume ?? 0.8)} active={interaction?.anchor?.type === "MUSIC_SPEAKER"} />
       <WallPhotoFrame position={[14.72, 3.0, 2.0]} rotation={[0, -Math.PI / 2, 0]} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_A_DATA_URL} />
       {/* Additional frames stay on the side/front walls; the graffiti + TV wall remains untouched. */}
-      <WallPhotoFrame position={[-14.72, 3.0, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_A_DATA_URL} />
+      <WallPhotoFrame position={[-14.72, 3.0, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_PHOTO_DATA_URL} />
       <WallPhotoFrame position={[-14.72, 3.0, 4.0]} rotation={[0, Math.PI / 2, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_B_DATA_URL} />
       <WallPhotoFrame position={[0, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_C_DATA_URL} />
       <WallPhotoFrame position={[3.15, 3.0, 9.72]} rotation={[0, Math.PI, 0]} scale={0.92} photoDataUrl={GC_HANGOUT_FRAME_PHOTO_D_DATA_URL} />
