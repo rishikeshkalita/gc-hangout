@@ -1176,6 +1176,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
 
     return () => {
+      if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
+      musicRefreshRef.current = null;
       peersRef.current.forEach((pc) => pc.close());
       peersRef.current.clear();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
