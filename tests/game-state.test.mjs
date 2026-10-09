@@ -153,8 +153,9 @@ test("interaction reservation is owner-safe", () => {
 
 test("shared music state clamps room volume", () => {
   const state = normalizeMusicState({
-    current: { videoId: "dQw4w9WgXcQ", title: "Song", artist: "Artist", duration: 120 },
+    current: { id: "track-1", title: "Song", artist: "Artist", duration: 120 },
     position: 8,
+    startedAt: 1000,
     playing: true,
     volume: 1.4,
   });
