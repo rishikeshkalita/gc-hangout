@@ -925,6 +925,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       { id: clientIdRef.current, name: String(nameRef.current || "Guest").slice(0, 18), goals: 0 },
     ]);
 
+    let lastDatabasePlayerWriteAt = 0;
+    let databasePlayerWriteInFlight = false;
+    let databasePlayerReadErrorLogged = false;
+
     const publishPlayer = () => {
       const state = playerStateRef.current;
       if (!state) return;
@@ -945,11 +949,68 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         speed: Number(state.speed) || 0,
         timestamp: Date.now(),
       };
+
+      // Persist a low-rate snapshot as a reliable fallback to ephemeral Realtime
+      // broadcasts. This makes cross-device visibility recover even if a channel's
+      // authorization or websocket delivery is unhealthy.
+      const now = Date.now();
+      if (authUserId && !databasePlayerWriteInFlight && now - lastDatabasePlayerWriteAt >= 550) {
+        lastDatabasePlayerWriteAt = now;
+        databasePlayerWriteInFlight = true;
+        void supabase.from("gc_room_players").upsert({
+          client_id: clientIdRef.current,
+          room_id: ROOM_NAME,
+          user_id: authUserId,
+          payload,
+          last_seen: new Date(now).toISOString(),
+        }, { onConflict: "client_id" }).then(({ error }) => {
+          if (error) console.warn("GC Hangout database player snapshot write failed:", error.message);
+        }).catch((error) => {
+          console.warn("GC Hangout database player snapshot write failed:", error);
+        }).finally(() => {
+          databasePlayerWriteInFlight = false;
+        });
+      }
+
       if (socialReadyRef.current) {
         void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
           if (result === "error") console.warn("GC Hangout game player broadcast rejected");
         });
       }
+    };
+
+    const syncDatabasePlayers = async () => {
+      const cutoff = new Date(Date.now() - 15000).toISOString();
+      const { data, error } = await supabase
+        .from("gc_room_players")
+        .select("client_id,payload,last_seen")
+        .eq("room_id", ROOM_NAME)
+        .gt("last_seen", cutoff);
+      if (error) {
+        if (!databasePlayerReadErrorLogged) {
+          databasePlayerReadErrorLogged = true;
+          console.warn("GC Hangout database player snapshot read failed:", error.message);
+        }
+        return;
+      }
+      databasePlayerReadErrorLogged = false;
+      const seen = new Set();
+      for (const row of Array.isArray(data) ? data : []) {
+        const id = String(row?.client_id || "");
+        if (!id || id === clientIdRef.current || !row?.payload) continue;
+        seen.add(id);
+        mergeRemotePlayer({ ...row.payload, senderId: id });
+      }
+      // Keep transient broadcast/presence players briefly, then remove them if
+      // no fresh database snapshot confirms that they are still in the room.
+      const staleBefore = Date.now() - 2500;
+      let changed = false;
+      for (const [id, player] of remotePlayersRef.current) {
+        if (seen.has(id) || Number(player.lastSeen || 0) > staleBefore) continue;
+        remotePlayersRef.current.delete(id);
+        changed = true;
+      }
+      if (changed) onRemotePlayers?.(Array.from(remotePlayersRef.current.values()));
     };
 
     const syncMusicPresence = (state) => {
@@ -986,6 +1047,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
 
     const playerTimer = window.setInterval(publishPlayer, 150);
+    const databasePlayerTimer = window.setInterval(() => { void syncDatabasePlayers(); }, 700);
+    void syncDatabasePlayers();
     const ballTimer = window.setInterval(() => {
       const state = channel.presenceState?.() || {};
       const authorityId = getBallAuthorityId(state);
@@ -1111,6 +1174,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       remoteAudioRef.current.forEach((audio) => audio.remove());
       remoteAudioRef.current.clear();
       window.clearInterval(playerTimer);
+      window.clearInterval(databasePlayerTimer);
+      void supabase.from("gc_room_players").delete().eq("client_id", clientIdRef.current).eq("user_id", authUserId);
       window.clearInterval(ballTimer);
       window.clearInterval(pruneTimer);
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
