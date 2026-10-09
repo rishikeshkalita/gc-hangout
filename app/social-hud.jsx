@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EMOTES, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
+import { EMOTES, MUSIC_QUEUE_LIMIT, SOCIAL_EVENTS, chooseRoomAuthority, createClientId, currentMusicPosition, formatChatTime, normalizeEmote, normalizeMusicState, normalizeMusicTrack, sanitizeChatMessage } from "../lib/social-state.mjs";
 import { getSupabase, ensureAnonymousSession } from "../lib/supabase.js";
 
 const ROOM_NAME = "main";
@@ -122,22 +122,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
 
-  const getBallAuthorityId = useCallback((presenceSnapshot = null) => {
-    const presence = presenceSnapshot || channelRef.current?.presenceState?.() || {};
-    const presentIds = Object.entries(presence)
-      .filter(([id, entries]) => id !== clientIdRef.current
-        && Array.isArray(entries)
-        && entries.some((entry) => entry?.kind === "player"))
-      .map(([id]) => id);
-    const ids = new Set([clientIdRef.current, ...presentIds]);
-    if (presentIds.length === 0) {
-      const cutoff = Date.now() - 2500;
-      for (const [id, player] of remotePlayersRef.current) {
-        if (Number(player.lastSeen || 0) >= cutoff) ids.add(id);
-      }
-    }
-    return [...ids].sort()[0] || clientIdRef.current;
-  }, []);
+  const getBallAuthorityId = useCallback((presenceSnapshot = null) => (
+    chooseRoomAuthority(
+      clientIdRef.current,
+      presenceSnapshot || channelRef.current?.presenceState?.() || {},
+      remotePlayersRef.current,
+    )
+  ), []);
 
   const publishBallState = useCallback(() => {
     const snapshot = ballStateSnapshot(ballRef.current);
