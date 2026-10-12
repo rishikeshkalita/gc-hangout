@@ -101,6 +101,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const pendingCandidatesRef = useRef(new Map());
   const remoteAudioRef = useRef(new Map());
   const remoteStreamsRef = useRef(new Map());
+  const peerDisconnectTimersRef = useRef(new Map());
   const voiceEnabledRef = useRef(false);
   const sharedAudioUnlockedRef = useRef(false);
   const activePresenceIdsRef = useRef(new Set([clientIdRef.current]));
@@ -392,6 +393,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [interaction, interactionActivity, pushActivity]);
 
   const closePeer = useCallback((peerId) => {
+    const disconnectTimer = peerDisconnectTimersRef.current.get(peerId);
+    if (disconnectTimer) window.clearTimeout(disconnectTimer);
+    peerDisconnectTimersRef.current.delete(peerId);
     const pc = peersRef.current.get(peerId);
     if (pc) pc.close();
     peersRef.current.delete(peerId);
@@ -416,7 +420,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       remoteAudioRef.current.set(peerId, audio);
     }
     audio.srcObject = stream;
-    void audio.play().catch(() => {});
+    void audio.play().catch(() => {
+      setVoiceStatus("Voice connected, but this browser blocked remote audio. Tap the page and rejoin voice.");
+    });
   }, []);
 
   const sendSignal = useCallback((peerId, payload) => {
@@ -443,13 +449,37 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (stream) addRemoteStream(peerId, stream);
     };
     pc.onconnectionstatechange = () => {
-      if (["failed", "closed", "disconnected"].includes(pc.connectionState)) closePeer(peerId);
+      const state = pc.connectionState;
+      if (state === "connected") {
+        const timer = peerDisconnectTimersRef.current.get(peerId);
+        if (timer) window.clearTimeout(timer);
+        peerDisconnectTimersRef.current.delete(peerId);
+        setVoiceStatus("Voice connected");
+      } else if (state === "disconnected") {
+        const existing = peerDisconnectTimersRef.current.get(peerId);
+        if (!existing) {
+          const timer = window.setTimeout(() => {
+            peerDisconnectTimersRef.current.delete(peerId);
+            if (pc.connectionState === "disconnected" || pc.connectionState === "failed") closePeer(peerId);
+          }, 5000);
+          peerDisconnectTimersRef.current.set(peerId, timer);
+          setVoiceStatus("Voice reconnecting…");
+        }
+      } else if (state === "failed" || state === "closed") {
+        closePeer(peerId);
+      }
     };
 
     if (initiator) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await sendSignal(peerId, { kind: "offer", description: pc.localDescription });
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await sendSignal(peerId, { kind: "offer", description: pc.localDescription });
+      } catch (error) {
+        closePeer(peerId);
+        setVoiceStatus(error?.message || "Could not establish a voice connection.");
+        throw error;
+      }
     }
     return pc;
   }, [addRemoteStream, closePeer, sendSignal]);
@@ -1050,6 +1080,12 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const state = channel.presenceState();
       syncMusicPresence(state);
       readPresencePlayers(state);
+      const voiceIds = new Set(Object.entries(state)
+        .filter(([id, entries]) => id !== clientIdRef.current && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
+        .map(([id]) => id));
+      for (const id of peersRef.current.keys()) {
+        if (!voiceIds.has(id)) closePeer(id);
+      }
       if (!voiceEnabledRef.current) return;
       Object.entries(state)
         .filter(([id, entries]) => id !== clientIdRef.current && clientIdRef.current < id && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
@@ -1187,9 +1223,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         });
         if (voiceEnabledRef.current) {
           const state = channel.presenceState();
-          Object.keys(state)
-            .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
-            .forEach((id) => void ensurePeer(id, true));
+          Object.entries(state)
+            .filter(([id, entries]) => id !== clientIdRef.current && clientIdRef.current < id && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
+            .forEach(([id]) => void ensurePeer(id, true));
         }
         void sendInitialPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
@@ -1209,7 +1245,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       musicRefreshRef.current = null;
       peersRef.current.forEach((pc) => pc.close());
       peersRef.current.clear();
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      // Keep the local microphone stream alive across the one-time Auth state
+      // transition; the next channel subscription will renegotiate voice peers.
       remoteAudioRef.current.forEach((audio) => audio.remove());
       remoteAudioRef.current.clear();
       window.clearInterval(playerTimer);
@@ -1501,6 +1538,14 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       setMusicBusy(false);
     }
   }, [loadMusic]);
+
+  useEffect(() => () => {
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+    voiceEnabledRef.current = false;
+    peerDisconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    peerDisconnectTimersRef.current.clear();
+  }, []);
 
   useEffect(() => {
     setAudioSessionType("playback");
