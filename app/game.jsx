@@ -1416,7 +1416,6 @@ export default function Game() {
         emote={emote}
         pairAction={pairAction}
         speakerActive={interaction?.anchor?.type === "MUSIC_SPEAKER"}
-        initialAudioUnlocked={true}
       />
       {interaction?.anchor?.type === "SIT" && nearby.some((anchor) => anchor.id === "dining-eat") && (
         <button className="interaction-hint secondary-action" onPointerDown={(event) => event.stopPropagation()} onClick={() => beginInteraction(nearby.find((anchor) => anchor.id === "dining-eat"))}><strong>Eat</strong><span>Eat while sitting</span></button>
