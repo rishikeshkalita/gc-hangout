@@ -995,6 +995,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
     let lastDatabasePlayerWriteAt = 0;
     let lastBallBroadcastAt = 0;
+    let lastPlayerBroadcastAt = 0;
+    let playerBroadcastInFlight = false;
+    let ballBroadcastInFlight = false;
     let databasePlayerWriteInFlight = false;
     let databasePlayerReadErrorLogged = false;
 
@@ -1041,10 +1044,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         });
       }
 
-      if (socialReadyRef.current) {
-        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload }).then((result) => {
-          if (result === "error") console.warn("GC Hangout game player broadcast rejected");
-        });
+      // Position is replaceable state, not an event log. Never build a backlog
+      // of old transforms if the network is slow; send only the latest snapshot.
+      if (socialReadyRef.current && !playerBroadcastInFlight && now - lastPlayerBroadcastAt >= 150) {
+        playerBroadcastInFlight = true;
+        lastPlayerBroadcastAt = now;
+        void channel.send({ type: "broadcast", event: SOCIAL_EVENTS.PLAYER, payload })
+          .then((result) => {
+            if (result === "error") console.warn("GC Hangout game player broadcast rejected");
+          })
+          .catch((error) => console.warn("GC Hangout game player broadcast failed", error))
+          .finally(() => { playerBroadcastInFlight = false; });
       }
     };
 
@@ -1172,13 +1182,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         const snapshot = publishBallState();
         // Keep local physics at 30 Hz, but broadcast snapshots at 15 Hz to
         // reduce Realtime fan-out and database authorization pressure.
-        if (now - lastBallBroadcastAt >= 66) {
+        if (now - lastBallBroadcastAt >= 66 && !ballBroadcastInFlight) {
           lastBallBroadcastAt = now;
+          ballBroadcastInFlight = true;
           void channel.send({
             type: "broadcast",
             event: SOCIAL_EVENTS.BALL,
             payload: { ...snapshot, senderId: clientIdRef.current },
-          });
+          })
+            .catch((error) => console.warn("GC Hangout football snapshot failed", error))
+            .finally(() => { ballBroadcastInFlight = false; });
         }
       } else if (now < ballPredictionUntilRef.current) {
         // Short client-side prediction keeps the kick visible before the next
