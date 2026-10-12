@@ -1009,7 +1009,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       // broadcasts. This makes cross-device visibility recover even if a channel's
       // authorization or websocket delivery is unhealthy.
       const now = Date.now();
-      if (authUserId && !databasePlayerWriteInFlight && now - lastDatabasePlayerWriteAt >= 550) {
+      if (authUserId && !databasePlayerWriteInFlight && now - lastDatabasePlayerWriteAt >= 1500) {
         lastDatabasePlayerWriteAt = now;
         databasePlayerWriteInFlight = true;
         void supabase.from("gc_room_players").upsert({
@@ -1037,7 +1037,6 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const syncDatabasePlayers = async () => {
       if (!authUserId) return;
       const cutoff = new Date(Date.now() - 15000).toISOString();
-      if (!authUserId) return;
       const { data, error } = await supabase
         .from("gc_room_players")
         .select("client_id,payload,last_seen")
@@ -1110,7 +1109,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
 
     const playerTimer = window.setInterval(publishPlayer, 150);
-    const databasePlayerTimer = window.setInterval(() => { void syncDatabasePlayers(); }, 700);
+    const databasePlayerTimer = window.setInterval(() => { void syncDatabasePlayers(); }, 1800);
     void syncDatabasePlayers();
     const ballTimer = window.setInterval(() => {
       const state = channel.presenceState?.() || {};
@@ -1254,6 +1253,8 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (authUserId) void supabase.from("gc_room_players").delete().eq("client_id", clientIdRef.current).eq("user_id", authUserId);
       window.clearInterval(ballTimer);
       window.clearInterval(pruneTimer);
+      peerDisconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      peerDisconnectTimersRef.current.clear();
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
       socialReadyRef.current = false;
