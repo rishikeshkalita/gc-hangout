@@ -1294,8 +1294,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (error) throw error;
       let current = null;
       if (stateRow.current_track_id) {
-        const { data } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+        const { data, error: trackError } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+        if (trackError) throw trackError;
         current = normalizeMusicTrack(data);
+        if (!current) {
+          const { error: advanceError } = await client.rpc("gc_music_advance_if_current", { p_track_id: stateRow.current_track_id });
+          if (advanceError) throw advanceError;
+          window.setTimeout(() => void refreshMusicSnapshot(), 250);
+          return;
+        }
       }
       const { data: queueRows } = await client.from("gc_music_queue").select("id,queue_position,track:gc_music_tracks(*)").eq("room_id", ROOM_NAME).order("queue_position", { ascending: true }).limit(MUSIC_QUEUE_LIMIT);
       const { data: votes } = stateRow.current_track_id
