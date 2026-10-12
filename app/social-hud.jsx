@@ -122,6 +122,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const socialReadyRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
+  const authRetryTimerRef = useRef(null);
 
   const getBallAuthorityId = useCallback((presenceSnapshot = null) => (
     chooseRoomAuthority(
@@ -348,9 +349,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let attempts = 0;
+    const connectAuth = async () => {
       try {
-        const supabase = await getSupabase();
+        const supabase = getSupabase();
         if (!supabase) throw new Error("Supabase is not configured.");
         const session = await ensureAnonymousSession(supabase, { name: String(name || "Guest").slice(0, 18) });
         if (cancelled) return;
@@ -360,11 +362,23 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         // one tab to treat the other tab's messages as its own and collapse Presence.
         activePresenceIdsRef.current = new Set([clientIdRef.current]);
         setAuthUserId(session.user.id);
+        setMusicStatus("Shared music account connected.");
+        if (authRetryTimerRef.current) window.clearTimeout(authRetryTimerRef.current);
+        authRetryTimerRef.current = null;
       } catch (error) {
-        if (!cancelled) setMusicStatus(error?.message || "Anonymous multiplayer sign-in failed.");
+        if (cancelled) return;
+        setMusicStatus(error?.message || "Anonymous music sign-in failed; room movement and chat will still connect.");
+        const delay = Math.min(30000, 1000 * (2 ** Math.min(attempts, 5)));
+        attempts += 1;
+        authRetryTimerRef.current = window.setTimeout(connectAuth, delay);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    void connectAuth();
+    return () => {
+      cancelled = true;
+      if (authRetryTimerRef.current) window.clearTimeout(authRetryTimerRef.current);
+      authRetryTimerRef.current = null;
+    };
   }, [name]);
 
   const interactionActivity = useMemo(() => {
