@@ -64,7 +64,7 @@ function PanelButton({ active, children, onClick, label }) {
   return <button className={`social-tool ${active ? "active" : ""}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClick} aria-label={label || children}>{children}</button>;
 }
 
-export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, ballState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, onFootballScores, remotePlayers = [], initialAudioUnlocked = false }) {
+export default function SocialHud({ name, onMusicState, onEmote, emote = null, speakerActive = false, playerState = null, ballState = null, interaction = null, onRemotePlayers, onPairAction, onBallState, onFootballScores, remotePlayers = [] }) {
   const [panel, setPanel] = useState(null);
   const [chat, setChat] = useState([]);
   const [chatToasts, setChatToasts] = useState([]);
@@ -101,8 +101,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const pendingCandidatesRef = useRef(new Map());
   const remoteAudioRef = useRef(new Map());
   const remoteStreamsRef = useRef(new Map());
+  const peerDisconnectTimersRef = useRef(new Map());
   const voiceEnabledRef = useRef(false);
-  const sharedAudioUnlockedRef = useRef(Boolean(initialAudioUnlocked));
+  const sharedAudioUnlockedRef = useRef(false);
   const activePresenceIdsRef = useRef(new Set([clientIdRef.current]));
   const nameRef = useRef(name);
   const playerStateRef = useRef(playerState);
@@ -121,6 +122,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const socialReadyRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const reconnectTimerRef = useRef(null);
+  const authRetryTimerRef = useRef(null);
 
   const getBallAuthorityId = useCallback((presenceSnapshot = null) => (
     chooseRoomAuthority(
@@ -347,9 +349,10 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let attempts = 0;
+    const connectAuth = async () => {
       try {
-        const supabase = await getSupabase();
+        const supabase = getSupabase();
         if (!supabase) throw new Error("Supabase is not configured.");
         const session = await ensureAnonymousSession(supabase, { name: String(name || "Guest").slice(0, 18) });
         if (cancelled) return;
@@ -359,11 +362,23 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         // one tab to treat the other tab's messages as its own and collapse Presence.
         activePresenceIdsRef.current = new Set([clientIdRef.current]);
         setAuthUserId(session.user.id);
+        setMusicStatus("Shared music account connected.");
+        if (authRetryTimerRef.current) window.clearTimeout(authRetryTimerRef.current);
+        authRetryTimerRef.current = null;
       } catch (error) {
-        if (!cancelled) setMusicStatus(error?.message || "Anonymous multiplayer sign-in failed.");
+        if (cancelled) return;
+        setMusicStatus(error?.message || "Anonymous music sign-in failed; room movement and chat will still connect.");
+        const delay = Math.min(30000, 1000 * (2 ** Math.min(attempts, 5)));
+        attempts += 1;
+        authRetryTimerRef.current = window.setTimeout(connectAuth, delay);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    void connectAuth();
+    return () => {
+      cancelled = true;
+      if (authRetryTimerRef.current) window.clearTimeout(authRetryTimerRef.current);
+      authRetryTimerRef.current = null;
+    };
   }, [name]);
 
   const interactionActivity = useMemo(() => {
@@ -392,6 +407,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [interaction, interactionActivity, pushActivity]);
 
   const closePeer = useCallback((peerId) => {
+    const disconnectTimer = peerDisconnectTimersRef.current.get(peerId);
+    if (disconnectTimer) window.clearTimeout(disconnectTimer);
+    peerDisconnectTimersRef.current.delete(peerId);
     const pc = peersRef.current.get(peerId);
     if (pc) pc.close();
     peersRef.current.delete(peerId);
@@ -416,7 +434,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       remoteAudioRef.current.set(peerId, audio);
     }
     audio.srcObject = stream;
-    void audio.play().catch(() => {});
+    void audio.play().catch(() => {
+      setVoiceStatus("Voice connected, but this browser blocked remote audio. Tap the page and rejoin voice.");
+    });
   }, []);
 
   const sendSignal = useCallback((peerId, payload) => {
@@ -443,13 +463,37 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (stream) addRemoteStream(peerId, stream);
     };
     pc.onconnectionstatechange = () => {
-      if (["failed", "closed", "disconnected"].includes(pc.connectionState)) closePeer(peerId);
+      const state = pc.connectionState;
+      if (state === "connected") {
+        const timer = peerDisconnectTimersRef.current.get(peerId);
+        if (timer) window.clearTimeout(timer);
+        peerDisconnectTimersRef.current.delete(peerId);
+        setVoiceStatus("Voice connected");
+      } else if (state === "disconnected") {
+        const existing = peerDisconnectTimersRef.current.get(peerId);
+        if (!existing) {
+          const timer = window.setTimeout(() => {
+            peerDisconnectTimersRef.current.delete(peerId);
+            if (pc.connectionState === "disconnected" || pc.connectionState === "failed") closePeer(peerId);
+          }, 5000);
+          peerDisconnectTimersRef.current.set(peerId, timer);
+          setVoiceStatus("Voice reconnecting…");
+        }
+      } else if (state === "failed" || state === "closed") {
+        closePeer(peerId);
+      }
     };
 
     if (initiator) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await sendSignal(peerId, { kind: "offer", description: pc.localDescription });
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await sendSignal(peerId, { kind: "offer", description: pc.localDescription });
+      } catch (error) {
+        closePeer(peerId);
+        setVoiceStatus(error?.message || "Could not establish a voice connection.");
+        throw error;
+      }
     }
     return pc;
   }, [addRemoteStream, closePeer, sendSignal]);
@@ -530,9 +574,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
           voice: true,
         });
         const state = channelRef.current?.presenceState?.() || {};
-        Object.keys(state)
-          .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
-          .forEach((id) => void ensurePeer(id, true));
+        Object.entries(state)
+          .filter(([id, entries]) => id !== clientIdRef.current && clientIdRef.current < id && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
+          .forEach(([id]) => void ensurePeer(id, true));
       }
     } catch (error) {
       voiceEnabledRef.current = false;
@@ -564,16 +608,20 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   }, [muted]);
 
   useEffect(() => {
-    if (!authUserId) return undefined;
     const supabase = getSupabase();
     supabaseRef.current = supabase;
     if (!supabase) {
       setVoiceStatus("Social backend not configured");
+      setMusicStatus("Supabase is not configured for this deployment.");
       return undefined;
     }
 
+    // The room itself is public. Realtime must not depend on anonymous Auth
+    // succeeding: otherwise one Auth setting can silently disable chat, player
+    // movement, football, emotes, and voice signaling at the same time.
+    // Auth is still required for database snapshots and the private music library.
     const channel = supabase.channel(`gc-hangout:${ROOM_NAME}`, {
-      config: { private: true, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
+      config: { private: false, broadcast: { self: false, ack: true }, presence: { key: clientIdRef.current } },
     });
     channelRef.current = channel;
 
@@ -678,14 +726,24 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
     const refreshMusicSnapshot = async () => {
       const client = supabaseRef.current;
-      if (!client || !socialReadyRef.current) return;
+      if (!client || !socialReadyRef.current || !authUserId) return;
       try {
         const { data: stateRow, error: stateError } = await client.from("gc_music_state").select("*").eq("room_id", ROOM_NAME).single();
         if (stateError) throw stateError;
         let current = null;
         if (stateRow.current_track_id) {
-          const { data } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+          const { data, error: trackError } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+          if (trackError) throw trackError;
           current = normalizeMusicTrack(data);
+          // An expired/deleted current track is hidden by RLS. Advance it via the
+          // guarded RPC so the shared room doesn't remain stuck on a dead track.
+          if (!current) {
+            const { error: advanceError } = await client.rpc("gc_music_advance_if_current", { p_track_id: stateRow.current_track_id });
+            if (advanceError) throw advanceError;
+            if (musicRefreshRef.current) window.clearTimeout(musicRefreshRef.current);
+            musicRefreshRef.current = window.setTimeout(refreshMusicSnapshot, 250);
+            return;
+          }
         }
         const { data: queueRows } = await client.from("gc_music_queue").select("id,queue_position,track:gc_music_tracks(*)").eq("room_id", ROOM_NAME).order("queue_position", { ascending: true }).limit(MUSIC_QUEUE_LIMIT);
         const { data: votes } = stateRow.current_track_id
@@ -751,11 +809,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (roomAudioRef.current) roomAudioRef.current.volume = volume;
     });
 
-    channel
-      .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_state", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_queue", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_tracks", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); });
-    void refreshMusicSnapshot();
+    if (authUserId) {
+      channel
+        .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_state", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_queue", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "gc_music_tracks", filter: "room_id=eq.main" }, () => { void refreshMusicSnapshot(); });
+      void refreshMusicSnapshot();
+    }
 
     channel.on("broadcast", { event: SOCIAL_EVENTS.VOICE }, async ({ payload }) => {
       if (payload?.senderId === clientIdRef.current || payload?.to !== clientIdRef.current) return;
@@ -963,7 +1023,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       // broadcasts. This makes cross-device visibility recover even if a channel's
       // authorization or websocket delivery is unhealthy.
       const now = Date.now();
-      if (authUserId && !databasePlayerWriteInFlight && now - lastDatabasePlayerWriteAt >= 550) {
+      if (authUserId && !databasePlayerWriteInFlight && now - lastDatabasePlayerWriteAt >= 1500) {
         lastDatabasePlayerWriteAt = now;
         databasePlayerWriteInFlight = true;
         void supabase.from("gc_room_players").upsert({
@@ -989,6 +1049,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     };
 
     const syncDatabasePlayers = async () => {
+      if (!authUserId) return;
       const cutoff = new Date(Date.now() - 15000).toISOString();
       const { data, error } = await supabase
         .from("gc_room_players")
@@ -1032,10 +1093,16 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       const state = channel.presenceState();
       syncMusicPresence(state);
       readPresencePlayers(state);
+      const voiceIds = new Set(Object.entries(state)
+        .filter(([id, entries]) => id !== clientIdRef.current && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
+        .map(([id]) => id));
+      for (const id of peersRef.current.keys()) {
+        if (!voiceIds.has(id)) closePeer(id);
+      }
       if (!voiceEnabledRef.current) return;
-      Object.keys(state)
-        .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
-        .forEach((id) => void ensurePeer(id, true));
+      Object.entries(state)
+        .filter(([id, entries]) => id !== clientIdRef.current && clientIdRef.current < id && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
+        .forEach(([id]) => void ensurePeer(id, true));
     });
     channel.on("presence", { event: "join" }, ({ key, newPresences }) => {
       const state = channel.presenceState();
@@ -1044,7 +1111,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         const meta = Array.isArray(newPresences) ? newPresences[0] : null;
         if (meta?.kind === "player") mergeRemotePlayer({ ...meta, senderId: key });
       }
-      if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key) void ensurePeer(key, true);
+      if (voiceEnabledRef.current && key !== clientIdRef.current && clientIdRef.current < key && Array.isArray(newPresences) && newPresences.some((entry) => entry?.voice === true)) void ensurePeer(key, true);
     });
     channel.on("presence", { event: "leave" }, ({ key, leftPresences }) => {
       const state = channel.presenceState();
@@ -1056,7 +1123,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     });
 
     const playerTimer = window.setInterval(publishPlayer, 150);
-    const databasePlayerTimer = window.setInterval(() => { void syncDatabasePlayers(); }, 700);
+    const databasePlayerTimer = window.setInterval(() => { void syncDatabasePlayers(); }, 1800);
     void syncDatabasePlayers();
     const ballTimer = window.setInterval(() => {
       const state = channel.presenceState?.() || {};
@@ -1152,6 +1219,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     const handleSocialStatus = (status) => {
       socialReadyRef.current = status === "SUBSCRIBED";
       if (status === "SUBSCRIBED") {
+        setVoiceStatus(voiceEnabledRef.current ? "Room connected · voice starting…" : "Room connected · tap mic to join voice");
+        if (!authUserId) setMusicStatus("Room connected. Sign in is unavailable; shared music library is disabled.");
+        else void refreshMusicSnapshot();
         const state = playerStateRef.current;
         void channel.track({
           kind: "player",
@@ -1167,9 +1237,9 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
         });
         if (voiceEnabledRef.current) {
           const state = channel.presenceState();
-          Object.keys(state)
-            .filter((id) => id !== clientIdRef.current && clientIdRef.current < id)
-            .forEach((id) => void ensurePeer(id, true));
+          Object.entries(state)
+            .filter(([id, entries]) => id !== clientIdRef.current && clientIdRef.current < id && Array.isArray(entries) && entries.some((entry) => entry?.voice === true))
+            .forEach(([id]) => void ensurePeer(id, true));
         }
         void sendInitialPlayer();
       } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
@@ -1189,14 +1259,17 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       musicRefreshRef.current = null;
       peersRef.current.forEach((pc) => pc.close());
       peersRef.current.clear();
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      // Keep the local microphone stream alive across the one-time Auth state
+      // transition; the next channel subscription will renegotiate voice peers.
       remoteAudioRef.current.forEach((audio) => audio.remove());
       remoteAudioRef.current.clear();
       window.clearInterval(playerTimer);
       window.clearInterval(databasePlayerTimer);
-      void supabase.from("gc_room_players").delete().eq("client_id", clientIdRef.current).eq("user_id", authUserId);
+      if (authUserId) void supabase.from("gc_room_players").delete().eq("client_id", clientIdRef.current).eq("user_id", authUserId);
       window.clearInterval(ballTimer);
       window.clearInterval(pruneTimer);
+      peerDisconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      peerDisconnectTimersRef.current.clear();
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
       socialReadyRef.current = false;
@@ -1222,8 +1295,15 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (error) throw error;
       let current = null;
       if (stateRow.current_track_id) {
-        const { data } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+        const { data, error: trackError } = await client.from("gc_music_tracks").select("*").eq("id", stateRow.current_track_id).maybeSingle();
+        if (trackError) throw trackError;
         current = normalizeMusicTrack(data);
+        if (!current) {
+          const { error: advanceError } = await client.rpc("gc_music_advance_if_current", { p_track_id: stateRow.current_track_id });
+          if (advanceError) throw advanceError;
+          window.setTimeout(() => void refreshMusicSnapshot(), 250);
+          return;
+        }
       }
       const { data: queueRows } = await client.from("gc_music_queue").select("id,queue_position,track:gc_music_tracks(*)").eq("room_id", ROOM_NAME).order("queue_position", { ascending: true }).limit(MUSIC_QUEUE_LIMIT);
       const { data: votes } = stateRow.current_track_id
@@ -1345,11 +1425,30 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
   const unlockAudio = useCallback(async () => {
     const audio = roomAudioRef.current;
     if (!audio) return;
+    const state = musicStateRef.current;
+    const canResumeCurrentTrack = Boolean(state.current && state.playing && audio.src);
     try {
-      await audio.play();
+      if (canResumeCurrentTrack) {
+        await audio.play();
+      } else {
+        // Unlock this audio element synchronously from the user's click even when
+        // no track is loaded yet. The shared state effect loads the real track next.
+        audio.src = "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+        await audio.play();
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+        roomAudioTrackRef.current = "";
+      }
+      sharedAudioUnlockedRef.current = true;
       setAudioBlocked(false);
-    } catch {
-      setMusicStatus("Browser audio permission is still blocked.");
+      setMusicStatus("Room audio enabled on this device.");
+      if (state.current && state.playing) {
+        setMusicState((current) => ({ ...current, updatedAt: Date.now() }));
+      }
+    } catch (error) {
+      setAudioBlocked(true);
+      setMusicStatus(error?.message || "Browser audio permission is still blocked.");
     }
   }, []);
 
@@ -1463,6 +1562,14 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     }
   }, [loadMusic]);
 
+  useEffect(() => () => {
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+    voiceEnabledRef.current = false;
+    peerDisconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    peerDisconnectTimersRef.current.clear();
+  }, []);
+
   useEffect(() => {
     setAudioSessionType("playback");
     const audio = roomAudioRef.current || new Audio();
@@ -1472,10 +1579,13 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
     audio.crossOrigin = "anonymous";
     audio.volume = Math.max(0, Math.min(1, Number(musicStateRef.current.volume ?? 0.8)));
 
-    const handlePlaying = () => setAudioBlocked(false);
+    const handlePlaying = () => {
+      setAudioBlocked(false);
+      if (sharedAudioUnlockedRef.current) setMusicStatus("Room audio playing.");
+    };
     const handleError = () => {
       setAudioBlocked(true);
-      setMusicStatus("The shared audio stream could not be played on this device.");
+      setMusicStatus("The shared audio stream could not be played. Tap Enable Room Audio.");
     };
     audio.addEventListener("playing", handlePlaying);
     audio.addEventListener("error", handleError);
