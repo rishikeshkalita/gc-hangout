@@ -1221,6 +1221,7 @@ export default function SocialHud({ name, onMusicState, onEmote, emote = null, s
       if (status === "SUBSCRIBED") {
         setVoiceStatus(voiceEnabledRef.current ? "Room connected · voice starting…" : "Room connected · tap mic to join voice");
         if (!authUserId) setMusicStatus("Room connected. Sign in is unavailable; shared music library is disabled.");
+        else void refreshMusicSnapshot();
         const state = playerStateRef.current;
         void channel.track({
           kind: "player",
